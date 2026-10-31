@@ -1,0 +1,78 @@
+import type { FieldDefinition } from "@/components/ui/form";
+import { SportTypeValues, TierClassificationValues } from "@/contracts/enums.generated";
+export const profileFields: readonly FieldDefinition[] = [
+  { name: "dateOfBirth", label: "Date of birth", type: "date", required: true },
+  {
+    name: "gender",
+    label: "Gender",
+    type: "select",
+    options: ["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"],
+    required: true,
+  },
+  {
+    name: "primarySport",
+    label: "Primary sport",
+    type: "select",
+    options: SportTypeValues,
+    required: true,
+  },
+  {
+    name: "secondarySports",
+    label: "Other sports",
+    valueType: "list",
+    hint: "Comma-separated sport names, e.g. FOOTBALL, ATHLETICS.",
+  },
+  { name: "district", label: "District", required: true },
+  { name: "state", label: "State", required: true },
+  {
+    name: "tierClassification",
+    label: "Regional classification",
+    type: "select",
+    options: TierClassificationValues,
+  },
+  {
+    name: "heightCm",
+    label: "Height (cm)",
+    type: "number",
+    valueType: "number",
+    min: 50,
+    max: 260,
+  },
+  {
+    name: "weightKg",
+    label: "Weight (kg)",
+    type: "number",
+    valueType: "number",
+    min: 20,
+    max: 200,
+  },
+  {
+    name: "dominantSide",
+    label: "Dominant side",
+    type: "select",
+    options: ["RIGHT", "LEFT", "BOTH"],
+  },
+  {
+    name: "locationLat",
+    label: "Home latitude",
+    type: "number",
+    valueType: "number",
+    min: -90,
+    max: 90,
+  },
+  {
+    name: "locationLng",
+    label: "Home longitude",
+    type: "number",
+    valueType: "number",
+    min: -180,
+    max: 180,
+  },
+  {
+    name: "isScoutSearchable",
+    label: "Appear in scout search",
+    type: "select",
+    options: ["true", "false"],
+    valueType: "boolean",
+  },
+];

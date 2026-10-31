@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+[data-theme="kheleo-gold-crimson"] {
+  color-scheme: dark;
+
+  /* Primary KheLEO Hex Tokens */
+  --kheleo-bg-canvas: #0A0A0E;
+  --kheleo-bg-surface: #14141C;
+  --kheleo-bg-elevated: #1E1E2A;
+  --kheleo-gold-primary: #F5B014;
+  --kheleo-gold-shimmer: #FFE07D;
+  --kheleo-crimson-primary: #D91E2A;
+  --kheleo-silver-chrome: #E2E8F0;
+  --kheleo-silver-muted: #94A3B8;
+  --kheleo-status-danger: #FF2A3B;
+  --kheleo-status-warning: #F59E0B;
+  --kheleo-status-success: #10B981;
+
+  /* RGB Channel Tokens for Tailwind opacity utilities */
+  --kheleo-obsidian: 10 10 14;
+  --kheleo-carbon: 20 20 28;
+  --kheleo-surface-raised: 30 30 42;
+  --kheleo-gold-rgb: 245 176 20;
+  --kheleo-gold-highlight: 255 224 125;
+  --kheleo-crimson-rgb: 217 30 42;
+  --kheleo-silver-primary: 226 232 240;
+  --kheleo-text-muted: 148 163 184;
+  --kheleo-border: 58 60 76;
+  --kheleo-success: 16 185 129;
+  --kheleo-info: 125 183 255;
+  --kheleo-text-on-crimson: 255 255 255;
+
+  /* Semantic UI Tokens */
+  --background: var(--kheleo-obsidian);
+  --foreground: var(--kheleo-silver-primary);
+  --card: var(--kheleo-carbon);
+  --card-foreground: var(--foreground);
+  --popover: var(--kheleo-surface-raised);
+  --popover-foreground: var(--foreground);
+  --primary: var(--kheleo-gold-rgb);
+  --primary-foreground: var(--kheleo-obsidian);
+  --secondary: var(--kheleo-surface-raised);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--kheleo-carbon);
+  --muted-foreground: var(--kheleo-text-muted);
+  --accent: var(--kheleo-gold-highlight);
+  --accent-foreground: var(--kheleo-obsidian);
+  --destructive: var(--kheleo-crimson-rgb);
+  --destructive-foreground: var(--kheleo-text-on-crimson);
+  --success: var(--kheleo-success);
+  --success-foreground: var(--kheleo-obsidian);
+  --warning: var(--kheleo-gold-rgb);
+  --warning-foreground: var(--kheleo-obsidian);
+  --info: var(--kheleo-info);
+  --info-foreground: var(--kheleo-obsidian);
+  --border: var(--kheleo-border);
+  --input: var(--kheleo-border);
+  --ring: var(--kheleo-gold-highlight);
+
+  /* Chart & Visual Gradients */
+  --chart-gti: var(--kheleo-gold-rgb);
+  --chart-participation: var(--kheleo-silver-primary);
+  --chart-equity: var(--kheleo-info);
+  --chart-critical: var(--kheleo-crimson-rgb);
+  --kheleo-metallic-gold: linear-gradient(120deg, #F5B014, #FFE07D 48%, #F5B014);
+  --kheleo-metallic-silver: linear-gradient(120deg, #94A3B8, #E2E8F0 48%, #94A3B8);
+  --radius: 0.75rem;
+}
+
+[data-theme="cyber-blue"] {
+  color-scheme: dark;
+  --kheleo-bg-canvas: #060B14;
+  --kheleo-bg-surface: #0E1726;
+  --kheleo-bg-elevated: #15233D;
+  --kheleo-gold-primary: #00F0FF;
+  --kheleo-gold-shimmer: #80F7FF;
+  --kheleo-crimson-primary: #FF0055;
+  --kheleo-silver-chrome: #E0E7FF;
+  --kheleo-silver-muted: #818CF8;
+  --kheleo-status-danger: #FF0055;
+  --kheleo-status-warning: #F59E0B;
+  --kheleo-status-success: #10B981;
+
+  --kheleo-obsidian: 6 11 20;
+  --kheleo-carbon: 14 23 38;
+  --kheleo-surface-raised: 21 35 61;
+  --kheleo-gold-rgb: 0 240 255;
+  --kheleo-gold-highlight: 128 247 255;
+  --kheleo-crimson-rgb: 255 0 85;
+  --kheleo-silver-primary: 224 231 255;
+  --kheleo-text-muted: 129 140 248;
+  --kheleo-border: 37 56 89;
+
+  --kheleo-metallic-gold: linear-gradient(120deg, #00F0FF, #80F7FF 48%, #00F0FF);
+  --kheleo-metallic-silver: linear-gradient(120deg, #818CF8, #E0E7FF 48%, #818CF8);
+}
+
+[data-theme="royal-emerald"] {
+  color-scheme: dark;
+  --kheleo-bg-canvas: #05130E;
+  --kheleo-bg-surface: #0B221A;
+  --kheleo-bg-elevated: #123328;
+  --kheleo-gold-primary: #10B981;
+  --kheleo-gold-shimmer: #6EE7B7;
+  --kheleo-crimson-primary: #E11D48;
+  --kheleo-silver-chrome: #ECFDF5;
+  --kheleo-silver-muted: #6EE7B7;
+  --kheleo-status-danger: #E11D48;
+  --kheleo-status-warning: #F59E0B;
+  --kheleo-status-success: #10B981;
+
+  --kheleo-obsidian: 5 19 14;
+  --kheleo-carbon: 11 34 26;
+  --kheleo-surface-raised: 18 51 40;
+  --kheleo-gold-rgb: 16 185 129;
+  --kheleo-gold-highlight: 110 231 183;
+  --kheleo-crimson-rgb: 225 29 72;
+  --kheleo-silver-primary: 236 253 245;
+  --kheleo-text-muted: 110 231 183;
+  --kheleo-border: 24 74 58;
+
+  --kheleo-metallic-gold: linear-gradient(120deg, #10B981, #6EE7B7 48%, #10B981);
+  --kheleo-metallic-silver: linear-gradient(120deg, #059669, #ECFDF5 48%, #059669);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    margin: 0;
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--ring));
+    outline-offset: 3px;
+  }
+  input,
+  select,
+  textarea {
+    color-scheme: dark;
+  }
+  ::selection {
+    background: rgb(var(--primary) / 0.28);
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[.2em] text-primary;
+  }
+  .field {
+    @apply flex flex-col gap-2 text-sm font-medium;
+  }
+  .control {
+    @apply w-full min-w-0 rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-ring;
+  }
+  .panel {
+    @apply rounded-xl border bg-card p-5 sm:p-6;
+  }
+  .page-title {
+    @apply text-3xl font-semibold tracking-tight sm:text-4xl;
+  }
+}
+
+@layer utilities {
+  .bg-metallic-gold {
+    background: var(--kheleo-metallic-gold);
+  }
+  .bg-metallic-silver {
+    background: var(--kheleo-metallic-silver);
+  }
+  .text-metallic-gold {
+    background: var(--kheleo-metallic-gold);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .crimson-glow {
+    box-shadow: 0 0 20px -3px var(--kheleo-crimson-primary);
+  }
+  .gold-glow {
+    box-shadow: 0 0 20px -3px var(--kheleo-gold-primary);
+  }
+  .border-crimson-glow {
+    border-color: var(--kheleo-crimson-primary);
+    box-shadow: 0 0 15px -2px rgba(217, 30, 42, 0.45);
+  }
+  .border-gold-glow {
+    border-color: var(--kheleo-gold-primary);
+    box-shadow: 0 0 15px -2px rgba(245, 176, 20, 0.45);
+  }
+  .glass-card {
+    background: rgba(20, 20, 28, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: rgb(var(--card));
+  font: inherit;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgb(var(--card));
+  color: rgb(var(--foreground));
+}
+.leaflet-control-attribution {
+  color: rgb(var(--foreground)) !important;
+  background: rgb(var(--card)) !important;
+}
+.leaflet-control-attribution a {
+  color: rgb(var(--primary)) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

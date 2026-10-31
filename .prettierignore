@@ -1,0 +1,9 @@
+node_modules/
+.next/
+public/mediapipe/
+public/models/
+playwright-report/
+test-results/
+pnpm-lock.yaml
+docs/contracts/schema.prisma
+next-env.d.ts
