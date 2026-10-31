@@ -189,6 +189,21 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (path.includes("/register")) {
+    if (path.includes(ids.higher)) {
+      ok({
+        registrationId: ids.registration,
+        bracketId: ids.higher,
+        tournamentId: ids.tournament,
+        athleteId: ids.profile,
+        tierName: "GOLD",
+        athleteGti: 72.5,
+        status: "CONFIRMED",
+        feePaid: 500,
+        registeredAt: "2026-10-31T00:00:00.000Z",
+        teamId: null,
+      });
+      return;
+    }
     send(
       response,
       problem(409, "Your GTI exceeds this bracket's maximum.", {
@@ -262,6 +277,19 @@ const server = createServer(async (request, response) => {
   }
   if (path.startsWith("tournaments/")) {
     ok({ ...makeTournament(), brackets: [makeBracket()] });
+    return;
+  }
+  if (path.startsWith("gti/recalculate/")) {
+    ok({
+      athleteId: ids.athlete,
+      gti: 72.5,
+      previousGti: 72.5,
+      biomechanicalScore: 80,
+      wearableScore: 70,
+      matchPerformanceScore: 67.5,
+      eliteBreached: false,
+      scoutAlertTriggered: false,
+    });
     return;
   }
   if (path.startsWith("gti/rank/")) {

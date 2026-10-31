@@ -12,4 +12,5 @@ export interface BiometricSource {
   ): Promise<void>;
   stop(): void;
 }
-export type SimulatorScenario = "normal" | "warning" | "critical";
+export type SimulatorScenario =
+  "normal" | "warning" | "critical" | "heat-exhaustion" | "cardiac-strain";

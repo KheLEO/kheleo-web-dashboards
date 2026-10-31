@@ -10,16 +10,18 @@ export function SimulatorControls({
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {(["normal", "warning", "critical"] as const).map((scenario) => (
-        <Button
-          key={scenario}
-          variant="secondary"
-          disabled={disabled}
-          onClick={() => start(scenario)}
-        >
-          Simulate {scenario}
-        </Button>
-      ))}
+      {(["normal", "warning", "critical", "heat-exhaustion", "cardiac-strain"] as const).map(
+        (scenario) => (
+          <Button
+            key={scenario}
+            variant="secondary"
+            disabled={disabled}
+            onClick={() => start(scenario)}
+          >
+            Simulate {scenario.replaceAll("-", " ")}
+          </Button>
+        ),
+      )}
     </div>
   );
 }

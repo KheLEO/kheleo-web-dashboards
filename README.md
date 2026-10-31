@@ -42,6 +42,7 @@ Public signup creates athletes only. Other roles must already be provisioned by 
 | `APP_ENV`                                      | `development`, `test`, `staging`, or `production`                                      |
 | `NEXT_PUBLIC_SOCKET_ORIGIN`                    | Backend origin without `/api/v1`; backend CORS must allow the frontend                 |
 | `NEXT_PUBLIC_TILE_URL`                         | OSM-compatible raster tiles, with attribution retained                                 |
+| `DRILL_PRACTICE_INGESTION`                     | Defaults to `false`; provisional practice submissions require isolated staging         |
 | `DRILL_HMAC_SECRET`                            | Server-only secret matching NestJS; submission remains calibration-gated               |
 | `TELEMETRY_SERVICE_HMAC_SECRET`                | Server-only secret matching NestJS telemetry signing                                   |
 | `SAFE_EVENTS_VERIFIED`                         | Leave `false` until backend socket confidentiality is independently fixed and verified |
@@ -53,13 +54,13 @@ Production requires HTTPS, private Redis access, and an explicitly configured ba
 
 - Tournament editing, owned event directories, organizer roster operations, leaderboard lists, full dossiers, and admin APIs are absent in the current backend.
 - The safety gateway currently broadcasts sensitive alerts globally. `/ws/events` subscriptions default to disabled. Matchmaking uses its separate namespace.
-- Nearby search returns at most 20 results; the backend's UUID cursor does not match distance ordering, so exhaustive scrolling is disabled.
+- Nearby discovery requests 20 rows per page and retains at most five pages. Load more is explicitly best-effort: the backend UUID cursor does not match distance ordering, so results can be omitted or repeated and are not exhaustive.
 - The standard Bluetooth HR service supplies no SpO₂ or temperature. Missing measurements remain unavailable; hardware ingestion is blocked until full device/context contracts exist.
 - Production pose scoring is unapproved. Tracking and angle feedback work; GTI submission is rejected on the server.
 - Simulator readings are labeled and remain local outside explicitly isolated staging. Simulator ingestion cannot target match/tournament records.
 - Logout clears the web session/resources. Backend token revocation requires an API that does not yet exist.
 
-See [verification evidence](docs/verification.md), [backend contracts](docs/backend-contracts.md), [dependencies](docs/backend-dependencies.md), and [architecture](docs/architecture.md).
+See [athlete portal and Phase 1 audit](docs/athlete-portal.md), [verification evidence](docs/verification.md), [backend contracts](docs/backend-contracts.md), [dependencies](docs/backend-dependencies.md), and [architecture](docs/architecture.md).
 
 ## Verification
 
@@ -89,4 +90,4 @@ pnpm start
 
 The production server listens on port 3001. Provision configuration through server environment variables. Use a shared Redis namespace across frontend instances for refresh coordination. Preserve WebSocket connections at the backend reverse proxy and configure its allowed origin.
 
-No backend source changes, production deployment, commit, or push are performed by this implementation.
+Backend source and production deployments are outside this frontend change.

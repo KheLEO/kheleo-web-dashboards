@@ -53,7 +53,9 @@ export function PoolStatus({
               <h2 className="mt-5 text-2xl font-semibold">
                 {query.data.status === "MATCHED"
                   ? "Your roster is ready"
-                  : `Queue position ${query.data.waitPosition}`}
+                  : query.data.status === "MATCHING"
+                    ? "Matching complementary positions"
+                    : `Queue position ${query.data.waitPosition}`}
               </h2>
               <p className="my-4 text-sm text-muted-foreground">
                 {query.data.primaryRole} · {query.data.sport}

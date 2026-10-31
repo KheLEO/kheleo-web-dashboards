@@ -1,11 +1,10 @@
+import { sessionCapabilities } from "@/server/capabilities";
 import type { ReactNode } from "react";
 import { requireWorkspace } from "@/server/auth/require-session";
-import { getEnvironment } from "@/server/env";
 import { SessionProvider } from "@/features/auth/session-provider";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Header } from "@/components/shell/header";
 import { MobileBottomNav } from "./MobileBottomNav";
-import { DemoRoleSwitcher } from "@/components/shared/DemoRoleSwitcher";
 import type { Workspace } from "@/server/auth/permissions";
 
 export interface AppShellProps {
@@ -15,20 +14,13 @@ export interface AppShellProps {
 
 export async function AppShell({ workspace, children }: AppShellProps) {
   const session = await requireWorkspace(workspace);
-  const env = getEnvironment();
 
   return (
     <SessionProvider
       initial={{
         user: session.user,
         expiresAt: session.expiresAt,
-        capabilities: {
-          safeEvents: env.SAFE_EVENTS_VERIFIED === "true",
-          simulatorIngestion:
-            env.APP_ENV === "staging" &&
-            env.SIMULATOR_INGESTION === "true" &&
-            env.STAGING_DATA_ISOLATED === "true",
-        },
+        capabilities: sessionCapabilities(),
       }}
     >
       <div className="min-h-dvh bg-background text-foreground">
@@ -55,9 +47,6 @@ export async function AppShell({ workspace, children }: AppShellProps) {
 
         {/* Mobile Sticky Bottom Navigation */}
         <MobileBottomNav workspace={workspace} />
-
-        {/* Floating Demo Role Switcher for Campus Testing */}
-        <DemoRoleSwitcher />
       </div>
     </SessionProvider>
   );

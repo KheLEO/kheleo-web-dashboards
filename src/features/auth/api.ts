@@ -6,7 +6,11 @@ import type { MutationOperation } from "@/lib/api/operation";
 export const browserSessionSchema = z.object({
   user: authUserSchema,
   expiresAt: z.number(),
-  capabilities: z.object({ safeEvents: z.boolean(), simulatorIngestion: z.boolean() }),
+  capabilities: z.object({
+    safeEvents: z.boolean(),
+    simulatorIngestion: z.boolean(),
+    drillPracticeIngestion: z.boolean().default(false),
+  }),
 });
 export type BrowserSession = z.infer<typeof browserSessionSchema>;
 export async function authenticate(

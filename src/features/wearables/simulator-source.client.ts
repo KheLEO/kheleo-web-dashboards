@@ -9,6 +9,8 @@ export function simulatedReading(
     normal: { heartRate: 110, spo2: 98, skinTemperature: 36.6 },
     warning: { heartRate: 188, spo2: 92, skinTemperature: 38.7 },
     critical: { heartRate: 202, spo2: 88, skinTemperature: 39.8 },
+    "heat-exhaustion": { heartRate: 170, spo2: 95, skinTemperature: 40.2 },
+    "cardiac-strain": { heartRate: 204, spo2: 88, skinTemperature: 37.0 },
   };
   const base = bases[scenario];
   return {

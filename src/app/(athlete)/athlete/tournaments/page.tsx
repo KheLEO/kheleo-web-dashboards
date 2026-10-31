@@ -4,9 +4,9 @@ export default function Page() {
   return (
     <>
       <PageHeading
-        eyebrow="competition discovery"
+        eyebrow="Geospatial discovery"
         title="Find your next arena"
-        description="Explore nearby open tournaments and discover your competition tier."
+        description="Nearby competition, skill brackets, and fair-play registration."
       />
       <TournamentDiscovery />
     </>

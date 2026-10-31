@@ -25,4 +25,4 @@ These are activation prerequisites, not implemented or guessed endpoints. No cha
 
 Simulator ingestion requires `APP_ENV=staging`, `SIMULATOR_INGESTION=true`, `STAGING_DATA_ISOLATED=true`, private Redis, and the correct server-side HMAC secret. Production simulation never ingests. The simulator rejects match, bracket, and tournament IDs because authorized match membership cannot currently be established.
 
-Drill scoring is hard-gated in the relay. There is no environment switch that bypasses calibration. Additional hardware services are likewise required before hardware ingestion can be enabled.
+Production drill scoring is hard-gated in the relay. Provisional practice ingestion requires `APP_ENV=staging`, `DRILL_PRACTICE_INGESTION=true`, `STAGING_DATA_ISOLATED=true`, private Redis, and the server-only drill HMAC secret. These estimates must never be represented as calibrated performance or sent to production. Additional hardware services are required before hardware ingestion can be enabled.

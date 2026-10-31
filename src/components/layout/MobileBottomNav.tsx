@@ -30,7 +30,7 @@ export function MobileBottomNav({ workspace }: { workspace: Workspace }) {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Icon size={19} className={active ? "text-primary drop-shadow-[0_0_8px_rgba(245,176,20,0.5)]" : ""} />
+              <Icon size={19} className={active ? "text-primary gold-glow" : ""} />
               <span className="truncate max-w-[64px]">{title}</span>
             </Link>
           );

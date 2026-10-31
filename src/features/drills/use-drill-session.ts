@@ -5,7 +5,19 @@ import { createPoseEngine, type PoseEngine } from "./pose-engine.client";
 import { drawLandmarks } from "./landmark-overlay";
 import { kneeAngles } from "./joint-angles";
 import { drillSessionReducer, initialDrillState } from "./session-reducer";
-export function useDrillSession() {
+import type { DrillPreset } from "./drill-catalog";
+import {
+  accumulatePractice,
+  createPracticeAggregate,
+  evaluatePracticeFrame,
+  practiceSummary,
+  type FrameEvaluation,
+} from "./preset-evaluation";
+import type { SubmitDrillRequest } from "@/contracts/drills";
+export function useDrillSession(preset?: DrillPreset) {
+  const aggregate = useRef(createPracticeAggregate());
+  const [practice, setPractice] = useState<FrameEvaluation | null>(null);
+  const [summary, setSummary] = useState<SubmitDrillRequest | null>(null);
   const [state, dispatch] = useReducer(drillSessionReducer, initialDrillState);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const webcam = useRef<Webcam | null>(null);
@@ -30,10 +42,11 @@ export function useDrillSession() {
     busy.current = false;
   }, []);
   const stop = useCallback((): void => {
+    if (preset) setSummary(practiceSummary(preset, aggregate.current, Date.now()));
     release();
     setCameraEnabled(false);
     dispatch({ type: "stop" });
-  }, [release]);
+  }, [release, preset]);
   useEffect(() => {
     const hidden = (): void => {
       if (document.hidden) stop();
@@ -54,6 +67,9 @@ export function useDrillSession() {
   function start(): void {
     release();
     validFrames.current = 0;
+    aggregate.current = createPracticeAggregate();
+    setPractice(null);
+    setSummary(null);
     lastFrame.current = 0;
     lastSummary.current = 0;
     dispatch({ type: "start" });
@@ -77,8 +93,12 @@ export function useDrillSession() {
         }
         busy.current = false;
         if (canvas.current) drawLandmarks(canvas.current, message.landmarks);
-        if (message.valid) validFrames.current++;
+        const evaluated =
+          preset && message.valid ? evaluatePracticeFrame(preset, message.worldLandmarks) : null;
+        if (evaluated) aggregate.current = accumulatePractice(aggregate.current, evaluated);
+        if (message.valid && (!preset || evaluated)) validFrames.current++;
         if (performance.now() - lastSummary.current >= 200) {
+          setPractice(evaluated);
           const angles = message.valid
             ? kneeAngles(message.worldLandmarks)
             : { left: null, right: null };
@@ -126,6 +146,8 @@ export function useDrillSession() {
   }
   return {
     state,
+    practice,
+    summary,
     webcam,
     canvas,
     cameraEnabled,

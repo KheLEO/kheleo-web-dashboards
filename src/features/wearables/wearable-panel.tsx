@@ -9,7 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/shared/async-state";
 import { VitalsChart } from "@/features/safety/vitals-chart";
-import { classifyVitals } from "@/contracts/safety";
+import { telemetryResultSchema, type TelemetryResponse, classifyVitals } from "@/contracts/safety";
 import { asApiError } from "@/lib/api/errors";
 import { sendSimulatedTelemetry } from "@/features/safety/api";
 import { useWearable } from "./use-wearable";
@@ -20,13 +20,20 @@ import { TelemetryDispatcher } from "./telemetry-dispatcher";
 export function WearablePanel() {
   const wearable = useWearable();
   const session = useSession();
+  const [virtualDevice, setVirtualDevice] = useState<string | null>(null);
+  const [ingestion, setIngestion] = useState<TelemetryResponse | null>(null);
   const [ingest, setIngest] = useState(false);
   const [failure, setFailure] = useState<Error | null>(null);
   const dispatcher = useRef<TelemetryDispatcher | null>(null);
   useEffect(() => {
     if (!ingest || !session.capabilities.simulatorIngestion) return;
-    const next = new TelemetryDispatcher(sendSimulatedTelemetry, (error) =>
-      setFailure(asApiError(error)),
+    const next = new TelemetryDispatcher(
+      async (operation) => {
+        const result = telemetryResultSchema.parse(await sendSimulatedTelemetry(operation));
+        setIngestion(result);
+        return result;
+      },
+      (error) => setFailure(asApiError(error)),
     );
     dispatcher.current = next;
     return () => {
@@ -79,6 +86,9 @@ export function WearablePanel() {
           <Button
             disabled={wearable.status === "connecting"}
             onClick={() => {
+              setVirtualDevice(null);
+              setIngest(false);
+              setIngestion(null);
               void wearable.connect(new BluetoothSource());
             }}
           >
@@ -89,6 +99,8 @@ export function WearablePanel() {
             onClick={() => {
               wearable.stop();
               setIngest(false);
+              setVirtualDevice(null);
+              setIngestion(null);
             }}
           >
             Disconnect / stop
@@ -152,8 +164,29 @@ export function WearablePanel() {
           Local preview only unless an isolated staging deployment explicitly enables ingestion.
           Simulation cannot pause a real match.
         </p>
+        <div className="mb-5 flex flex-wrap gap-3">
+          {["Galaxy Watch", "Fitness Band"].map((device) => (
+            <Button
+              variant="secondary"
+              key={device}
+              onClick={() => {
+                wearable.stop();
+                setIngest(false);
+                setIngestion(null);
+                setVirtualDevice(device);
+              }}
+            >
+              Pair virtual {device}
+            </Button>
+          ))}
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">
+          {virtualDevice
+            ? `Virtual ${virtualDevice} paired locally · simulated data only`
+            : "Pair a virtual device to enable simulator controls."}
+        </p>
         <SimulatorControls
-          disabled={wearable.status === "connecting"}
+          disabled={!virtualDevice || wearable.status === "connecting"}
           start={(scenario) => {
             void wearable.connect(new SimulatorSource(scenario));
           }}
@@ -172,6 +205,11 @@ export function WearablePanel() {
           </label>
         )}
         <VitalsChart readings={wearable.readings} />
+        <p role="status" className="mt-4 text-xs">
+          {ingestion
+            ? `Backend ingestion status: ${ingestion.status}${ingestion.status === "MATCH_PAUSED" ? " — directive only; no match context supplied" : ""}`
+            : "No backend ingestion confirmed. Local severity labels are previews."}
+        </p>
         {failure && (
           <div className="mt-4">
             <ErrorState

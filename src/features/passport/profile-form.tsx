@@ -39,6 +39,7 @@ export function ProfileForm({ profile }: { profile?: AthletePassport }) {
       submit={(_value, operation) => savePassport(user.id, operation, !profile)}
       onSuccess={() => {
         void client.invalidateQueries({ queryKey: ["passport", user.id] });
+        void client.invalidateQueries({ queryKey: ["sports", user.id] });
       }}
     />
   );

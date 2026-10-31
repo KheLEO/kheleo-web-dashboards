@@ -9,9 +9,13 @@ import { useDrillSession } from "./use-drill-session";
 import { LandmarkOverlay } from "./landmark-overlay";
 import { DrillSummary } from "./drill-summary";
 import { scoringPolicy } from "./scoring-policy";
-export function DrillCamera() {
+import type { DrillPreset } from "./drill-catalog";
+import { PracticeSubmission } from "./practice-submission";
+export function DrillCamera({ preset }: { preset?: DrillPreset }) {
   const {
     state,
+    practice,
+    summary,
     webcam: webcamRef,
     canvas: canvasRef,
     cameraEnabled,
@@ -19,7 +23,7 @@ export function DrillCamera() {
     stop,
     onStream,
     onCameraError,
-  } = useDrillSession();
+  } = useDrillSession(preset);
   const capabilities = useBrowserCapabilities();
   return (
     <div className="space-y-6">
@@ -77,6 +81,31 @@ export function DrillCamera() {
         )}
       </Card>
       <DrillSummary state={state} />
+      {preset && (
+        <Card>
+          <h2 className="font-semibold">{preset.name} · provisional alignment feedback</h2>
+          <p className="my-3 text-sm text-muted-foreground">
+            Practice range: {preset.minimum}–{preset.maximum}° at the {preset.joint}. These
+            heuristics are not calibrated sports performance measurements.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {practice?.flags.map((flag) => (
+              <span className="rounded border px-3 py-2 text-xs" key={flag}>
+                {flag}
+              </span>
+            ))}
+          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+            {Object.entries(practice?.angles ?? {}).map(([name, value]) => (
+              <div key={name}>
+                <dt>{name.replaceAll("_", " ")}</dt>
+                <dd className="mt-1 text-primary">{value.toFixed(1)}°</dd>
+              </div>
+            ))}
+          </dl>
+          <PracticeSubmission key={summary?.timestamp ?? "pending"} summary={summary} />
+        </Card>
+      )}
       <Card>
         <h2 className="font-semibold">GTI submission</h2>
         <p className="my-3 text-sm leading-6 text-muted-foreground">

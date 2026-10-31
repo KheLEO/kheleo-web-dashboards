@@ -3,7 +3,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { ids } from "../../src/test/factories";
 async function login(page: Page, role = "athlete"): Promise<void> {
   await page.goto("/login");
-  await page.getByLabel("Email", { exact: true }).fill(`${role}@example.com`);
+  await page
+    .getByLabel("Email", { exact: true })
+    .fill(`${role}+${crypto.randomUUID()}@example.com`);
   await page.getByLabel("Government document").selectOption("AADHAAR");
   await page.getByLabel("Government ID number").fill("12345678");
   await page.getByRole("button", { name: "Sign in securely" }).click();
@@ -62,17 +64,19 @@ test("anti-sandbagging conflict exposes the real suggested bracket", async ({ pa
   await login(page);
   await page.goto(`/athlete/tournaments/${ids.tournament}/brackets/${ids.bracket}`);
   await page.getByRole("button", { name: "Register for this bracket" }).click();
-  await page.getByRole("button", { name: "Confirm registration" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "SANDBAGGING_DETECTED" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "View suggested GOLD bracket" })).toHaveAttribute(
-    "href",
-    `/athlete/tournaments/${ids.tournament}/brackets/${ids.higher}`,
-  );
+  await page.getByRole("button", { name: "Confirm registration" }).first().click();
+  await expect(
+    page.getByRole("heading", { name: "Anti-Sandbagging Fair-Play Shield" }),
+  ).toBeVisible();
+  await expect(page.getByText("Recommended bracket: GOLD")).toBeVisible();
+  await page.getByRole("button", { name: "Upgrade & Register in Recommended Bracket" }).click();
+  await expect(page.getByRole("heading", { name: "Registration confirmed" })).toBeVisible();
+  await expect(page.getByText(`Reference: ${ids.registration}`)).toBeVisible();
 });
 test("free-agent roster arrives over the real Socket.IO client", async ({ page, request }) => {
   await login(page);
   await page.goto(`/athlete/tournaments/${ids.tournament}/brackets/${ids.bracket}/pool`);
-  await page.getByLabel("Primary role", { exact: true }).fill("BOWLER");
+  await page.getByLabel("Primary role", { exact: true }).selectOption("BOWLER");
   await page.getByRole("button", { name: "Join free-agent pool" }).click();
   await expect(page.getByRole("heading", { name: "Queue position 1" })).toBeVisible();
   await expect(page.getByText("Live connection", { exact: true })).toBeVisible();
@@ -132,6 +136,7 @@ test("simulator is labeled, reports critical thresholds, and sends no production
 }) => {
   await login(page);
   await page.goto("/athlete/wearable");
+  await page.getByRole("button", { name: "Pair virtual Galaxy Watch" }).click();
   await page.getByRole("button", { name: "Simulate critical" }).click();
   await expect(
     page.getByRole("alert").filter({ hasText: "SIMULATED CRITICAL READING" }),
@@ -186,11 +191,134 @@ test("theme tokens update component colors and safety stream stays gated", async
     page.getByRole("heading", { name: "Safety stream awaiting isolation verification" }),
   ).toBeVisible();
   await page.evaluate(() =>
-    document.documentElement.style.setProperty("--kheleo-gold-primary", "100 200 150"),
+    document.documentElement.style.setProperty("--kheleo-gold-rgb", "100 200 150"),
   );
   const color = await page
     .locator(".eyebrow")
     .first()
     .evaluate((element) => getComputedStyle(element).color);
   expect(color).toBe("rgb(100, 200, 150)");
+});
+
+test("athlete dashboard exposes live GTI analysis and an actual access-controlled QR", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/athlete/dashboard");
+  await expect(
+    page.getByRole("heading", { name: "Welcome to your Sports Passport" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Recalculate GTI & show breakdown" }).click();
+  await expect(page.getByText("Contribution 28.00", { exact: true })).toBeVisible();
+  await expect(page.getByText("Contribution 17.50", { exact: true })).toBeVisible();
+  await expect(page.getByText("Contribution 27.00", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Share passport link" }).click();
+  await expect(page.getByRole("img", { name: "Authorized athlete passport QR" })).toBeVisible();
+  await expect(page.getByRole("dialog")).toContainText(`/scout/athletes/${ids.athlete}`);
+  await expect(page.getByRole("dialog")).toContainText("Recipients must sign in");
+});
+test("manual campus discovery and role-aware standalone matchmaking use real IDs", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/athlete/tournaments");
+  await expect(page.getByLabel("Latitude", { exact: true })).toHaveValue("28.6692");
+  await expect(page.getByLabel("Longitude", { exact: true })).toHaveValue("77.4538");
+  await page.getByLabel("Search radius", { exact: true }).fill("100");
+  await page.getByRole("button", { name: "Find nearby tournaments" }).click();
+  await expect(page.getByRole("heading", { name: "Varanasi Grassroots Cup" })).toBeVisible();
+  await page.goto(`/athlete/matchmaking?tournamentId=${ids.tournament}&bracketId=${ids.bracket}`);
+  await expect(page.getByLabel("Primary role", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Primary role", { exact: true }).locator("option")).toContainText([
+    "Select…",
+    "BATSMAN",
+    "BOWLER",
+    "WICKETKEEPER",
+    "ALL ROUNDER",
+  ]);
+});
+test("capacity errors never become fake registrations or fair-play violations", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto(`/athlete/tournaments/${ids.tournament}/brackets/${ids.higher}`);
+  await page.route(
+    `**/api/backend/tournaments/${ids.tournament}/brackets/${ids.higher}/register`,
+    (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: "application/problem+json",
+        body: JSON.stringify({
+          type: "about:blank",
+          title: "Conflict",
+          status: 409,
+          detail: "Bracket capacity is full",
+          instance: "",
+          timestamp: "now",
+        }),
+      }),
+  );
+  await page.getByRole("button", { name: "Register for this bracket" }).click();
+  await page.getByRole("button", { name: "Confirm registration" }).first().click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Bracket capacity is full" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Registration confirmed" })).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Anti-Sandbagging Fair-Play Shield" }),
+  ).toHaveCount(0);
+});
+test("signup and identity aliases do not accept forged demo cookies", async ({ page, context }) => {
+  await context.addCookies([
+    { name: "kheleo_demo_role", value: "SUPER_ADMIN", domain: "localhost", path: "/" },
+  ]);
+  await page.goto("/signup");
+  await expect(page.getByRole("heading", { name: "Create your athlete account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Quick Demo Sign-In" })).toHaveCount(0);
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/verify-identity");
+  await expect(page).toHaveURL(/\/login$/);
+});
+test("all four sport presets are reachable without submitting camera frames", async ({ page }) => {
+  await login(page);
+  await page.goto("/athlete/drills");
+  for (const name of [
+    "Cricket bowling",
+    "Badminton smash",
+    "Football strike",
+    "Athletics sprint start",
+  ])
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /Cricket bowling/ }).click();
+  await expect(page.getByRole("button", { name: "Start camera" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Awaiting scoring calibration" })).toBeDisabled();
+});
+
+test("sport editor sends roles and self-reported stance through the authenticated relay", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/athlete/passport");
+  await page.getByLabel("Select sport", { exact: true }).selectOption("FOOTBALL");
+  await page.getByLabel("Primary role", { exact: true }).selectOption("FORWARD");
+  await page.getByLabel("Secondary role", { exact: true }).selectOption("MIDFIELDER");
+  await page.getByLabel("Self-reported stance").selectOption("LEFT_FOOT");
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(`/api/backend/passport/${ids.athlete}/sports`),
+  );
+  await page.getByRole("button", { name: "Save sport roles", exact: true }).click();
+  const response = await saved;
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON()).toEqual({
+    sport: "FOOTBALL",
+    primaryRole: "FORWARD",
+    secondaryRoles: ["MIDFIELDER"],
+    verifiedMetrics: { stance: "LEFT_FOOT" },
+  });
+  expect(response.request().headers()["idempotency-key"]).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
 });

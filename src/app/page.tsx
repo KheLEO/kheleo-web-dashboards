@@ -1,12 +1,19 @@
 import Link from "next/link";
-import { ArrowUpRight, ShieldCheck, ScanLine, Trophy, Radar, ArrowRight, Sparkles } from "lucide-react";
+import {
+  ArrowUpRight,
+  ShieldCheck,
+  ScanLine,
+  Trophy,
+  Radar,
+  ArrowRight,
+  Sparkles,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 import { readSession } from "@/server/auth/session";
 import { homeForRole } from "@/server/auth/permissions";
 import { BrandLogo } from "@/components/shared/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/providers/ThemeProvider";
-import { DemoRoleSwitcher } from "@/components/shared/DemoRoleSwitcher";
 
 export default async function Home() {
   const session = await readSession();
@@ -14,7 +21,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-6 sm:px-10">
+      <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-10">
         <BrandLogo href="/" size="md" />
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
@@ -129,8 +136,6 @@ export default async function Home() {
           ))}
         </section>
       </main>
-
-      <DemoRoleSwitcher />
     </div>
   );
 }

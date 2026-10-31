@@ -13,7 +13,7 @@ const logoBadgeVariants = cva(
         lg: "h-14 w-14 text-xl",
       },
       glow: {
-        true: "border border-primary/60 shadow-[0_0_18px_-2px_rgba(245,176,20,0.45)]",
+        true: "border border-primary/60 shadow-gold-glow",
         false: "border border-border",
       },
     },
@@ -80,7 +80,7 @@ export function BrandLogo({
           Khe<span className="text-primary font-black">LEO</span>
         </span>
         {showTagline && size !== "sm" && (
-          <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-kheleo-silver-muted">
+          <span className="hidden text-[9px] font-semibold uppercase tracking-[0.24em] sm:block text-kheleo-silver-muted">
             Potential. Unlocked.
           </span>
         )}
@@ -90,7 +90,10 @@ export function BrandLogo({
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
+      <Link
+        href={href}
+        className="inline-flex focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+      >
         {content}
       </Link>
     );

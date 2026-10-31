@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/shared/page-heading";
 import { DrillCamera } from "@/features/drills/drill-camera";
-import { drillCatalog } from "@/features/drills/drill-catalog";
+import { drillCatalog, practicePresets } from "@/features/drills/drill-catalog";
 export default async function Page({ params }: { params: Promise<{ drillType: string }> }) {
   const { drillType } = await params;
   const drill = drillCatalog.find((entry) => entry.id === drillType);
@@ -13,7 +13,12 @@ export default async function Page({ params }: { params: Promise<{ drillType: st
         title={drill.name}
         description={drill.description}
       />
-      <DrillCamera />
+      <DrillCamera
+        key={drill.id}
+        {...(practicePresets.find((preset) => preset.id === drill.id)
+          ? { preset: practicePresets.find((preset) => preset.id === drill.id)! }
+          : {})}
+      />
     </>
   );
 }

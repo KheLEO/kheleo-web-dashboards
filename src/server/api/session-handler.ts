@@ -1,3 +1,4 @@
+import { sessionCapabilities } from "@/server/capabilities";
 import "server-only";
 import { z } from "zod";
 import { createHash } from "node:crypto";
@@ -12,7 +13,6 @@ import {
 import { assertOrigin } from "@/server/security/request-origin";
 import { operationId } from "@/server/security/operation-store";
 import { rateLimit } from "@/server/security/rate-limit";
-import { getEnvironment } from "@/server/env";
 import { callNest } from "./nest-client";
 import { fail, privateJson, problemResponse } from "./problem";
 export type SessionAction = "register" | "login" | "me" | "refresh" | "logout" | "socket-token";
@@ -42,13 +42,7 @@ export async function sessionHandler(request: Request, action: SessionAction): P
       return privateJson({
         user: session.user,
         expiresAt: session.expiresAt,
-        capabilities: {
-          safeEvents: getEnvironment().SAFE_EVENTS_VERIFIED === "true",
-          simulatorIngestion:
-            getEnvironment().APP_ENV === "staging" &&
-            getEnvironment().SIMULATOR_INGESTION === "true" &&
-            getEnvironment().STAGING_DATA_ISOLATED === "true",
-        },
+        capabilities: sessionCapabilities(),
       });
     }
     if (action === "logout") {
@@ -64,13 +58,7 @@ export async function sessionHandler(request: Request, action: SessionAction): P
     return privateJson({
       user: session.user,
       expiresAt: session.expiresAt,
-      capabilities: {
-        safeEvents: getEnvironment().SAFE_EVENTS_VERIFIED === "true",
-        simulatorIngestion:
-          getEnvironment().APP_ENV === "staging" &&
-          getEnvironment().SIMULATOR_INGESTION === "true" &&
-          getEnvironment().STAGING_DATA_ISOLATED === "true",
-      },
+      capabilities: sessionCapabilities(),
     });
   } catch (error: unknown) {
     return problemResponse(

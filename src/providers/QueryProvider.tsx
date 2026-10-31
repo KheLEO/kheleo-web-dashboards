@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import {
-  QueryClient,
-  QueryClientProvider,
-  type DefaultOptions,
-} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, type DefaultOptions } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { ApiProblemError } from "@/lib/api-client";
 import { ApiError } from "@/lib/api/errors";
@@ -59,9 +55,9 @@ export function QueryProvider({ children }: { children: ReactNode }) {
         closeButton
         toastOptions={{
           style: {
-            background: "#14141C",
-            borderColor: "#3A3C4C",
-            color: "#E2E8F0",
+            background: "rgb(var(--card))",
+            borderColor: "rgb(var(--border))",
+            color: "rgb(var(--foreground))",
           },
         }}
       />

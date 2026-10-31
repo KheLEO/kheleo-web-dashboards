@@ -24,7 +24,7 @@ Lists use 20-row pages and at most five cached pages. No cache persistence is en
 
 ## Browser resources
 
-Pose detection runs in a dedicated worker, CPU delegate, at most 15 submitted frames per second, with one frame in flight. Two-pose detection identifies ambiguity; feedback accepts exactly one visible athlete with 33 landmarks. Only world-space angle summaries reach React, at most five times per second. No form score is invented.
+Pose detection runs in a dedicated worker, CPU delegate, at most 15 submitted frames per second, with one frame in flight. Two-pose detection identifies ambiguity; feedback accepts exactly one visible athlete with 33 landmarks. Only world-space angle summaries reach React, at most five times per second. Four sport presets provide clearly labeled provisional angle feedback. An alignment percentage is a practice estimate, not validated athletic performance. Signed submission is possible only in isolated staging; production scoring remains unavailable.
 
 Page exit, hidden visibility, sign-out, and explicit stop release camera tracks, animation frames, worker resources, Bluetooth listeners/connections, and simulator timers. MediaPipe assets match the installed package; the model hash is pinned in the asset preparation script.
 

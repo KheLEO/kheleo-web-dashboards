@@ -29,7 +29,8 @@ export const navigation: Record<Workspace, readonly NavigationItem[]> = {
     { title: "Identity", href: "/athlete/identity", icon: ShieldCheck },
     { title: "Tournaments", href: "/athlete/tournaments", icon: Trophy },
     { title: "Pose drills", href: "/athlete/drills", icon: ScanLine },
-    { title: "Wearable", href: "/athlete/wearable", icon: Watch },
+    { title: "Wearable", href: "/athlete/iot-device", icon: Watch },
+    { title: "Free-agent pool", href: "/athlete/matchmaking", icon: Users },
     { title: "Settings", href: "/athlete/settings", icon: Settings },
   ],
   organizer: [

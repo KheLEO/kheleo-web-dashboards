@@ -31,3 +31,18 @@ export function useBrackets(id: string) {
     maxPages: 5,
   });
 }
+
+export function useNearbyPages(filters: NearbyTournamentsQuery) {
+  const { user } = useSession();
+  return useInfiniteQuery({
+    queryKey: ["nearby-pages", user.id, filters],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) =>
+      getNearby({ ...filters, ...(pageParam ? { cursor: pageParam } : {}) }, signal),
+    getNextPageParam: (page, _pages, previousCursor) => {
+      const next = page.length === (filters.limit ?? 20) ? page.at(-1)?.id : undefined;
+      return next === previousCursor ? undefined : next;
+    },
+    maxPages: 5,
+  });
+}

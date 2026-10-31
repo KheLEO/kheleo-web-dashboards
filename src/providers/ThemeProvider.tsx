@@ -1,48 +1,51 @@
 "use client";
-
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 export type ThemePreset = "kheleo-gold-crimson" | "cyber-blue" | "royal-emerald";
-
 export interface ThemeConfig {
   id: ThemePreset;
   name: string;
   badgeColor: string;
-  accentColor: string;
 }
-
 export const THEME_PRESETS: readonly ThemeConfig[] = [
-  {
-    id: "kheleo-gold-crimson",
-    name: "Golden Crimson (Original KheLEO)",
-    badgeColor: "#F5B014",
-    accentColor: "#D91E2A",
-  },
-  {
-    id: "cyber-blue",
-    name: "Cyber Blue Neon",
-    badgeColor: "#00F0FF",
-    accentColor: "#FF0055",
-  },
-  {
-    id: "royal-emerald",
-    name: "Royal Emerald",
-    badgeColor: "#10B981",
-    accentColor: "#E11D48",
-  },
-] as const;
-
+  { id: "kheleo-gold-crimson", name: "Golden Crimson", badgeColor: "var(--theme-preview-gold)" },
+  { id: "cyber-blue", name: "Cyber Blue", badgeColor: "var(--theme-preview-cyber)" },
+  { id: "royal-emerald", name: "Royal Emerald", badgeColor: "var(--theme-preview-emerald)" },
+];
 interface ThemeContextValue {
   theme: ThemePreset;
   setTheme: (theme: ThemePreset) => void;
   cycleTheme: () => void;
   themes: readonly ThemeConfig[];
 }
-
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-
-const STORAGE_KEY = "kheleo-theme-preset";
-
+const storageKey = "kheleo-theme-preset";
+let tabTheme: ThemePreset = "kheleo-gold-crimson";
+function isTheme(value: string | null): value is ThemePreset {
+  return THEME_PRESETS.some((theme) => theme.id === value);
+}
+function snapshot(): ThemePreset {
+  try {
+    const value = localStorage.getItem(storageKey);
+    return isTheme(value) ? value : tabTheme;
+  } catch {
+    return tabTheme;
+  }
+}
+function subscribe(callback: () => void): () => void {
+  window.addEventListener("storage", callback);
+  window.addEventListener("kheleo:theme", callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("kheleo:theme", callback);
+  };
+}
 export function ThemeProvider({
   children,
   defaultTheme = "kheleo-gold-crimson",
@@ -50,94 +53,64 @@ export function ThemeProvider({
   children: ReactNode;
   defaultTheme?: ThemePreset;
 }) {
-  const [theme, setThemeState] = useState<ThemePreset>(defaultTheme);
-  const [mounted, setMounted] = useState<boolean>(false);
-
+  const theme = useSyncExternalStore(subscribe, snapshot, () => defaultTheme);
+  const [warning, setWarning] = useState<string | null>(null);
   useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+  const setTheme = (next: ThemePreset): void => {
+    tabTheme = next;
+    setWarning(null);
     try {
-      const saved = localStorage.getItem(STORAGE_KEY) as ThemePreset | null;
-      if (saved && THEME_PRESETS.some((preset) => preset.id === saved)) {
-        setThemeState(saved);
-        document.documentElement.setAttribute("data-theme", saved);
-      } else {
-        document.documentElement.setAttribute("data-theme", defaultTheme);
-      }
+      localStorage.setItem(storageKey, next);
     } catch {
-      document.documentElement.setAttribute("data-theme", defaultTheme);
+      setWarning("Theme applied for this tab. Browser storage is unavailable.");
     }
-    setMounted(true);
-  }, [defaultTheme]);
-
-  const setTheme = (newTheme: ThemePreset) => {
-    setThemeState(newTheme);
-    try {
-      localStorage.setItem(STORAGE_KEY, newTheme);
-      document.documentElement.setAttribute("data-theme", newTheme);
-    } catch {
-      document.documentElement.setAttribute("data-theme", newTheme);
-    }
+    document.documentElement.dataset.theme = next;
+    window.dispatchEvent(new Event("kheleo:theme"));
   };
-
-  const cycleTheme = () => {
-    const currentIndex = THEME_PRESETS.findIndex((preset) => preset.id === theme);
-    const nextIndex = (currentIndex + 1) % THEME_PRESETS.length;
-    const nextPreset = THEME_PRESETS[nextIndex];
-    if (nextPreset) {
-      setTheme(nextPreset.id);
-    }
+  const cycleTheme = (): void => {
+    const index = THEME_PRESETS.findIndex((entry) => entry.id === theme);
+    setTheme(THEME_PRESETS[(index + 1) % THEME_PRESETS.length]!.id);
   };
-
   return (
     <ThemeContext.Provider value={{ theme, setTheme, cycleTheme, themes: THEME_PRESETS }}>
       {children}
+      {warning && (
+        <p role="status" className="fixed bottom-5 right-5 z-50 rounded border bg-card p-3 text-sm">
+          {warning}
+        </p>
+      )}
     </ThemeContext.Provider>
   );
 }
-
 export function useTheme(): ThemeContextValue {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return ctx;
+  const context = useContext(ThemeContext);
+  if (!context) throw new Error("ThemeProvider is required.");
+  return context;
 }
-
 export function ThemeSwitcher({ className = "" }: { className?: string }) {
   const { theme, setTheme, themes } = useTheme();
-
   return (
     <div
-      aria-label="Theme Switcher"
-      className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 p-1 text-xs backdrop-blur-md ${className}`}
+      aria-label="Theme selection"
+      className={`inline-flex gap-2 rounded-full border bg-card p-2 ${className}`}
     >
-      {themes.map((t) => {
-        const isActive = t.id === theme;
-        return (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTheme(t.id)}
-            title={t.name}
-            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all ${
-              isActive
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <span
-              className="h-2 w-2 rounded-full ring-1 ring-white/20"
-              style={{ backgroundColor: t.badgeColor }}
-            />
-            <span className="hidden sm:inline">
-              {t.id === "kheleo-gold-crimson"
-                ? "Gold"
-                : t.id === "cyber-blue"
-                  ? "Cyber"
-                  : "Emerald"}
-            </span>
-          </button>
-        );
-      })}
+      {themes.map((entry) => (
+        <button
+          key={entry.id}
+          type="button"
+          aria-label={entry.name}
+          aria-pressed={theme === entry.id}
+          onClick={() => setTheme(entry.id)}
+          className="rounded-full border border-border p-1 focus-visible:outline"
+        >
+          <span
+            className="block h-3 w-3 rounded-full"
+            style={{ backgroundColor: entry.badgeColor }}
+          />
+        </button>
+      ))}
     </div>
   );
 }

@@ -1,14 +1,15 @@
 import { PageHeading } from "@/components/shared/page-heading";
-import { PassportView } from "@/features/passport/passport-view";
+import { SportsPassportCard } from "@/components/athlete/SportsPassportCard";
+
 export default function Page() {
   return (
-    <>
+    <div className="space-y-8">
       <PageHeading
         eyebrow="sports passport"
         title="Your permanent sports identity"
-        description="A multi-sport record of your profile, achievements, and development."
+        description="A verified, multi-sport record of your identity, GTI calculation, and achievements."
       />
-      <PassportView />
-    </>
+      <SportsPassportCard />
+    </div>
   );
 }

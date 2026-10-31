@@ -7,17 +7,17 @@
   color-scheme: dark;
 
   /* Primary KheLEO Hex Tokens */
-  --kheleo-bg-canvas: #0A0A0E;
-  --kheleo-bg-surface: #14141C;
-  --kheleo-bg-elevated: #1E1E2A;
-  --kheleo-gold-primary: #F5B014;
-  --kheleo-gold-shimmer: #FFE07D;
-  --kheleo-crimson-primary: #D91E2A;
-  --kheleo-silver-chrome: #E2E8F0;
-  --kheleo-silver-muted: #94A3B8;
-  --kheleo-status-danger: #FF2A3B;
-  --kheleo-status-warning: #F59E0B;
-  --kheleo-status-success: #10B981;
+  --kheleo-bg-canvas: #0a0a0e;
+  --kheleo-bg-surface: #14141c;
+  --kheleo-bg-elevated: #1e1e2a;
+  --kheleo-gold-primary: #f5b014;
+  --kheleo-gold-shimmer: #ffe07d;
+  --kheleo-crimson-primary: #d91e2a;
+  --kheleo-silver-chrome: #e2e8f0;
+  --kheleo-silver-muted: #94a3b8;
+  --kheleo-status-danger: #ff2a3b;
+  --kheleo-status-warning: #f59e0b;
+  --kheleo-status-success: #10b981;
 
   /* RGB Channel Tokens for Tailwind opacity utilities */
   --kheleo-obsidian: 10 10 14;
@@ -65,24 +65,27 @@
   --chart-participation: var(--kheleo-silver-primary);
   --chart-equity: var(--kheleo-info);
   --chart-critical: var(--kheleo-crimson-rgb);
-  --kheleo-metallic-gold: linear-gradient(120deg, #F5B014, #FFE07D 48%, #F5B014);
-  --kheleo-metallic-silver: linear-gradient(120deg, #94A3B8, #E2E8F0 48%, #94A3B8);
+  --kheleo-metallic-gold: linear-gradient(120deg, #f5b014, #ffe07d 48%, #f5b014);
+  --kheleo-metallic-silver: linear-gradient(120deg, #94a3b8, #e2e8f0 48%, #94a3b8);
+  --theme-preview-gold: #f5b014;
+  --theme-preview-cyber: #00f0ff;
+  --theme-preview-emerald: #10b981;
   --radius: 0.75rem;
 }
 
 [data-theme="cyber-blue"] {
   color-scheme: dark;
-  --kheleo-bg-canvas: #060B14;
-  --kheleo-bg-surface: #0E1726;
-  --kheleo-bg-elevated: #15233D;
-  --kheleo-gold-primary: #00F0FF;
-  --kheleo-gold-shimmer: #80F7FF;
-  --kheleo-crimson-primary: #FF0055;
-  --kheleo-silver-chrome: #E0E7FF;
-  --kheleo-silver-muted: #818CF8;
-  --kheleo-status-danger: #FF0055;
-  --kheleo-status-warning: #F59E0B;
-  --kheleo-status-success: #10B981;
+  --kheleo-bg-canvas: #060b14;
+  --kheleo-bg-surface: #0e1726;
+  --kheleo-bg-elevated: #15233d;
+  --kheleo-gold-primary: #00f0ff;
+  --kheleo-gold-shimmer: #80f7ff;
+  --kheleo-crimson-primary: #ff0055;
+  --kheleo-silver-chrome: #e0e7ff;
+  --kheleo-silver-muted: #818cf8;
+  --kheleo-status-danger: #ff0055;
+  --kheleo-status-warning: #f59e0b;
+  --kheleo-status-success: #10b981;
 
   --kheleo-obsidian: 6 11 20;
   --kheleo-carbon: 14 23 38;
@@ -94,23 +97,23 @@
   --kheleo-text-muted: 129 140 248;
   --kheleo-border: 37 56 89;
 
-  --kheleo-metallic-gold: linear-gradient(120deg, #00F0FF, #80F7FF 48%, #00F0FF);
-  --kheleo-metallic-silver: linear-gradient(120deg, #818CF8, #E0E7FF 48%, #818CF8);
+  --kheleo-metallic-gold: linear-gradient(120deg, #00f0ff, #80f7ff 48%, #00f0ff);
+  --kheleo-metallic-silver: linear-gradient(120deg, #818cf8, #e0e7ff 48%, #818cf8);
 }
 
 [data-theme="royal-emerald"] {
   color-scheme: dark;
-  --kheleo-bg-canvas: #05130E;
-  --kheleo-bg-surface: #0B221A;
+  --kheleo-bg-canvas: #05130e;
+  --kheleo-bg-surface: #0b221a;
   --kheleo-bg-elevated: #123328;
-  --kheleo-gold-primary: #10B981;
-  --kheleo-gold-shimmer: #6EE7B7;
-  --kheleo-crimson-primary: #E11D48;
-  --kheleo-silver-chrome: #ECFDF5;
-  --kheleo-silver-muted: #6EE7B7;
-  --kheleo-status-danger: #E11D48;
-  --kheleo-status-warning: #F59E0B;
-  --kheleo-status-success: #10B981;
+  --kheleo-gold-primary: #10b981;
+  --kheleo-gold-shimmer: #6ee7b7;
+  --kheleo-crimson-primary: #e11d48;
+  --kheleo-silver-chrome: #ecfdf5;
+  --kheleo-silver-muted: #6ee7b7;
+  --kheleo-status-danger: #e11d48;
+  --kheleo-status-warning: #f59e0b;
+  --kheleo-status-success: #10b981;
 
   --kheleo-obsidian: 5 19 14;
   --kheleo-carbon: 11 34 26;
@@ -122,8 +125,8 @@
   --kheleo-text-muted: 110 231 183;
   --kheleo-border: 24 74 58;
 
-  --kheleo-metallic-gold: linear-gradient(120deg, #10B981, #6EE7B7 48%, #10B981);
-  --kheleo-metallic-silver: linear-gradient(120deg, #059669, #ECFDF5 48%, #059669);
+  --kheleo-metallic-gold: linear-gradient(120deg, #10b981, #6ee7b7 48%, #10b981);
+  --kheleo-metallic-silver: linear-gradient(120deg, #059669, #ecfdf5 48%, #059669);
 }
 
 @layer base {
@@ -186,17 +189,17 @@
   }
   .border-crimson-glow {
     border-color: var(--kheleo-crimson-primary);
-    box-shadow: 0 0 15px -2px rgba(217, 30, 42, 0.45);
+    box-shadow: 0 0 15px -2px rgb(var(--destructive) / 0.45);
   }
   .border-gold-glow {
     border-color: var(--kheleo-gold-primary);
-    box-shadow: 0 0 15px -2px rgba(245, 176, 20, 0.45);
+    box-shadow: 0 0 15px -2px rgb(var(--primary) / 0.45);
   }
   .glass-card {
-    background: rgba(20, 20, 28, 0.72);
+    background: rgb(var(--card) / 0.72);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgb(var(--foreground) / 0.08);
   }
 }
 

@@ -4,7 +4,15 @@ import { Table } from "@/components/ui/table";
 export function RosterCard({ name, roster }: { name: string; roster: RosterMember[] }) {
   return (
     <Card>
-      <h2 className="mb-5 text-xl font-semibold">{name}</h2>
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold">{name}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Complementary roster formed · Team average GTI:{" "}
+          {roster.length
+            ? (roster.reduce((sum, member) => sum + member.gti, 0) / roster.length).toFixed(1)
+            : "Unavailable"}
+        </p>
+      </div>
       <Table>
         <caption className="sr-only">Matched team roster</caption>
         <thead>
