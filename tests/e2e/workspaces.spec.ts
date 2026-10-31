@@ -1,8 +1,43 @@
 import { readFile } from "node:fs/promises";
 import type { PolicyReport } from "../../src/features/regional/policy-report";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, devices, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { ids } from "../../src/test/factories";
+import { navigation } from "../../src/components/shell/persona-navigation";
+import type { Workspace } from "../../src/server/auth/permissions";
+
+const missionRoutes: Record<Workspace, ReadonlyArray<{ path: string; heading: string }>> = {
+  athlete: [
+    { path: "/athlete/dashboard", heading: "Welcome to your Sports Passport" },
+    { path: "/athlete/passport", heading: "Your permanent sports identity" },
+    { path: "/athlete/tournaments", heading: "Find your next arena" },
+    { path: "/athlete/matchmaking", heading: "Solo Free-Agent Pool" },
+    { path: "/athlete/drills", heading: "Understand your movement" },
+    { path: "/athlete/iot-device", heading: "IoT wearable connection hub" },
+    { path: "/verify-identity", heading: "One athlete. One identity." },
+  ],
+  organizer: [
+    { path: "/organizer/dashboard", heading: "Make every match count" },
+    { path: "/organizer/tournaments", heading: "Your tournaments" },
+    { path: "/organizer/tournaments/create", heading: "Create a tournament" },
+    { path: "/organizer/brackets", heading: "Brackets and registrations" },
+    { path: "/organizer/safety", heading: "Safety command center" },
+  ],
+  scout: [
+    { path: "/scout/dashboard", heading: "Discover the next generation" },
+    { path: "/scout/leaderboards", heading: "National, state, and district leaderboards" },
+    { path: "/scout/feed", heading: "Talent discovery feed" },
+    { path: "/scout/heatmaps", heading: "Opportunity, on the map" },
+  ],
+  admin: [
+    { path: "/admin/dashboard", heading: "Platform administration" },
+    { path: "/admin/users", heading: "User and organizer governance" },
+    { path: "/admin/tournaments", heading: "Tournament moderation" },
+    { path: "/admin/audit-logs", heading: "Security and integrity audit console" },
+    { path: "/admin/theme", heading: "Live theme studio" },
+  ],
+};
+
 async function login(page: Page, role = "athlete"): Promise<void> {
   await page.goto("/login");
   await page
@@ -17,6 +52,128 @@ async function login(page: Page, role = "athlete"): Promise<void> {
 }
 test.beforeEach(async ({ request }) => {
   await request.post("http://localhost:4100/__control__/reset");
+});
+
+for (const viewport of [
+  { width: 360, height: 800 },
+  { width: 1920, height: 1080 },
+]) {
+  test(`all 24 mission routes render and link correctly at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    test.setTimeout(180000);
+    const runtimeErrors: string[] = [];
+    const hydrationErrors: string[] = [];
+    page.on("pageerror", (error) => runtimeErrors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error" && /hydration|hydrating|did not match/i.test(message.text()))
+        hydrationErrors.push(message.text());
+    });
+    await page.setViewportSize(viewport);
+    for (const path of ["/", "/login", "/signup"]) {
+      const response = await page.goto(path);
+      expect(response?.status(), path).toBe(200);
+      await expect(page.getByRole("main")).toBeVisible();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+        `${path} overflows at ${viewport.width}px`,
+      ).toBe(true);
+    }
+    await page.goto("/");
+    for (const workspace of Object.keys(missionRoutes) as Workspace[]) {
+      await expect(
+        page.getByRole("link", {
+          name: new RegExp(
+            `${workspace === "admin" ? "Super admin" : workspace === "scout" ? "Scout & policy" : workspace} portal`,
+            "i",
+          ),
+        }),
+      ).toHaveAttribute("href", `/${workspace}/dashboard`);
+    }
+    for (const workspace of Object.keys(missionRoutes) as Workspace[]) {
+      await login(page, workspace);
+      for (const route of missionRoutes[workspace]) {
+        const response = await page.goto(route.path);
+        expect(response?.status(), route.path).toBe(200);
+        await expect(
+          page.getByRole("heading", { level: 1, name: route.heading, exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("status").filter({ hasText: "Loading workspace data…" }),
+        ).toHaveCount(0);
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          `${route.path} overflows at ${viewport.width}px`,
+        ).toBe(true);
+        await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0);
+      }
+      if (viewport.width < 1024)
+        await page.getByRole("button", { name: "Open navigation" }).click();
+      const menu = page.getByRole("navigation", { name: `${workspace} navigation`, exact: true });
+      for (const item of navigation[workspace]) {
+        const link = menu.getByRole("link", { name: item.title, exact: true });
+        await link.scrollIntoViewIfNeeded();
+        await expect(link).toBeVisible();
+        await expect(link).toHaveAttribute("href", item.href);
+      }
+      if (viewport.width < 1024)
+        await page.getByRole("button", { name: "Close navigation" }).click();
+      await page.getByRole("button", { name: "Sign out" }).click();
+      await expect(page).toHaveURL(/\/login$/);
+    }
+    expect(runtimeErrors).toEqual([]);
+    expect(hydrationErrors).toEqual([]);
+  });
+}
+
+test("policy accounts can open every shared scout route and cannot enter administration", async ({
+  page,
+}) => {
+  await login(page, "policy");
+  for (const route of missionRoutes.scout) {
+    await page.goto(route.path);
+    await expect(
+      page.getByRole("heading", { level: 1, name: route.heading, exact: true }),
+    ).toBeVisible();
+  }
+  await page.goto("/admin/dashboard");
+  await expect(page.getByRole("heading", { name: "Access restricted", exact: true })).toBeVisible();
+});
+
+test("Android touch navigation and local vitals remain usable with 4x CPU throttling", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    ...devices["Galaxy S9+"],
+    viewport: { width: 360, height: 800 },
+    deviceScaleFactor: 1,
+  });
+  try {
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const session = await context.newCDPSession(page);
+    await session.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    await login(page);
+    await page.getByRole("button", { name: "Open navigation" }).tap();
+    await page
+      .getByRole("navigation", { name: "athlete navigation", exact: true })
+      .getByRole("link", { name: "Wearable", exact: true })
+      .tap();
+    await expect(page).toHaveURL(/\/athlete\/iot-device$/);
+    await page.getByRole("button", { name: "Pair virtual Fitness Band", exact: true }).tap();
+    await page.getByRole("button", { name: "Simulate critical", exact: true }).tap();
+    await expect(page.getByText("CRITICAL", { exact: true }).first()).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: "test-results/android-vitals-mobile.png", fullPage: true });
+    await page.getByRole("button", { name: "Disconnect / stop", exact: true }).tap();
+    await expect(page.getByText("idle", { exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
 });
 test("landing and mobile authentication are accessible without overflow", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
@@ -314,7 +471,7 @@ test("all four sport presets are reachable without submitting camera frames", as
   await expect(page.getByRole("button", { name: "Awaiting scoring calibration" })).toBeDisabled();
 });
 
-test("sport editor sends roles and self-reported stance through the authenticated relay", async ({
+test("sport editor sends self-reported roles without injecting verified metrics", async ({
   page,
 }) => {
   await login(page);
@@ -322,7 +479,6 @@ test("sport editor sends roles and self-reported stance through the authenticate
   await page.getByLabel("Select sport", { exact: true }).selectOption("FOOTBALL");
   await page.getByLabel("Primary role", { exact: true }).selectOption("FORWARD");
   await page.getByLabel("Secondary role", { exact: true }).selectOption("MIDFIELDER");
-  await page.getByLabel("Self-reported stance").selectOption("LEFT_FOOT");
   const saved = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
@@ -335,7 +491,6 @@ test("sport editor sends roles and self-reported stance through the authenticate
     sport: "FOOTBALL",
     primaryRole: "FORWARD",
     secondaryRoles: ["MIDFIELDER"],
-    verifiedMetrics: { stance: "LEFT_FOOT" },
   });
   expect(response.request().headers()["idempotency-key"]).toMatch(
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,

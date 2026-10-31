@@ -1,41 +1,46 @@
 # Verification evidence
 
-Verified locally on 31 October 2026 against backend source revision `0067d94` without changing backend files.
+Verified locally on **31 October 2026**, against unchanged backend source revision `0067d9445048370c700f7b4bad8fa006cea43651`. Runtime: Node.js **24.19.0**, pnpm **11.24.0**, Next.js **16.4.3**. Node 22 remains the CI configuration; hosted CI has not been executed in this session.
 
-| Check                                          | Result                                         |
-| ---------------------------------------------- | ---------------------------------------------- |
-| Frozen pnpm install                            | Passed                                         |
-| Schema snapshot and generated contracts        | Passed; compares sibling schema when available |
-| ESLint with zero warnings                      | Passed                                         |
-| Prettier check                                 | Passed                                         |
-| Strict TypeScript and Next.js route generation | Passed                                         |
-| Unit/integration tests                         | 85 passed across 17 files                      |
-| Chromium browser journeys                      | 38 passed                                      |
-| Production build                               | Passed on Node.js 22.23.4                      |
-| Production dependency audit                    | No known vulnerabilities reported              |
-| Backend worktree                               | Unchanged                                      |
+| Check                                     | Result                                                                                                                                        |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frozen pnpm installation                  | Passed after removing five unused runtime dependencies                                                                                        |
+| Schema snapshot and generated contracts   | Passed, including adjacent backend schema comparison                                                                                          |
+| ESLint                                    | Passed with zero warnings                                                                                                                     |
+| Prettier                                  | Passed                                                                                                                                        |
+| Next.js route types and strict TypeScript | Passed, including `pnpm exec tsc --noEmit`                                                                                                    |
+| Unit/integration tests                    | **105 passed across 19 files**                                                                                                                |
+| Chromium browser journeys                 | **42 passed**, no retries; complete suite finished in 1.4 minutes                                                                             |
+| Requested route matrix                    | **24/24 routes at 360px and 1920px**, expected headings/data, navigation reachability, no observed page/hydration errors or document overflow |
+| Android browser emulation                 | Touch-enabled Galaxy S9+ profile, 360px viewport, 4× CPU throttling; navigation and critical simulator flow passed                            |
+| Production build                          | Passed; all app routes compiled/generated                                                                                                     |
+| Production dependency audit               | `pnpm audit --prod`: no known vulnerabilities reported                                                                                        |
+| Backend source worktree                   | Unchanged                                                                                                                                     |
 
-Browser journeys exercise actual frontend HTTP handlers against an isolated contract fixture server. They cover Gov-ID login errors, forbidden direct navigation, passport initialization, logout/cache clearing, anti-sandbagging suggestions, Socket.IO roster delivery and teardown, organizer creation, scout projections, regional tables, simulator isolation, theme switching, accessibility, and 360px overflow.
+Production HTTP smoke checks passed for all 24 requested paths. All 20 protected portal paths required login; the identity alias rendered its redirect, public pages returned 200, anonymous `/api/session/me` returned 401 with `Cache-Control: private, no-store`, and the unsupported leaderboard relay path returned 404. Socket CSP origins matched the configured HTTP/WebSocket origins. These were anonymous production checks; authenticated production service flows require Redis and the live backend.
 
-The pose test loads the real self-hosted MediaPipe engine and model in Chromium with a fake camera, repeats start/stop three times, and checks ended camera tracks and terminated workers. This verifies the inference pipeline and lifecycle, not scoring accuracy against real athletic movement.
+Mobile landing, critical wearable simulation, and theme-studio screenshots were visually inspected for text wrapping, control placement, and readable content. Landing feature copy was corrected to describe actual local joint-angle feedback and filtered prospect discovery.
 
-Unit/integration coverage includes refresh concurrency, original session expiry, logout during refresh, metadata/token preservation, mutation byte/UUID reuse, role/route restrictions, response shapes, HMAC compatibility, signing gates, biometric thresholds, short Bluetooth packets, dispatch priority/retry, geometry, invalid centroids, and nested form serialization.
+The command equivalents follow repository package-manager rules: `pnpm exec tsc --noEmit` and `pnpm build`, with separate `pnpm lint` and `pnpm typecheck` gates. Browser tests start an isolated fixture backend on port 4100 and the real frontend on 3001. Fixtures establish frontend behavior against known contracts, not live NestJS/PostGIS/Redis/BullMQ operation.
 
-Desktop athlete and mobile landing screenshots were inspected. Destructive controls use a semantic white-on-crimson foreground because the original silver-on-crimson combination measured 4.08:1, below the 4.5:1 AA threshold for small text. Gold, crimson, silver, and dark-surface brand values remain intact.
+## Coverage and fixes
 
-Production HTTP smoke checks passed: `/` and `/login` return 200; anonymous `/athlete` and `/admin` return streamed 200 responses containing Next.js login redirects; `/api/session/me` returns 401 with `private, no-store`; the unsupported leaderboard-list relay path returns 404. Streamed page redirects are Next.js behavior and are distinct from API authorization status codes.
+Browser journeys cover public/auth entry points, permanent-profile onboarding states, bad credentials, forbidden direct navigation, role shells, policy-role access, passport editing and QR targets, GTI weighting, anti-sandbagging bracket upgrades, capacity conflicts, personal-room Socket.IO roster delivery/teardown, organizer event/bracket creation and ownership, lazy scout passport inspection, real alert acknowledgement, regional map/table/export behavior, missing capability gates, theme persistence/CSS export, keyboard/accessibility checks, mobile dialogs, simulator isolation, and recovery navigation.
 
-## Remaining external acceptance
+The pose journey loads actual self-hosted MediaPipe WASM/model assets with Chromium's fake camera. It repeats start/stop three times and verifies ended tracks and terminated workers. This validates inference initialization and lifecycle, not technique scoring accuracy. Unit regressions additionally reject late camera callbacks after Stop/restart/unmount and prevent stale wearable connections from replacing a newer source.
 
-- No local Docker/Redis server executable or listening PostgreSQL, Redis, or NestJS service was available. Live NestJS/PostGIS/Redis/BullMQ journeys were not run.
-- No physical Bluetooth wearable was available. Hardware behavior is implemented and packet parsing is tested; GATT behavior needs a supported device/browser validation session.
-- Approved sport-specific scoring rules and the backend capabilities listed in `backend-dependencies.md` remain release prerequisites.
-- CI configuration is included for Node.js 22; a hosted CI run has not been performed.
+Server tests cover eight-way refresh coordination including a simulated seven-second upstream refresh, metadata/token preservation, original expiry, logout during refresh, same-byte/UUID retries, self-deactivation session deletion, role/route/ownership enforcement, verified-evidence write rejection, environment validation, HMAC compatibility and signing gates, rate-limit rejection, and response shape validation. Local memory-adapter tests do not establish distributed Redis throughput.
 
-The admin/resilience update is authorized for commit and push to `origin/main`. No deployment or backend source changes are included.
+Telemetry tests cover exact critical thresholds, little-endian HR formats, malformed packets, simulator timer cleanup, bounded dispatch, critical-sample priority over normal retries, identical retry operation/payloads, and ignored callbacks after Stop. A personal-room regression ensures the frontend does not join the backend's unrestricted bracket rooms; the E2E fixture emits only into the authenticated personal room.
 
-Organizer coverage includes wizard date validation, venue map/coordinate synchronization, GTI range validation, exact creation DTOs, bracket draft removal, stable retries, ownership rejection, unavailable KPI states, local emergency acknowledgement, audio teardown, production telemetry/socket isolation, and mobile dialog contrast/accessibility. The Phase 2 baseline passed before organizer work; detailed scope is recorded in `organizer-portal.md`.
+See [frontend-audit.md](frontend-audit.md) for the route matrix, disclosure/contract findings, file inventory, and residual release gates. See [backend-contracts.md](backend-contracts.md) for wire formats and disclosure page/section mapping.
 
-Scout/policy coverage includes lazy passport drawers, actual underrepresentation labels, alert timestamps and acknowledgement projection preservation, missing API gates, individual rank lookup, CSV/JSON downloads, table/map equivalence, invalid centroids, adjustable equity thresholds, CSV formula neutralization, bounded exports, failure/empty separation, policy role access, logout/cache isolation, keyboard operation and mobile accessibility. The Phase 3 baseline passed before scout work; details are in `scout-policy-portal.md`.
+## Limits and external acceptance
 
-Admin/resilience coverage includes protected dashboard/governance/audit/theme routes, existing-contract user inspection, unavailable moderation/ledger states, browser-only connectivity, four accessible preset previews, safe color persistence/reset/CSS copying and rejected-storage fallback, 300 ms filter settlement and cleanup, synchronous duplicate-submit locking and stable retry operations, same-key query deduplication, bounded caches, 429 retry suppression, memory-adapter fixed-window rate rejection and error recovery wiring. The Phase 4 baseline passed before implementation; limits are recorded in `admin-resilience.md`.
+- Production service integration with NestJS, PostgreSQL/PostGIS, Redis, BullMQ, and a real identity authority was not available for this run.
+- No physical Android handset or Bluetooth wearable was tested. Chromium touch/CPU emulation does not establish real-device thermal, memory, battery, radio, or GATT behavior.
+- Production scoring requires approved reference models/calibration. The relay keeps score ingestion disabled outside explicitly isolated staging practice.
+- Event sockets remain gated because the backend globally broadcasts sensitive safety data and lacks sufficient room authorization. Durable history and authorized pause/resume/acknowledgement remain absent.
+- Complete leaderboard lists, historical/outreach dossiers, organizer management projections, admin moderation/audit APIs, full wearable context, backend evidence-write protection, and token revocation remain dependencies.
+- No production concurrency capacity, clinical safety, universal crash freedom, full patent implementation, or legal patent status is certified.
+- This release is a frontend commit/push only; it does not deploy the application or change backend code.

@@ -92,11 +92,7 @@ export function BracketRegistrationModal({
       onSuccess?.();
     } catch (failure: unknown) {
       const issue = asApiError(failure);
-      if (
-        issue instanceof ApiError &&
-        issue.problem.status === 409 &&
-        issue.problem.code === "SANDBAGGING_DETECTED"
-      ) {
+      if (issue instanceof ApiError && issue.isSandbaggingDetected) {
         const score = issue.problem.athleteGti ?? gti;
         const ceiling = issue.problem.bracketMaxGti ?? bracket?.maxGti;
         if (score !== undefined && ceiling !== undefined)

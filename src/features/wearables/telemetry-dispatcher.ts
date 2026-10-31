@@ -11,6 +11,7 @@ export class TelemetryDispatcher {
   private lastSent = -Infinity;
   private pending: QueuedReading | null = null;
   private failed: QueuedReading | null = null;
+  private retrying: QueuedReading | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   constructor(
     private readonly send: (operation: MutationOperation) => Promise<unknown>,
@@ -25,16 +26,26 @@ export class TelemetryDispatcher {
   }
   retry(): void {
     if (this.failed && !this.stopped) {
-      this.pending = this.failed;
+      this.retrying = this.failed;
       this.failed = null;
       this.schedule();
     }
   }
+  private nextReading(): QueuedReading | null {
+    if (
+      this.pending &&
+      classifyVitals(this.pending.reading) === "CRITICAL" &&
+      (!this.retrying || classifyVitals(this.retrying.reading) !== "CRITICAL")
+    )
+      return this.pending;
+    return this.retrying ?? this.pending;
+  }
   private schedule(): void {
-    if (this.stopped || this.inFlight || this.failed || !this.pending) return;
+    const next = this.nextReading();
+    if (this.stopped || this.inFlight || this.failed || !next) return;
     if (this.timer) clearTimeout(this.timer);
     const delay =
-      classifyVitals(this.pending.reading) === "CRITICAL"
+      classifyVitals(next.reading) === "CRITICAL"
         ? 0
         : Math.max(0, 5000 - (Date.now() - this.lastSent));
     this.timer = setTimeout(() => {
@@ -42,16 +53,19 @@ export class TelemetryDispatcher {
     }, delay);
   }
   private async dispatch(): Promise<void> {
-    if (this.stopped || !this.pending || this.inFlight) return;
-    const next = this.pending;
-    this.pending = null;
+    const next = this.nextReading();
+    if (this.stopped || !next || this.inFlight) return;
+    if (next === this.retrying) this.retrying = null;
+    else this.pending = null;
     this.inFlight = true;
     this.lastSent = Date.now();
     try {
       await this.send(next.operation);
     } catch (error: unknown) {
-      this.failed = next;
-      this.onError(error);
+      if (!this.stopped) {
+        this.failed = next;
+        this.onError(error);
+      }
     } finally {
       this.inFlight = false;
       this.schedule();
@@ -62,5 +76,6 @@ export class TelemetryDispatcher {
     if (this.timer) clearTimeout(this.timer);
     this.pending = null;
     this.failed = null;
+    this.retrying = null;
   }
 }

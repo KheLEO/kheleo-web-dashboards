@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
-import { SocketProvider } from "@/providers/SocketProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,9 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <ThemeProvider defaultTheme="kheleo-gold-crimson">
-          <QueryProvider>
-            <SocketProvider>{children}</SocketProvider>
-          </QueryProvider>
+          <QueryProvider>{children}</QueryProvider>
         </ThemeProvider>
       </body>
     </html>

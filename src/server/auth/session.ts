@@ -27,6 +27,8 @@ export const sessionSchema = z.object({
 export type Session = z.infer<typeof sessionSchema>;
 export const sessionCookie = "kheleo_session";
 const lifetime = 7 * 24 * 3600;
+const lockPollMilliseconds = 50;
+const lockWaitAttempts = 300;
 type SessionUserPatch = Partial<
   Pick<AuthUserSummary, "email" | "phone" | "isVerified" | "athleteProfileId">
 >;
@@ -95,7 +97,7 @@ export async function refreshSession(session: Session, force = false): Promise<S
   const store = getStore();
   const key = `refresh:${session.id}`;
   const owner = randomUUID();
-  for (let attempt = 0; attempt < 120; attempt++) {
+  for (let attempt = 0; attempt < lockWaitAttempts; attempt++) {
     const raw = await store.get(`session:${session.id}`);
     if (!raw) fail(401, "Your session has ended. Sign in again.");
     const current = sessionSchema.parse(JSON.parse(raw) as unknown);
@@ -144,7 +146,7 @@ export async function refreshSession(session: Session, force = false): Promise<S
         await store.release(key, owner);
       }
     }
-    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    await new Promise<void>((resolve) => setTimeout(resolve, lockPollMilliseconds));
   }
   fail(503, "Session refresh is taking too long. Retry shortly.");
 }
@@ -165,7 +167,7 @@ export async function updateSessionUser(id: string, patch: SessionUserPatch): Pr
   const store = getStore();
   const key = `refresh:${id}`;
   const owner = randomUUID();
-  for (let attempt = 0; attempt < 120; attempt++) {
+  for (let attempt = 0; attempt < lockWaitAttempts; attempt++) {
     if (await store.setIfAbsent(key, owner, 30)) {
       try {
         const raw = await store.get(`session:${id}`);
@@ -182,7 +184,7 @@ export async function updateSessionUser(id: string, patch: SessionUserPatch): Pr
         await store.release(key, owner);
       }
     }
-    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    await new Promise<void>((resolve) => setTimeout(resolve, lockPollMilliseconds));
   }
   fail(503, "Session metadata is updating. Retry shortly.");
 }

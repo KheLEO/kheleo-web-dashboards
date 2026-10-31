@@ -5,6 +5,12 @@ export class ApiError extends Error {
     super(problem.detail);
     this.name = "ApiError";
   }
+  get status(): number {
+    return this.problem.status;
+  }
+  get isSandbaggingDetected(): boolean {
+    return this.status === 409 && this.problem.code === "SANDBAGGING_DETECTED";
+  }
 }
 export function asApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;

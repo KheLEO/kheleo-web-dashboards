@@ -1,6 +1,11 @@
 import "server-only";
 import { z } from "zod";
-import { requireSession, authenticatedNest, updateSessionUser } from "@/server/auth/session";
+import {
+  requireSession,
+  authenticatedNest,
+  updateSessionUser,
+  destroySession,
+} from "@/server/auth/session";
 import { verificationSchema } from "@/contracts/auth";
 import { passportSchema } from "@/contracts/passport";
 import { userSchema } from "@/contracts/users";
@@ -82,6 +87,10 @@ export async function relay(request: Request, parts: string[]): Promise<Response
     if (path === `users/${session.user.id}` && request.method === "PATCH") {
       const user = envelope(userSchema).parse(response);
       await updateSessionUser(session.id, { email: user.email, phone: user.phone });
+    }
+    if (path === `users/${session.user.id}` && request.method === "DELETE") {
+      const user = envelope(userSchema).parse(response);
+      if (!user.isActive) await destroySession();
     }
     return privateJson(response);
   } catch (error: unknown) {

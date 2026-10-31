@@ -2,6 +2,7 @@
 import { Manager, type Socket } from "socket.io-client";
 import { z } from "zod";
 import { browserClient } from "@/lib/api/browser-client";
+import { resolveSocketOrigin } from "@/lib/socket-origin";
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "error";
 export type Namespace = "/ws/matchmaking" | "/ws/events";
 interface IncomingEvents {
@@ -111,12 +112,15 @@ export function subscribeNamespace(
 ): () => void {
   if (typeof window === "undefined") throw new Error("Realtime is available only in the browser.");
   if (!manager) {
-    manager = new Manager(process.env.NEXT_PUBLIC_SOCKET_ORIGIN ?? "http://localhost:3000", {
-      autoConnect: false,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 10000,
-    });
+    manager = new Manager(
+      resolveSocketOrigin(process.env.NEXT_PUBLIC_SOCKET_ORIGIN ?? process.env.NEXT_PUBLIC_WS_URL),
+      {
+        autoConnect: false,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+      },
+    );
     window.addEventListener("kheleo:session-ended", disposeRealtime);
   }
   let entry = entries.get(namespace);

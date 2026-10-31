@@ -93,8 +93,8 @@ const server = createServer(async (request, response) => {
         ],
       },
     };
-    io.of("/ws/matchmaking").emit("ROSTER_FORMED", payload);
-    io.of("/ws/matchmaking").emit("ROSTER_FORMED", payload);
+    io.of("/ws/matchmaking").to(`user:${ids.athlete}`).emit("ROSTER_FORMED", payload);
+    io.of("/ws/matchmaking").to(`user:${ids.athlete}`).emit("ROSTER_FORMED", payload);
     send(response, {}, 200, true);
     return;
   }

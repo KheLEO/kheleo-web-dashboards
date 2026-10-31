@@ -25,7 +25,7 @@ export async function AppShell({ workspace, children }: AppShellProps) {
     >
       <div className="min-h-dvh bg-background text-foreground">
         {/* Desktop Sidebar */}
-        <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-kheleo-surface/50 backdrop-blur-xl lg:block">
+        <aside className="fixed inset-y-0 left-0 hidden w-64 overflow-y-auto border-r border-border bg-kheleo-surface/50 backdrop-blur-xl lg:block">
           <Sidebar workspace={workspace} />
         </aside>
 

@@ -108,4 +108,56 @@ describe("biometric lifecycle and dispatch", () => {
     expect(error).toHaveBeenCalledTimes(1);
     dispatcher.stop();
   });
+  it("preserves a queued critical sample when retrying a failed normal reading", async () => {
+    vi.useFakeTimers();
+    const send = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
+    const dispatcher = new TelemetryDispatcher(send, vi.fn());
+    const normal = {
+      athlete_id: ids.athlete,
+      heart_rate: 110,
+      spo2: 98,
+      skin_temperature: 36.6,
+      timestamp: Date.now(),
+    };
+    dispatcher.push(normal);
+    await vi.advanceTimersByTimeAsync(0);
+    dispatcher.push({ ...normal, heart_rate: 202 });
+    dispatcher.retry();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(send.mock.calls[1]?.[0].body)) as unknown).toMatchObject({
+      heart_rate: 202,
+    });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send.mock.calls[0]?.[0]).toBe(send.mock.calls[2]?.[0]);
+    dispatcher.stop();
+  });
+  it("does not report a rejected in-flight send after the dispatcher is stopped", async () => {
+    vi.useFakeTimers();
+    let rejectSend: ((reason: Error) => void) | undefined;
+    const error = vi.fn();
+    const send = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+    );
+    const dispatcher = new TelemetryDispatcher(send, error);
+    dispatcher.push({
+      athlete_id: ids.athlete,
+      heart_rate: 202,
+      spo2: 88,
+      skin_temperature: 40,
+      timestamp: Date.now(),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    dispatcher.stop();
+    rejectSend?.(new Error("Connection closed"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(error).not.toHaveBeenCalled();
+    dispatcher.retry();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(send).toHaveBeenCalledOnce();
+  });
 });

@@ -13,7 +13,7 @@ export function MobileNavigation({ workspace }: { workspace: Workspace }) {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-background/80" />
-        <Dialog.Content className="fixed inset-y-0 left-0 z-50 w-[min(19rem,90vw)] bg-card">
+        <Dialog.Content className="fixed inset-y-0 left-0 z-50 w-[min(19rem,90vw)] overflow-y-auto overscroll-contain bg-card pb-[env(safe-area-inset-bottom)]">
           <Dialog.Title className="sr-only">Workspace navigation</Dialog.Title>
           <Dialog.Description className="sr-only">
             Choose a page in your workspace.

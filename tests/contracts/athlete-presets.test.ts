@@ -7,7 +7,7 @@ import {
   practiceSummary,
 } from "@/features/drills/preset-evaluation";
 import type { Landmark } from "@/features/drills/joint-angles";
-import { ApiProblemError } from "@/lib/api-client";
+import { ApiError } from "@/lib/api/errors";
 import { simulatedReading } from "@/features/wearables/simulator-source.client";
 import { classifyVitals } from "@/contracts/safety";
 function elbowPose(bent: boolean): Landmark[] {
@@ -66,13 +66,13 @@ describe("athlete practice summaries", () => {
       instance: "",
       timestamp: "now",
     };
-    expect(new ApiProblemError(problem).isSandbaggingDetected).toBe(false);
-    expect(
-      new ApiProblemError({ ...problem, code: "BELOW_MINIMUM_TIER" }).isSandbaggingDetected,
-    ).toBe(false);
-    expect(
-      new ApiProblemError({ ...problem, code: "SANDBAGGING_DETECTED" }).isSandbaggingDetected,
-    ).toBe(true);
+    expect(new ApiError(problem).isSandbaggingDetected).toBe(false);
+    expect(new ApiError({ ...problem, code: "BELOW_MINIMUM_TIER" }).isSandbaggingDetected).toBe(
+      false,
+    );
+    expect(new ApiError({ ...problem, code: "SANDBAGGING_DETECTED" }).isSandbaggingDetected).toBe(
+      true,
+    );
   });
   it.each(["heat-exhaustion", "cardiac-strain"] as const)(
     "simulates critical %s vitals without labeling them hardware",

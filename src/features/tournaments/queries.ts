@@ -27,22 +27,10 @@ export function useBrackets(id: string) {
     queryKey: ["brackets", user.id, id],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) => getBrackets(id, pageParam, signal),
-    getNextPageParam: (page) => (page.has_more ? page.next_cursor : undefined),
-    maxPages: 5,
-  });
-}
-
-export function useNearbyPages(filters: NearbyTournamentsQuery) {
-  const { user } = useSession();
-  return useInfiniteQuery({
-    queryKey: ["nearby-pages", user.id, filters],
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam, signal }) =>
-      getNearby({ ...filters, ...(pageParam ? { cursor: pageParam } : {}) }, signal),
-    getNextPageParam: (page, _pages, previousCursor) => {
-      const next = page.length === (filters.limit ?? 20) ? page.at(-1)?.id : undefined;
-      return next === previousCursor ? undefined : next;
-    },
+    getNextPageParam: (page, _pages, _previous, cursors) =>
+      page.has_more && page.next_cursor && !cursors.includes(page.next_cursor)
+        ? page.next_cursor
+        : undefined,
     maxPages: 5,
   });
 }

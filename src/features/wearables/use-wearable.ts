@@ -10,6 +10,7 @@ export function useWearable() {
   const [status, setStatus] = useState<"idle" | "connecting" | "connected">("idle");
   function stop(): void {
     generation.current++;
+    connecting.current = false;
     source.current?.stop();
     source.current = null;
     setStatus("idle");
@@ -17,6 +18,7 @@ export function useWearable() {
   useEffect(() => {
     const terminate = (): void => {
       generation.current++;
+      connecting.current = false;
       source.current?.stop();
       source.current = null;
       setStatus("idle");
@@ -28,6 +30,7 @@ export function useWearable() {
     document.addEventListener("visibilitychange", visibility);
     const dispose = (): void => {
       generation.current++;
+      connecting.current = false;
       source.current?.stop();
       source.current = null;
     };
@@ -39,8 +42,8 @@ export function useWearable() {
   }, []);
   async function connect(next: BiometricSource): Promise<void> {
     if (connecting.current) return;
-    connecting.current = true;
     stop();
+    connecting.current = true;
     const current = generation.current;
     source.current = next;
     setReadings([]);
@@ -66,7 +69,7 @@ export function useWearable() {
         stop();
       }
     } finally {
-      connecting.current = false;
+      if (generation.current === current) connecting.current = false;
     }
   }
   return { readings, latest: readings.at(-1), error, status, connect, stop };

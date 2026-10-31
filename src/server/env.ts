@@ -1,8 +1,9 @@
 import "server-only";
 import { z } from "zod";
+const httpUrl = z.url({ protocol: /^https?$/ });
 const schema = z.object({
-  APP_ORIGIN: z.url().default("http://localhost:3001"),
-  NEST_API_URL: z.url().default("http://localhost:3000/api/v1"),
+  APP_ORIGIN: httpUrl.default("http://localhost:3001"),
+  NEST_API_URL: httpUrl,
   APP_ENV: z.enum(["development", "test", "staging", "production"]).default("development"),
   REDIS_URL: z.url().optional(),
   SESSION_STORE: z.enum(["redis", "memory"]).default("redis"),
@@ -15,7 +16,11 @@ const schema = z.object({
 });
 export type ServerEnvironment = z.infer<typeof schema>;
 export function getEnvironment(): ServerEnvironment {
-  const env = schema.parse(process.env);
+  const env = schema.parse({
+    ...process.env,
+    NEST_API_URL:
+      process.env.NEST_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1",
+  });
   if (
     (process.env.NODE_ENV === "production" ||
       env.APP_ENV === "production" ||

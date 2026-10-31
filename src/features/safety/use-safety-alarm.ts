@@ -43,7 +43,7 @@ export function useSafetyAlarm(active: boolean) {
       setEnabled(false);
       return;
     }
-    if (typeof window.AudioContext !== "function") {
+    if (typeof window === "undefined" || typeof window.AudioContext !== "function") {
       setError("Audible alerts are unavailable in this browser. Visual alerts remain active.");
       return;
     }

@@ -20,7 +20,10 @@ export function useSports() {
     queryKey: keys.sports(user.id),
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) => getSports(user.id, pageParam, signal),
-    getNextPageParam: (page) => (page.has_more ? page.next_cursor : undefined),
+    getNextPageParam: (page, _pages, _previous, cursors) =>
+      page.has_more && page.next_cursor && !cursors.includes(page.next_cursor)
+        ? page.next_cursor
+        : undefined,
     maxPages: 5,
   });
 }

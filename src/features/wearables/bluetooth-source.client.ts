@@ -35,7 +35,12 @@ export class BluetoothSource implements BiometricSource {
   ): Promise<void> {
     this.onReading = onReading;
     this.onError = onError;
-    if (!window.isSecureContext || !navigator.bluetooth)
+    if (
+      typeof window === "undefined" ||
+      typeof navigator === "undefined" ||
+      !window.isSecureContext ||
+      !navigator.bluetooth
+    )
       throw new Error("Web Bluetooth requires a supported browser and HTTPS (or localhost).");
     const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [0x180d] }] });
     if (this.stopped) return;

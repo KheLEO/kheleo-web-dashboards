@@ -38,7 +38,7 @@ Registration conflicts preserve `SANDBAGGING_DETECTED`, `BELOW_MINIMUM_TIER`, ac
 
 ## Realtime
 
-- `/ws/matchmaking`: emit `join:user {userId}`, `join:bracket {bracketId}`. Receive `ROSTER_FORMED {event,data:{team_id,team_name,bracket_id,roster}}`.
+- `/ws/matchmaking`: backend supports `join:user {userId}` and `join:bracket {bracketId}`. The frontend subscribes only to its authenticated personal user room because bracket membership is not authorized by the backend. Receive `ROSTER_FORMED {event,data:{team_id,team_name,bracket_id,roster}}` and refetch the authorized pool state.
 - `/ws/events`: emit `join:athlete {athleteId}`, `join:tournament {tournamentId}`, `join:match {matchId}`. Receive bare `MATCH_PAUSE_ALERT` and `GTI_UPDATED` payloads.
 - No leave-room message exists. There is no implemented scout-room join handler.
 - The safety gateway currently also broadcasts globally. Production event subscriptions remain gated.
@@ -52,3 +52,21 @@ Protected mutations require Idempotency-Key, minimum 16 characters; this fronten
 ## Authorization
 
 Public registration only creates ATHLETE. Scout endpoints accept SCOUT/FEDERATION_ADMIN/SUPER_ADMIN. Tournament creation accepts ORGANIZER/FEDERATION_ADMIN/SUPER_ADMIN. Passport reads allow self or scout/federation/admin; contact details are self/admin. The frontend relay adds organizer ownership checks before bracket creation and stricter private-sport-record reads.
+
+Self-service sport writes through the relay accept `sport`, `primaryRole`, and `secondaryRoles`. The backend DTO additionally accepts `verifiedMetrics` and `earnedBadges`, but the relay rejects them because athletes must not author verified evidence. No separate self-reported stance field exists. On successful self-deactivation, the relay deletes the current web session before returning; backend token-family revocation remains unavailable.
+
+## Invention disclosure alignment
+
+The local six-page Kheleo Invention Disclosure Form was reviewed against backend revision `0067d9445048370c700f7b4bad8fa006cea43651`. The disclosure describes system goals rather than a complete, implemented API specification.
+
+| Disclosure section                                                   | Verified implementation and remaining dependency                                                                                                                                                                                 |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page 3, section 12.1: permanent identity and reattachment            | `AuthService.register` restores an existing identity when the supplied contact matches; `IdentityService` prevents binding a different identity. The implemented route is `auth/verify-government-id`, not `auth/verify-gov-id`. |
+| Pages 3–4, section 12.2: local pose analysis and reference technique | Local pose/joint-angle analysis is implemented. Approved reference models and scoring calibration are absent; production score ingestion stays disabled.                                                                         |
+| Page 4, section 12.3: wearable safety and pause alerts               | `SafetyService.processTelemetry` applies HR > 195, SpO₂ < 90, temperature > 39.5. Full wearable services, authorized match context, per-athlete calibration and safe, durable organizer events remain dependencies.              |
+| Page 4, section 12.4: fair bracket assignment                        | `BracketsService.registerForBracket` returns `409 SANDBAGGING_DETECTED` and an optional suggested higher bracket. The UI requires confirmation before a new registration; no automatic reassignment endpoint exists.             |
+| Page 4, section 12.5: complementary teams                            | Tournament/bracket-scoped free-agent APIs and `ROSTER_FORMED` payloads exist. The frontend uses only authorized personal rooms; unrestricted backend bracket subscriptions still require remediation.                            |
+| Page 4, section 12.6: GTI and scouting                               | Backend weights are 0.35 / 0.25 / 0.40; elite threshold is ≥85. Feed and individual ranks exist. National/state leaderboard lists, season history and outreach/trial APIs are absent.                                            |
+| Page 5, planned extensions: regional participation maps              | `heatmaps/regional` supplies bounded district aggregates. Completeness and state-disambiguation contracts remain pending.                                                                                                        |
+
+No live PostgreSQL, Redis, BullMQ, physical wearable, identity authority, or production Socket.io verification is implied by this source audit. The repository's deterministic fixtures validate frontend behavior against known wire shapes.

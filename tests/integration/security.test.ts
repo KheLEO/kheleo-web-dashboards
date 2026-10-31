@@ -7,6 +7,7 @@ import { prepareTelemetry } from "@/server/api/telemetry-relay";
 import { assertOrigin } from "@/server/security/request-origin";
 import { routeRegistry } from "@/server/api/route-registry";
 import { ids } from "@/test/factories";
+import { getEnvironment } from "@/server/env";
 describe("relay security boundaries", () => {
   beforeEach(() => {
     vi.stubEnv("SESSION_STORE", "memory");
@@ -27,6 +28,17 @@ describe("relay security boundaries", () => {
     expect(await signHmac("fixture-secret", payload)).toBe(
       createHmac("sha256", "fixture-secret").update(payload).digest("hex"),
     );
+  });
+  it("supports the documented API alias while keeping the private URL authoritative", () => {
+    vi.stubEnv("NEST_API_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.example.com/api/v1");
+    expect(getEnvironment().NEST_API_URL).toBe("https://api.example.com/api/v1");
+    vi.stubEnv("NEST_API_URL", "http://backend.internal:3000/api/v1");
+    expect(getEnvironment().NEST_API_URL).toBe("http://backend.internal:3000/api/v1");
+  });
+  it("rejects non-HTTP upstream URLs before issuing a request", () => {
+    vi.stubEnv("NEST_API_URL", "file:///etc/passwd");
+    expect(() => getEnvironment()).toThrow();
   });
   it("does not allow unapproved scoring to modify GTI", async () => {
     await expect(

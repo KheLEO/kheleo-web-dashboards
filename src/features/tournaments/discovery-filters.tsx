@@ -6,11 +6,10 @@ import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/shared/async-state";
-import { LoadMore } from "@/components/shared/cursor-list";
 import { SportTypeValues } from "@/contracts/enums.generated";
 import { nearbyQuerySchema, type NearbyTournamentsQuery } from "@/contracts/tournaments";
 import { TournamentMap } from "@/lib/maps/tournament-map";
-import { useNearbyPages } from "./queries";
+import { useNearby } from "./queries";
 import { TournamentCard } from "./tournament-card";
 export const campusLocations = [
   { name: "Ghaziabad / Delhi-NCR campus", lat: 28.6692, lng: 77.4538 },
@@ -29,12 +28,8 @@ export function TournamentDiscovery() {
   const [sport, setSport] = useState("");
   const [locationError, setLocationError] = useState<string | null>(null);
   const settledFilters = useDebouncedValue(filters, 300);
-  const query = useNearbyPages(settledFilters);
-  const rows = Array.from(
-    new Map(
-      (query.data?.pages.flatMap((page) => page) ?? []).map((entry) => [entry.id, entry]),
-    ).values(),
-  );
+  const query = useNearby(settledFilters);
+  const rows = Array.from(new Map((query.data ?? []).map((entry) => [entry.id, entry])).values());
   function search(): void {
     const result = nearbyQuerySchema.safeParse({
       lat: Number(lat),
@@ -175,9 +170,9 @@ export function TournamentDiscovery() {
         )}
       </Card>
       <p className="text-xs leading-5 text-muted-foreground">
-        Cursor pages retain at most 100 results and remove duplicates. Distance ordering and the
-        backend UUID cursor are inconsistent; additional pages are best effort, not an exhaustive
-        geographic listing.
+        Up to 20 nearby results are shown per search. Narrow the area or sport to explore further.
+        Distance ordering and the backend UUID cursor are inconsistent, so this view does not
+        paginate or claim an exhaustive geographic listing.
       </p>
       {query.isPending ? (
         <Skeleton />
@@ -190,7 +185,7 @@ export function TournamentDiscovery() {
         />
       ) : (
         <>
-          <TournamentMap tournaments={rows} center={[filters.lat, filters.lng]} />
+          <TournamentMap tournaments={rows} center={[settledFilters.lat, settledFilters.lng]} />
           {rows.length === 0 ? (
             <EmptyState>No open tournaments found in this area. Try a wider radius.</EmptyState>
           ) : (
@@ -200,13 +195,6 @@ export function TournamentDiscovery() {
               ))}
             </div>
           )}
-          <LoadMore
-            hasNext={query.hasNextPage}
-            loading={query.isFetchingNextPage}
-            load={() => {
-              void query.fetchNextPage();
-            }}
-          />
         </>
       )}
     </div>

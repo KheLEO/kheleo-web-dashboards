@@ -16,10 +16,7 @@ export function useRosterEvents(tournamentId: string, bracketId: string): Connec
       void client.invalidateQueries({ queryKey: keys.pool(user.id, tournamentId, bracketId) });
     };
     return subscribeNamespace("/ws/matchmaking", {
-      rooms: [
-        { event: "join:user", id: user.id },
-        { event: "join:bracket", id: bracketId },
-      ],
+      rooms: [{ event: "join:user", id: user.id }],
       status: setConnection,
       connected: refresh,
       events: {

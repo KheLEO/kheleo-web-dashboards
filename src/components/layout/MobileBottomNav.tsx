@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navigation } from "@/components/shell/persona-navigation";
+import { isNavigationActive, navigation } from "@/components/shell/persona-navigation";
 import type { Workspace } from "@/server/auth/permissions";
 
 export function MobileBottomNav({ workspace }: { workspace: Workspace }) {
@@ -13,12 +13,12 @@ export function MobileBottomNav({ workspace }: { workspace: Workspace }) {
   return (
     <nav
       aria-label="Mobile Navigation"
-      className="fixed bottom-0 inset-x-0 z-40 border-t border-border/80 bg-kheleo-surface/90 px-2 py-1.5 backdrop-blur-xl lg:hidden"
+      className="fixed bottom-0 inset-x-0 z-40 border-t border-border/80 bg-kheleo-surface/90 px-2 pt-1.5 pb-[max(.375rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden"
     >
       <div className="flex items-center justify-around">
-        {items.map(({ title, href, icon: Icon }) => {
-          const active =
-            pathname === href || (href !== `/${workspace}` && pathname.startsWith(href + "/"));
+        {items.map((item) => {
+          const { title, href, icon: Icon } = item;
+          const active = isNavigationActive(pathname, item);
           return (
             <Link
               key={href}

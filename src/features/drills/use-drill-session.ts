@@ -19,7 +19,7 @@ export function useDrillSession(preset?: DrillPreset) {
   const [practice, setPractice] = useState<FrameEvaluation | null>(null);
   const [summary, setSummary] = useState<SubmitDrillRequest | null>(null);
   const [state, dispatch] = useReducer(drillSessionReducer, initialDrillState);
-  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [cameraRequest, setCameraRequest] = useState<{ generation: number } | null>(null);
   const webcam = useRef<Webcam | null>(null);
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const engine = useRef<PoseEngine | null>(null);
@@ -44,7 +44,7 @@ export function useDrillSession(preset?: DrillPreset) {
   const stop = useCallback((): void => {
     if (preset) setSummary(practiceSummary(preset, aggregate.current, Date.now()));
     release();
-    setCameraEnabled(false);
+    setCameraRequest(null);
     dispatch({ type: "stop" });
   }, [release, preset]);
   useEffect(() => {
@@ -61,7 +61,7 @@ export function useDrillSession(preset?: DrillPreset) {
   }, [release, stop]);
   function fail(message: string): void {
     release();
-    setCameraEnabled(false);
+    setCameraRequest(null);
     dispatch({ type: "error", message });
   }
   function start(): void {
@@ -73,9 +73,13 @@ export function useDrillSession(preset?: DrillPreset) {
     lastFrame.current = 0;
     lastSummary.current = 0;
     dispatch({ type: "start" });
-    setCameraEnabled(true);
+    setCameraRequest({ generation: generation.current });
   }
   function onStream(nextStream: MediaStream): void {
+    if (!cameraRequest || cameraRequest.generation !== generation.current) {
+      nextStream.getTracks().forEach((track) => track.stop());
+      return;
+    }
     stream.current = nextStream;
     const current = generation.current;
     try {
@@ -150,11 +154,13 @@ export function useDrillSession(preset?: DrillPreset) {
     summary,
     webcam,
     canvas,
-    cameraEnabled,
+    cameraEnabled: cameraRequest !== null,
     start,
     stop,
     onStream,
-    onCameraError: (error: string | DOMException) =>
-      fail(typeof error === "string" ? error : error.message),
+    onCameraError: (error: string | DOMException) => {
+      if (cameraRequest?.generation === generation.current)
+        fail(typeof error === "string" ? error : error.message);
+    },
   };
 }

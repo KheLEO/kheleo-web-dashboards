@@ -5,6 +5,8 @@ export interface PoseEngine {
   stop(): void;
 }
 export function createPoseEngine(onMessage: (message: PoseWorkerOutput) => void): PoseEngine {
+  if (typeof window === "undefined" || typeof Worker === "undefined")
+    throw new Error("Pose tracking requires a browser with worker support.");
   const worker = new Worker(new URL("./pose.worker.ts", import.meta.url), { type: "module" });
   let stopped = false;
   let closing: ReturnType<typeof setTimeout> | null = null;

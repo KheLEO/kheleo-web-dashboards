@@ -81,7 +81,7 @@ export const routeRegistry: readonly RelayRoute[] = [
   {
     method: "POST",
     pattern: path(`passport/${uuid}/sports`),
-    body: sportInputSchema,
+    body: sportInputSchema.omit({ verifiedMetrics: true, earnedBadges: true }),
     query: noQuery,
     identity: "self",
   },

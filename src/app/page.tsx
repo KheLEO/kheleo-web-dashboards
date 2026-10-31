@@ -105,7 +105,7 @@ export default async function Home() {
             {
               icon: ShieldCheck,
               title: "Permanent Passport",
-              text: "Cryptographically bound Government ID ensures competition history cannot be wiped or fabricated.",
+              text: "Permanent government-ID binding keeps verified athletes attached to their existing sports profile.",
             },
             {
               icon: Trophy,
@@ -115,12 +115,12 @@ export default async function Home() {
             {
               icon: ScanLine,
               title: "Edge AI Drills",
-              text: "Private, browser-based landmark pose detection evaluates stamina, form, and raw agility.",
+              text: "Private pose tracking provides local joint-angle feedback without uploading camera video.",
             },
             {
               icon: Radar,
               title: "Grassroots Radar",
-              text: "Unlocks scouting access across rural, semi-urban, and Tier-3 talent pipelines in real time.",
+              text: "Find elite prospects by GTI, sport, and district, with rural and underrepresented status shown.",
             },
           ].map(({ icon: Icon, title, text }) => (
             <article
@@ -134,6 +134,52 @@ export default async function Home() {
               <p className="text-xs leading-5 text-kheleo-silver-muted">{text}</p>
             </article>
           ))}
+        </section>
+        <section aria-labelledby="portal-heading" className="border-t border-border/80 py-12">
+          <h2 id="portal-heading" className="text-2xl font-semibold">
+            Choose your portal
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Sign in with your verified account to enter an authorized workspace. Athletes can create
+            an account; organizer, scout, policy, and administrator access is provisioned by the
+            platform.
+          </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                title: "Athlete portal",
+                href: "/athlete/dashboard",
+                text: "Your passport, drills, tournaments, and free-agent pool.",
+              },
+              {
+                title: "Organizer portal",
+                href: "/organizer/dashboard",
+                text: "Create competitions, define brackets, and monitor event safety.",
+              },
+              {
+                title: "Scout & policy portal",
+                href: "/scout/dashboard",
+                text: "Discover talent, review rankings, and explore regional opportunity.",
+              },
+              {
+                title: "Super admin portal",
+                href: "/admin/dashboard",
+                text: "Inspect platform governance, audit capabilities, and theme settings.",
+              },
+            ].map((portal) => (
+              <Link
+                key={portal.href}
+                href={portal.href}
+                className="rounded-xl border bg-card p-5 hover:border-primary/50"
+              >
+                <h3 className="font-semibold text-primary">{portal.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{portal.text}</p>
+                <span className="mt-4 inline-flex items-center gap-2 text-sm">
+                  Enter portal <ArrowRight size={16} />
+                </span>
+              </Link>
+            ))}
+          </div>
         </section>
       </main>
     </div>

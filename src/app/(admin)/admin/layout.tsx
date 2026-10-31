@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AppShell } from "@/components/shell/app-shell";
+import { AppShell } from "@/components/layout/AppShell";
 export default function Layout({ children }: { children: ReactNode }) {
   return <AppShell workspace="admin">{children}</AppShell>;
 }

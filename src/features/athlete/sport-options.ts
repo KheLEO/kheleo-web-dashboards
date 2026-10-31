@@ -7,11 +7,3 @@ export const sportRoles: Record<SportType, readonly string[]> = {
   KABADDI: ["RAIDER", "CORNER_DEFENDER", "COVER_DEFENDER", "ALL_ROUNDER"],
   BASKETBALL: ["POINT_GUARD", "SHOOTING_GUARD", "SMALL_FORWARD", "POWER_FORWARD", "CENTER"],
 };
-export const sportStances: Record<SportType, readonly string[]> = {
-  CRICKET: ["RIGHT_HAND_BAT", "LEFT_HAND_BAT", "RIGHT_ARM_BOWL", "LEFT_ARM_BOWL"],
-  FOOTBALL: ["RIGHT_FOOT", "LEFT_FOOT", "BOTH_FEET"],
-  BADMINTON: ["RIGHT_HAND", "LEFT_HAND"],
-  ATHLETICS: ["RIGHT_FOOT_LEAD", "LEFT_FOOT_LEAD"],
-  KABADDI: ["RIGHT_SIDE", "LEFT_SIDE"],
-  BASKETBALL: ["RIGHT_HAND", "LEFT_HAND", "BOTH_HANDS"],
-};

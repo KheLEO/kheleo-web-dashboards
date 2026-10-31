@@ -46,7 +46,10 @@ describe("refresh coordination", () => {
     callNest.mockReset();
     jar.clear();
   });
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.useRealTimers();
+  });
   it("does not recreate a session deleted while refresh is in flight", async () => {
     const original = session();
     await saveSession(original);
@@ -119,6 +122,31 @@ describe("refresh coordination", () => {
         (result) => result.accessToken === "new" && result.expiresAt === original.expiresAt,
       ),
     ).toBe(true);
+  });
+  it("waits for a slow refresh within the upstream timeout across concurrent requests", async () => {
+    vi.useFakeTimers();
+    const original = session();
+    await saveSession(original);
+    callNest.mockImplementation(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 7000));
+      return {
+        success: true,
+        data: {
+          accessToken: "new",
+          refreshToken: "refresh-new",
+          tokenType: "Bearer",
+          expiresIn: 900,
+          user,
+        },
+        timestamp: "now",
+      };
+    });
+    const assertion = expect(
+      Promise.all(Array.from({ length: 8 }, () => refreshSession(original))),
+    ).resolves.toHaveLength(8);
+    await vi.advanceTimersByTimeAsync(7100);
+    await assertion;
+    expect(callNest).toHaveBeenCalledTimes(1);
   });
   it("preserves operation and body across a 401 refresh retry", async () => {
     const original = { ...session(), accessExpiresAt: Date.now() + 900000 };

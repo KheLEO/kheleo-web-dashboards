@@ -7,9 +7,10 @@ export function useBrowserCapabilities() {
     () => true,
     () => false,
   );
+  const browser = ready && typeof window !== "undefined" && typeof navigator !== "undefined";
   return {
-    camera: ready && Boolean(navigator.mediaDevices?.getUserMedia),
-    bluetooth: ready && "bluetooth" in navigator && window.isSecureContext,
-    worker: ready && typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined",
+    camera: browser && window.isSecureContext && Boolean(navigator.mediaDevices?.getUserMedia),
+    bluetooth: browser && "bluetooth" in navigator && window.isSecureContext,
+    worker: browser && typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined",
   };
 }

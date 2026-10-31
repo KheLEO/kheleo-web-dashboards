@@ -5,9 +5,11 @@ const { callNest, cookie } = vi.hoisted(() => ({
   cookie: { value: "a".repeat(64) },
 }));
 vi.mock("@/server/api/nest-client", () => ({ callNest }));
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => cookie }) }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: () => cookie, delete: vi.fn() }),
+}));
 import { relay } from "@/server/api/relay";
-import { MemoryStore } from "@/server/auth/session-store";
+import { MemoryStore, getStore } from "@/server/auth/session-store";
 import { saveSession } from "@/server/auth/session";
 import { ids, makeUser } from "@/test/factories";
 const operation = "90000000-0000-4000-8000-000000000001";
@@ -67,6 +69,21 @@ describe("allowlisted relay", () => {
     expect(response.status).toBe(400);
     expect(callNest).not.toHaveBeenCalled();
   });
+  it.each([{ verifiedMetrics: { bowlingSpeedKmh: 160 } }, { earnedBadges: [{ id: "champion" }] }])(
+    "rejects athlete-authored verification fields: %j",
+    async (extra) => {
+      const response = await relay(
+        request(`passport/${ids.athlete}/sports`, "POST", {
+          sport: "CRICKET",
+          primaryRole: "BOWLER",
+          ...extra,
+        }),
+        ["passport", ids.athlete, "sports"],
+      );
+      expect(response.status).toBe(400);
+      expect(callNest).not.toHaveBeenCalled();
+    },
+  );
   it("forwards a stable operation and rejects payload reuse", async () => {
     callNest.mockResolvedValue({
       success: true,
@@ -94,6 +111,27 @@ describe("allowlisted relay", () => {
       ids.athlete,
     ]);
     expect(changed.status).toBe(409);
+    expect(callNest).toHaveBeenCalledTimes(1);
+  });
+  it("ends the local session in the same request as self-deactivation", async () => {
+    callNest.mockResolvedValue({
+      success: true,
+      data: {
+        ...makeUser(),
+        isActive: false,
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+      timestamp: "now",
+    });
+    const response = await relay(request(`users/${ids.athlete}`, "DELETE", {}), [
+      "users",
+      ids.athlete,
+    ]);
+    expect(response.status).toBe(200);
+    expect(await getStore().get(`session:${cookie.value}`)).toBeNull();
+    const next = await relay(request(`users/${ids.athlete}`, "GET"), ["users", ids.athlete]);
+    expect(next.status).toBe(401);
     expect(callNest).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { resolveSocketOrigin } from "./src/lib/socket-origin";
+
+const socketOrigin = resolveSocketOrigin(
+  process.env.NEXT_PUBLIC_SOCKET_ORIGIN ?? process.env.NEXT_PUBLIC_WS_URL,
+);
 
 const config: NextConfig = {
   reactStrictMode: true,
@@ -22,12 +27,9 @@ const config: NextConfig = {
               "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'" +
               (process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : "") +
               "; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' " +
-              (process.env.NEXT_PUBLIC_SOCKET_ORIGIN ?? "http://localhost:3000") +
+              socketOrigin +
               " " +
-              (process.env.NEXT_PUBLIC_SOCKET_ORIGIN ?? "http://localhost:3000").replace(
-                /^http/,
-                "ws",
-              ) +
+              socketOrigin.replace(/^http/, "ws") +
               "; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
           },
         ],

@@ -9,10 +9,9 @@ import { usePassport, useSports } from "@/features/passport/queries";
 import { ProfileForm } from "@/features/passport/profile-form";
 import { savePassport, saveSport } from "@/features/passport/api";
 import { recalculateGti } from "@/features/rankings/api";
-import { sportRoles, sportStances } from "@/features/athlete/sport-options";
+import { sportRoles } from "@/features/athlete/sport-options";
 import { sportInputSchema, updatePassportSchema } from "@/contracts/passport";
 import { SportTypeValues, type SportType } from "@/contracts/enums.generated";
-import { jsonObjectSchema } from "@/contracts/common";
 import { ApiError, asApiError } from "@/lib/api/errors";
 import { createOperation, type MutationOperation } from "@/lib/api/operation";
 import { SchemaForm } from "@/components/ui/form";
@@ -28,7 +27,6 @@ import { LoadMore } from "@/components/shared/cursor-list";
 const editorSchema = z.object({
   primaryRole: z.string().min(1),
   secondaryRole: z.string().optional(),
-  stance: z.string().optional(),
 });
 export function SportsPassportCard() {
   const { user } = useSession();
@@ -70,9 +68,6 @@ export function SportsPassportCard() {
   const record = records.data?.pages
     .flatMap((page) => page.data)
     .find((entry) => entry.sport === sport);
-  const stance = jsonObjectSchema.safeParse(record?.verifiedMetrics ?? {});
-  const currentStance =
-    stance.success && typeof stance.data.stance === "string" ? stance.data.stance : "";
   const components = [
     { label: "Biomechanical form", weight: 35, value: analysis.data?.biomechanicalScore },
     { label: "Wearable consistency", weight: 25, value: analysis.data?.wearableScore },
@@ -270,7 +265,7 @@ export function SportsPassportCard() {
         </div>
       </section>
       <Card>
-        <h2 className="mb-4 text-lg font-semibold">Multi-sport roles and stance</h2>
+        <h2 className="mb-4 text-lg font-semibold">Multi-sport roles</h2>
         <label className="field mb-5 max-w-sm">
           Select sport
           <select
@@ -306,30 +301,18 @@ export function SportsPassportCard() {
                   type: "select",
                   options: sportRoles[sport],
                 },
-                {
-                  name: "stance",
-                  label: "Self-reported stance",
-                  type: "select",
-                  options: sportStances[sport],
-                },
               ]}
               schema={editorSchema}
               defaults={{
                 primaryRole: record?.primaryRole ?? "",
                 secondaryRole: record?.secondaryRoles[0] ?? "",
-                stance: currentStance,
               }}
               submitLabel="Save sport roles"
               submit={async (value, action) => {
-                const metrics = jsonObjectSchema.parse(record?.verifiedMetrics ?? {});
                 const payload = sportInputSchema.parse({
                   sport,
                   primaryRole: value.primaryRole,
                   secondaryRoles: value.secondaryRole ? [value.secondaryRole] : [],
-                  verifiedMetrics: {
-                    ...metrics,
-                    ...(value.stance ? { stance: value.stance } : {}),
-                  },
                 });
                 return saveSport(user.id, { id: action.id, body: JSON.stringify(payload) });
               }}
@@ -346,8 +329,8 @@ export function SportsPassportCard() {
               }}
             />
             <p className="mt-4 text-xs text-muted-foreground">
-              Roles and stance are self-reported. They do not independently verify performance
-              metrics.
+              Roles are self-reported. Sport-specific stance needs a separate metadata contract;
+              verified performance metrics are preserved by the platform.
             </p>
           </>
         )}

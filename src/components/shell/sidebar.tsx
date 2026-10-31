@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
-import { navigation } from "./persona-navigation";
+import { isNavigationActive, navigation } from "./persona-navigation";
 import { Brand } from "./brand";
 import type { Workspace } from "@/server/auth/permissions";
 export function Sidebar({
@@ -22,9 +22,9 @@ export function Sidebar({
         {workspace === "scout" ? "Talent intelligence" : `${workspace} workspace`}
       </div>
       <nav aria-label={`${workspace} navigation`} className="space-y-1.5">
-        {navigation[workspace].map(({ title, href, icon: Icon }) => {
-          const active =
-            pathname === href || (href !== `/${workspace}` && pathname.startsWith(href + "/"));
+        {navigation[workspace].map((item) => {
+          const { title, href, icon: Icon } = item;
+          const active = isNavigationActive(pathname, item);
           return (
             <Link
               {...(onNavigate ? { onClick: onNavigate } : {})}

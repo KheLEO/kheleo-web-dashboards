@@ -27,16 +27,18 @@ export function WearablePanel() {
   const dispatcher = useRef<TelemetryDispatcher | null>(null);
   useEffect(() => {
     if (!ingest || !session.capabilities.simulatorIngestion) return;
+    let active = true;
     const next = new TelemetryDispatcher(
       async (operation) => {
         const result = telemetryResultSchema.parse(await sendSimulatedTelemetry(operation));
-        setIngestion(result);
+        if (active) setIngestion(result);
         return result;
       },
       (error) => setFailure(asApiError(error)),
     );
     dispatcher.current = next;
     return () => {
+      active = false;
       next.stop();
       dispatcher.current = null;
     };
