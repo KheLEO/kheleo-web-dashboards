@@ -770,3 +770,180 @@ test("policy accounts use the scout workspace and logout clears private passport
   const result = await page.request.get("/api/backend/scouts/feed?min_gti=85&limit=20");
   expect(result.status()).toBe(403);
 });
+
+test("admin dashboard and governance expose only supported account inspection", async ({
+  page,
+}) => {
+  const paths: string[] = [];
+  page.on("request", (request) => paths.push(new URL(request.url()).pathname));
+  await login(page, "admin");
+  await page.goto("/admin/dashboard");
+  await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(6);
+  await page.getByRole("button", { name: "Check web session", exact: true }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Web session responded for SUPER_ADMIN" }),
+  ).toBeVisible();
+  await page.goto("/admin/users");
+  await page.getByLabel("User UUID", { exact: true }).fill(ids.athlete);
+  await page.getByRole("button", { name: "Inspect user", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Account details", exact: true })).toBeVisible();
+  await expect(page.getByText("ATHLETE · Active", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Verify organizer / scout", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Revoke credentials", exact: true }),
+  ).toBeDisabled();
+  expect(paths.some((path) => path.startsWith("/api/backend/admin/"))).toBe(false);
+});
+
+test("audit console separates missing ledgers without fabricating records", async ({ page }) => {
+  await login(page, "admin");
+  await page.goto("/admin/audit-logs");
+  for (const [value, title] of [
+    ["identity", "Identity and anti-account-reset audit"],
+    ["drills", "Edge-AI HMAC and replay audit"],
+    ["sandbagging", "Anti-sandbagging enforcement audit"],
+    ["safety", "Autonomous safety incident registry"],
+  ]) {
+    if (!value || !title) throw new Error("Audit fixture missing");
+    await page.getByLabel("Audit stream", { exact: true }).selectOption(value);
+    await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("table")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Athlete UUID" })).toBeDisabled();
+  await page.setViewportSize({ width: 360, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("theme studio persists safe color overrides and copies an actual CSS palette", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await login(page, "admin");
+  await page.goto("/admin/theme");
+  const main = page.getByRole("main");
+  for (const name of ["Golden Crimson", "Royal Emerald", "Midnight Cyber", "Light Stadium"]) {
+    await main.getByRole("button", { name, exact: true }).click();
+    await expect(main.getByRole("button", { name, exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.evaluate(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await Promise.allSettled(
+        document
+          .getAnimations()
+          .filter((animation) =>
+            Number.isFinite(animation.effect?.getComputedTiming().iterations ?? Infinity),
+          )
+          .map((animation) => animation.finished),
+      );
+    });
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  }
+  await page.getByLabel("Primary accent color", { exact: true }).evaluate((element) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("Native input setter unavailable");
+    setter.call(element, "#123456");
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue("--primary").trim(),
+      ),
+    )
+    .toBe("18 52 86");
+  await page.reload();
+  await expect(page.getByLabel("Primary accent color", { exact: true })).toHaveValue("#123456");
+  await page.getByRole("button", { name: "Copy globals.css Config", exact: true }).click();
+  await expect(page.getByText("CSS palette copied.", { exact: false })).toBeVisible();
+  const css = await page.evaluate(() => navigator.clipboard.readText());
+  expect(css).toContain("--kheleo-gold-primary: #123456;");
+  expect(css).toContain("--kheleo-gold-rgb: 18 52 86;");
+  expect(css).toContain("color-scheme: light;");
+  await page.getByRole("button", { name: "Reset custom colors", exact: true }).click();
+  await expect(page.getByLabel("Primary accent color", { exact: true })).toHaveValue("#925600");
+  await page.setViewportSize({ width: 360, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-theme-mobile.png", fullPage: true });
+});
+
+test("admin routes and known-user reads reject lower roles", async ({ page }) => {
+  await login(page, "scout");
+  for (const path of ["/admin/dashboard", "/admin/users", "/admin/audit-logs", "/admin/theme"]) {
+    await page.goto(path);
+    await expect(
+      page.getByRole("heading", { name: "Access restricted", exact: true }),
+    ).toBeVisible();
+  }
+  expect((await page.request.get(`/api/backend/users/${ids.athlete}`)).status()).toBe(403);
+});
+
+test("search requests settle for 300 ms and retain exact filter names", async ({ page }) => {
+  await login(page, "scout");
+  await page.goto("/scout/feed");
+  await page.getByLabel("District", { exact: true }).fill("Varanasi");
+  const requested = page.waitForRequest(
+    (request) =>
+      request.url().includes("/api/backend/scouts/feed") &&
+      new URL(request.url()).searchParams.get("district") === "Varanasi",
+  );
+  const start = Date.now();
+  await page.getByRole("button", { name: "Apply talent filters", exact: true }).click();
+  const request = await requested;
+  expect(Date.now() - start).toBeGreaterThanOrEqual(250);
+  expect(new URL(request.url()).searchParams.get("min_gti")).toBe("85");
+  expect(new URL(request.url()).searchParams.get("limit")).toBe("20");
+});
+
+test("unknown routes offer styled recovery to the public application", async ({ page }) => {
+  await page.goto("/this-route-does-not-exist");
+  await expect(page.getByRole("heading", { name: "Page not found", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Return to KheLEO", exact: true }).click();
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Potential is");
+});
+
+test("theme changes remain usable when browser preference storage rejects writes", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("kheleo-theme-preset", "kheleo-gold-crimson");
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string): void {
+      if (key.startsWith("kheleo-theme"))
+        throw new DOMException("Storage blocked", "QuotaExceededError");
+      original.call(this, key, value);
+    };
+  });
+  await login(page, "admin");
+  await page.goto("/admin/theme");
+  await page.getByRole("main").getByRole("button", { name: "Light Stadium", exact: true }).click();
+  await expect(
+    page.getByRole("main").getByRole("button", { name: "Light Stadium", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Browser storage is unavailable" }),
+  ).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.dataset.theme))
+    .toBe("light-stadium");
+  await page.getByLabel("Primary accent color", { exact: true }).evaluate((element) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("Native input setter unavailable");
+    setter.call(element, "#123456");
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue("--primary").trim(),
+      ),
+    )
+    .toBe("18 52 86");
+});

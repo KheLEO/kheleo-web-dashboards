@@ -1,18 +1,17 @@
 "use client";
+import "./globals.css";
+import { RecoveryView } from "@/components/shared/recovery-view";
 export default function GlobalError({
-  reset,
+  error,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
-    <html lang="en">
-      <body>
-        <main>
-          <h1>KheLEO could not load</h1>
-          <p>Please try again shortly.</p>
-          <button onClick={reset}>Retry</button>
-        </main>
+    <html lang="en" data-theme="kheleo-gold-crimson">
+      <body className="bg-background text-foreground">
+        <RecoveryView global retry={retry} {...(error.digest ? { digest: error.digest } : {})} />
       </body>
     </html>
   );

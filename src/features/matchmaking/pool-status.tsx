@@ -25,6 +25,7 @@ export function PoolStatus({
   const status = useRosterEvents(tournamentId, bracketId);
   const client = useQueryClient();
   const [failure, setFailure] = useState<Error | null>(null);
+  const flight = useRef(false);
   const [leaving, setLeaving] = useState(false);
   const operation = useRef<MutationOperation | null>(null);
   const absent = query.error instanceof ApiError && query.error.problem.status === 404;
@@ -65,6 +66,8 @@ export function PoolStatus({
                   variant="secondary"
                   disabled={leaving}
                   onClick={async () => {
+                    if (flight.current) return;
+                    flight.current = true;
                     setLeaving(true);
                     setFailure(null);
                     operation.current ??= createOperation({});
@@ -75,6 +78,7 @@ export function PoolStatus({
                     } catch (error: unknown) {
                       setFailure(asApiError(error));
                     } finally {
+                      flight.current = false;
                       setLeaving(false);
                     }
                   }}

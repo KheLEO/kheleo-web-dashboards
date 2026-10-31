@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BiometricReading, BiometricSource } from "./types";
 export function useWearable() {
   const source = useRef<BiometricSource | null>(null);
+  const connecting = useRef(false);
   const generation = useRef(0);
   const [readings, setReadings] = useState<BiometricReading[]>([]);
   const [error, setError] = useState<Error | null>(null);
@@ -37,6 +38,8 @@ export function useWearable() {
     };
   }, []);
   async function connect(next: BiometricSource): Promise<void> {
+    if (connecting.current) return;
+    connecting.current = true;
     stop();
     const current = generation.current;
     source.current = next;
@@ -62,6 +65,8 @@ export function useWearable() {
         setError(failure instanceof Error ? failure : new Error("Unable to connect wearable."));
         stop();
       }
+    } finally {
+      connecting.current = false;
     }
   }
   return { readings, latest: readings.at(-1), error, status, connect, stop };

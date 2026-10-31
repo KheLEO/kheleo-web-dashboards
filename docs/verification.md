@@ -9,8 +9,8 @@ Verified locally on 31 October 2026 against backend source revision `0067d94` wi
 | ESLint with zero warnings                      | Passed                                         |
 | Prettier check                                 | Passed                                         |
 | Strict TypeScript and Next.js route generation | Passed                                         |
-| Unit/integration tests                         | 77 passed across 14 files                      |
-| Chromium browser journeys                      | 31 passed                                      |
+| Unit/integration tests                         | 85 passed across 17 files                      |
+| Chromium browser journeys                      | 38 passed                                      |
 | Production build                               | Passed on Node.js 22.23.4                      |
 | Production dependency audit                    | No known vulnerabilities reported              |
 | Backend worktree                               | Unchanged                                      |
@@ -32,8 +32,10 @@ Production HTTP smoke checks passed: `/` and `/login` return 200; anonymous `/at
 - Approved sport-specific scoring rules and the backend capabilities listed in `backend-dependencies.md` remain release prerequisites.
 - CI configuration is included for Node.js 22; a hosted CI run has not been performed.
 
-The scout/policy portal update is authorized for commit and push to `origin/main`. No deployment or backend source changes are included.
+The admin/resilience update is authorized for commit and push to `origin/main`. No deployment or backend source changes are included.
 
 Organizer coverage includes wizard date validation, venue map/coordinate synchronization, GTI range validation, exact creation DTOs, bracket draft removal, stable retries, ownership rejection, unavailable KPI states, local emergency acknowledgement, audio teardown, production telemetry/socket isolation, and mobile dialog contrast/accessibility. The Phase 2 baseline passed before organizer work; detailed scope is recorded in `organizer-portal.md`.
 
 Scout/policy coverage includes lazy passport drawers, actual underrepresentation labels, alert timestamps and acknowledgement projection preservation, missing API gates, individual rank lookup, CSV/JSON downloads, table/map equivalence, invalid centroids, adjustable equity thresholds, CSV formula neutralization, bounded exports, failure/empty separation, policy role access, logout/cache isolation, keyboard operation and mobile accessibility. The Phase 3 baseline passed before scout work; details are in `scout-policy-portal.md`.
+
+Admin/resilience coverage includes protected dashboard/governance/audit/theme routes, existing-contract user inspection, unavailable moderation/ledger states, browser-only connectivity, four accessible preset previews, safe color persistence/reset/CSS copying and rejected-storage fallback, 300 ms filter settlement and cleanup, synchronous duplicate-submit locking and stable retry operations, same-key query deduplication, bounded caches, 429 retry suppression, memory-adapter fixed-window rate rejection and error recovery wiring. The Phase 4 baseline passed before implementation; limits are recorded in `admin-resilience.md`.

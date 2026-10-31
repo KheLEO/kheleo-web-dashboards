@@ -1,4 +1,5 @@
 "use client";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -18,7 +19,8 @@ const lookupSchema = z.object({
 type RankLookup = z.infer<typeof lookupSchema>;
 export function LeaderboardWorkspace() {
   const { user } = useSession();
-  const [lookup, setLookup] = useState<RankLookup | null>(null);
+  const [draftLookup, setLookup] = useState<RankLookup | null>(null);
+  const lookup = useDebouncedValue(draftLookup, 300);
   const rank = useQuery({
     queryKey: ["scout-rank", user.id, lookup],
     enabled: lookup !== null,

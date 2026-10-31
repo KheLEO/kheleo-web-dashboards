@@ -4,7 +4,7 @@ import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/features/auth/session-provider";
 import { browserClient } from "@/lib/api/browser-client";
@@ -16,6 +16,8 @@ export function Header({ workspace }: { workspace: Workspace }) {
   const { user } = useSession();
   const client = useQueryClient();
   const router = useRouter();
+  const flight = useRef(false);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
 
   return (
@@ -51,7 +53,11 @@ export function Header({ workspace }: { workspace: Workspace }) {
         <Button
           variant="ghost"
           aria-label="Sign out"
+          disabled={pending}
           onClick={async () => {
+            if (flight.current) return;
+            flight.current = true;
+            setPending(true);
             try {
               await browserClient.post("/session/logout");
               window.dispatchEvent(new Event("kheleo:session-ended"));
@@ -60,6 +66,9 @@ export function Header({ workspace }: { workspace: Workspace }) {
               router.refresh();
             } catch {
               setError(true);
+            } finally {
+              flight.current = false;
+              setPending(false);
             }
           }}
         >

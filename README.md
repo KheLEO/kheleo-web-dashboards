@@ -27,7 +27,7 @@ For local UI development without Redis, use `SESSION_STORE=memory pnpm dev`. Thi
 | Athlete      | Gov-ID login/verification, passport create/edit, sport roles, contact updates/deactivation, nearby discovery, bracket registration conflicts, pool join/leave/status, realtime rosters, national/district individual rank, pose tracking, Bluetooth HR and simulator |
 | Organizer    | Four-step event wizard, venue pinning, GTI tier drafts, known-ID event detail, gated safety alerts and local emergency/audio test                                                                                                                                    |
 | Scout/policy | Filtered elite feed, dated alerts/acknowledgement, lazy passport inspector, individual rank lookup, regional policy layers and CSV/JSON export                                                                                                                       |
-| Super admin  | Protected admin workspace with explicit requirements for unavailable verification, moderation, audit, and monitoring APIs                                                                                                                                            |
+| Super admin  | Protected governance and audit dependency views, known-user inspection, browser theme studio, and frontend connectivity checks                                                                                                                                       |
 
 Public signup creates athletes only. Other roles must already be provisioned by the platform. Login uses contact details plus Gov-ID proof; no password/OTP flow is fabricated. An `UMPIRE` account is recognized and shown an unsupported-workspace screen.
 
@@ -60,7 +60,7 @@ Production requires HTTPS, private Redis access, and an explicitly configured ba
 - Simulator readings are labeled and remain local outside explicitly isolated staging. Simulator ingestion cannot target match/tournament records.
 - Logout clears the web session/resources. Backend token revocation requires an API that does not yet exist.
 
-See [scout/policy portal and Phase 3 audit](docs/scout-policy-portal.md), [organizer portal and Phase 2 audit](docs/organizer-portal.md), [athlete portal and Phase 1 audit](docs/athlete-portal.md), [verification evidence](docs/verification.md), [backend contracts](docs/backend-contracts.md), [dependencies](docs/backend-dependencies.md), and [architecture](docs/architecture.md).
+See [admin portal and resilience](docs/admin-resilience.md), [scout/policy portal and Phase 3 audit](docs/scout-policy-portal.md), [organizer portal and Phase 2 audit](docs/organizer-portal.md), [athlete portal and Phase 1 audit](docs/athlete-portal.md), [verification evidence](docs/verification.md), [backend contracts](docs/backend-contracts.md), [dependencies](docs/backend-dependencies.md), and [architecture](docs/architecture.md).
 
 ## Verification
 

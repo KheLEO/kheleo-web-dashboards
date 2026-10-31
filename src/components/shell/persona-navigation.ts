@@ -49,7 +49,10 @@ export const navigation: Record<Workspace, readonly NavigationItem[]> = {
   ],
   admin: [
     { title: "Overview", href: "/admin", icon: LayoutDashboard },
+    { title: "User governance", href: "/admin/users", icon: Users },
     { title: "Organizers", href: "/admin/organizers", icon: Users },
+    { title: "Audit console", href: "/admin/audit-logs", icon: ShieldAlert },
+    { title: "Theme studio", href: "/admin/theme", icon: Settings },
     { title: "Tournaments", href: "/admin/tournaments", icon: Trophy },
     { title: "Identity audit", href: "/admin/identity-audit", icon: FileSearch },
     { title: "Security audit", href: "/admin/security-audit", icon: ShieldAlert },

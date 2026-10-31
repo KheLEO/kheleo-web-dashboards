@@ -72,6 +72,7 @@ export function SchemaForm<T>({
   const [message, setMessage] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const operation = useRef<MutationOperation | null>(null);
+  const flight = useRef(false);
   const onSubmit = async (values: Record<string, unknown>): Promise<void> => {
     setMessage(null);
     setFailure(null);
@@ -132,7 +133,20 @@ export function SchemaForm<T>({
   return (
     <form
       onSubmit={(event) => {
-        void handleSubmit(onSubmit)(event);
+        if (flight.current) {
+          event.preventDefault();
+          return;
+        }
+        flight.current = true;
+        void (async () => {
+          try {
+            await handleSubmit(onSubmit)(event);
+          } catch (error: unknown) {
+            setFailure(asApiError(error).message);
+          } finally {
+            flight.current = false;
+          }
+        })();
       }}
       className="space-y-5"
     >

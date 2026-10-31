@@ -12,7 +12,11 @@ export function PracticeSubmission({ summary }: { summary: SubmitDrillRequest | 
   const { capabilities, user } = useSession();
   const client = useQueryClient();
   const operation = useRef<MutationOperation | null>(null);
+  const flight = useRef(false);
   const mutation = useMutation({
+    onSettled: () => {
+      flight.current = false;
+    },
     mutationFn: (action: MutationOperation) => submitDrill(action),
     onSuccess: () => {
       operation.current = null;
@@ -43,7 +47,8 @@ export function PracticeSubmission({ summary }: { summary: SubmitDrillRequest | 
         <Button
           disabled={!summary || mutation.isPending || mutation.isSuccess}
           onClick={() => {
-            if (!summary) return;
+            if (!summary || flight.current) return;
+            flight.current = true;
             if (operation.current?.body !== JSON.stringify(summary))
               operation.current = createOperation(summary);
             mutation.mutate(operation.current);

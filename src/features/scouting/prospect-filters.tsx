@@ -1,4 +1,5 @@
 "use client";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -14,7 +15,8 @@ import { ProspectCard } from "./prospect-card";
 export function ProspectDiscovery() {
   const [underrepresented, setUnderrepresented] = useState(false);
   const [filters, setFilters] = useState<ScoutFeedQuery>({ min_gti: 85 });
-  const query = useProspects(filters);
+  const settledFilters = useDebouncedValue(filters, 300);
+  const query = useProspects(settledFilters);
   const loaded = Array.from(
     new Map(
       (query.data?.pages.flatMap((page) => page.data) ?? []).map((prospect) => [

@@ -39,7 +39,11 @@ export function SportsPassportCard() {
   const [url, setUrl] = useState("");
   const [shareError, setShareError] = useState<Error | null>(null);
   const operation = useRef<MutationOperation | null>(null);
+  const flight = useRef(false);
   const analysis = useMutation({
+    onSettled: () => {
+      flight.current = false;
+    },
     mutationFn: (action: MutationOperation) => recalculateGti(user.id, action),
     onSuccess: () => {
       operation.current = null;
@@ -195,6 +199,8 @@ export function SportsPassportCard() {
               variant="secondary"
               disabled={analysis.isPending}
               onClick={() => {
+                if (flight.current) return;
+                flight.current = true;
                 operation.current ??= createOperation({});
                 analysis.mutate(operation.current);
               }}

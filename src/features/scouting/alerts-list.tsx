@@ -1,4 +1,5 @@
 "use client";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,7 +20,8 @@ import { acknowledgeAlert } from "./api";
 export function AlertsList() {
   const { user } = useSession();
   const [filters, setFilters] = useState<{ sport?: string; district?: string }>({});
-  const query = useScoutAlerts(filters);
+  const settledFilters = useDebouncedValue(filters, 300);
+  const query = useScoutAlerts(settledFilters);
   const client = useQueryClient();
   const [failure, setFailure] = useState<Error | null>(null);
   const [pending, setPending] = useState<string | null>(null);

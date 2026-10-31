@@ -1,4 +1,5 @@
 "use client";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,7 +28,8 @@ export function TournamentDiscovery() {
   const [radius, setRadius] = useState(50);
   const [sport, setSport] = useState("");
   const [locationError, setLocationError] = useState<string | null>(null);
-  const query = useNearbyPages(filters);
+  const settledFilters = useDebouncedValue(filters, 300);
+  const query = useNearbyPages(settledFilters);
   const rows = Array.from(
     new Map(
       (query.data?.pages.flatMap((page) => page) ?? []).map((entry) => [entry.id, entry]),

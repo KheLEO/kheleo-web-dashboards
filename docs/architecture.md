@@ -45,3 +45,7 @@ Maps load only on the client. GeoJSON coordinates are validated and reversed for
 5. Scout/policy views, admin dependency screens, CI and release verification.
 
 Live-service and physical-device acceptance remain separate from deterministic fixture-backed checks.
+
+## Admin theme and resilience
+
+The super-admin studio edits validated browser palette preferences and exports CSS; it does not publish shared theme state. The root query provider uses the shared bounded factory. API-driven filter state is debounced for 300 ms; action forms acquire a synchronous lock before async validation. App/global recovery uses the installed Next.js `retry()` API, and the global fallback imports its own stylesheet. See `admin-resilience.md` for scope and limits.

@@ -9,6 +9,7 @@ export function createQueryClient(): QueryClient {
         retry: (count, error) =>
           count < 2 && (!(error instanceof ApiError) || error.problem.status >= 500),
         refetchOnWindowFocus: false,
+        retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
       },
       mutations: { retry: false },
     },
