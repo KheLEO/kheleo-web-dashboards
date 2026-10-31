@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/shared/page-heading";
-import { TournamentDetailView } from "@/features/tournaments/tournament-detail";
+import { BracketWorkspace } from "@/features/organizer/bracket-workspace";
 export default async function Page({
   params: pending,
 }: {
@@ -16,7 +16,7 @@ export default async function Page({
         title="Competition brackets"
         description="Fair competition, with platform-verified eligibility."
       />
-      <TournamentDetailView tournamentId={params.tournamentId} area="organizer" />
+      <BracketWorkspace tournamentId={params.tournamentId} />
     </>
   );
 }

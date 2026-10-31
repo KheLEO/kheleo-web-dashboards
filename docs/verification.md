@@ -9,8 +9,8 @@ Verified locally on 31 October 2026 against backend source revision `0067d94` wi
 | ESLint with zero warnings                      | Passed                                                             |
 | Prettier check                                 | Passed                                                             |
 | Strict TypeScript and Next.js route generation | Passed                                                             |
-| Unit/integration tests                         | 65 passed across 11 files                                          |
-| Chromium browser journeys                      | 19 passed                                                          |
+| Unit/integration tests                         | 71 passed across 13 files                                          |
+| Chromium browser journeys                      | 24 passed                                                          |
 | Production build                               | Passed on Node.js 22.23.4; also verified with host Node.js 24.19.0 |
 | Production dependency audit                    | No known vulnerabilities reported                                  |
 | Backend worktree                               | Unchanged                                                          |
@@ -32,4 +32,6 @@ Production HTTP smoke checks passed: `/` and `/login` return 200; anonymous `/at
 - Approved sport-specific scoring rules and the backend capabilities listed in `backend-dependencies.md` remain release prerequisites.
 - CI configuration is included for Node.js 22; a hosted CI run has not been performed.
 
-The athlete portal update is authorized for commit and push to `origin/main`. No deployment or backend source changes are included.
+The organizer portal update is authorized for commit and push to `origin/main`. No deployment or backend source changes are included.
+
+Organizer coverage includes wizard date validation, venue map/coordinate synchronization, GTI range validation, exact creation DTOs, bracket draft removal, stable retries, ownership rejection, unavailable KPI states, local emergency acknowledgement, audio teardown, production telemetry/socket isolation, and mobile dialog contrast/accessibility. The Phase 2 baseline passed before organizer work; detailed scope is recorded in `organizer-portal.md`.

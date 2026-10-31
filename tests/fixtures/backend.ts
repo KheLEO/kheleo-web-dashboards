@@ -7,6 +7,7 @@ const cache = new Map<string, { body: string; response: unknown }>();
 let joined = false;
 let matched = false;
 let profileExists = true;
+let foreignOwner = false;
 const seenMutations: string[] = [];
 function send(response: ServerResponse, data: unknown, status = 200, bare = false): void {
   response.writeHead(status, { "Content-Type": "application/json" });
@@ -46,7 +47,13 @@ const server = createServer(async (request, response) => {
     joined = false;
     matched = false;
     profileExists = true;
+    foreignOwner = false;
     seenMutations.length = 0;
+    send(response, {}, 200, true);
+    return;
+  }
+  if (url.pathname === "/__control__/foreign-owner") {
+    foreignOwner = true;
     send(response, {}, 200, true);
     return;
   }
@@ -276,7 +283,11 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (path.startsWith("tournaments/")) {
-    ok({ ...makeTournament(), brackets: [makeBracket()] });
+    ok({
+      ...makeTournament(),
+      ...(foreignOwner ? { organizerId: ids.athlete } : {}),
+      brackets: [makeBracket()],
+    });
     return;
   }
   if (path.startsWith("gti/recalculate/")) {

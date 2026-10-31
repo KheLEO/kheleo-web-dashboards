@@ -1,5 +1,9 @@
 import type { BiometricReading } from "@/features/wearables/types";
-export function VitalsChart({ readings }: { readings: BiometricReading[] }) {
+export function VitalsChart({
+  readings,
+}: {
+  readings: readonly Pick<BiometricReading, "heartRate">[];
+}) {
   const points = readings
     .slice(-60)
     .map(

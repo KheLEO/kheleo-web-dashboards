@@ -77,6 +77,11 @@ export function TournamentDetailView({
                 Safety command center
               </Link>
             </Button>
+            <Button asChild variant="secondary">
+              <Link href={`/organizer/tournaments/${tournamentId}/brackets`}>
+                Brackets & rosters
+              </Link>
+            </Button>
             <Button asChild variant="ghost">
               <Link href={`/organizer/tournaments/${tournamentId}/edit`}>Editing availability</Link>
             </Button>

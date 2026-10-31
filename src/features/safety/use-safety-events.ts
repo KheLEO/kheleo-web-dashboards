@@ -6,9 +6,9 @@ import { subscribeNamespace, type ConnectionStatus } from "@/lib/realtime/socket
 import { useSession } from "@/features/auth/session-provider";
 import { safetyAlertReducer } from "./alert-reducer";
 export function useSafetyEvents(tournamentId: string) {
-  const { capabilities } = useSession();
+  const { capabilities, user } = useSession();
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
-  const [state, dispatch] = useReducer(safetyAlertReducer, { alerts: [], unseen: null });
+  const [state, dispatch] = useReducer(safetyAlertReducer, { incidents: [] });
   useEffect(() => {
     if (!capabilities.safeEvents) return;
     const seen = new EventDeduplicator(5000, 200);
@@ -26,15 +26,47 @@ export function useSafetyEvents(tournamentId: string) {
             result.data.tournament_id === tournamentId &&
             seen.accept(JSON.stringify(result.data))
           )
-            dispatch({ type: "receive", alert: result.data });
+            dispatch({
+              type: "receive",
+              incident: {
+                id: crypto.randomUUID(),
+                alert: result.data,
+                source: "LIVE",
+                receivedAt: Date.now(),
+                seenAt: null,
+              },
+            });
         },
       },
     });
   }, [tournamentId, capabilities.safeEvents]);
+  const unseen = [...state.incidents].reverse().find((entry) => entry.seenAt === null) ?? null;
   return {
     ...state,
+    unseen,
     status,
-    markSeen: () => dispatch({ type: "seen" }),
     enabled: capabilities.safeEvents,
+    markSeen: () => {
+      if (unseen) dispatch({ type: "seen", id: unseen.id, timestamp: Date.now() });
+    },
+    simulate: () =>
+      dispatch({
+        type: "receive",
+        incident: {
+          id: crypto.randomUUID(),
+          source: "SIMULATED",
+          receivedAt: Date.now(),
+          seenAt: null,
+          alert: {
+            event: "MATCH_PAUSE_ALERT",
+            severity: "CRITICAL",
+            athlete_id: user.id,
+            athlete_name: "Simulated field athlete",
+            tournament_id: tournamentId,
+            vitals: { heart_rate: 202, spo2: 87, skin_temperature: 40 },
+            directive: "SIMULATED MANDATORY REST: PAUSE TOURNAMENT MATCH IMMEDIATELY",
+          },
+        },
+      }),
   };
 }

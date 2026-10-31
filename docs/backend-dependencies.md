@@ -7,6 +7,12 @@ These are activation prerequisites, not implemented or guessed endpoints. No cha
 | Privileged onboarding   | Authorized provisioning of organizer, scout, federation, and admin accounts                         |
 | Event directory         | Paginated organizer-owned list with enforced ownership                                              |
 | Event editing           | Validated update DTO and authorized update action                                                   |
+| Event configuration     | Custom sports, rules descriptions, per-place prize allocations and configurable role quotas         |
+| Organizer statistics    | Scoped counts for events, verified registrations, formed teams, payouts and current alerts          |
+| Match results           | Fixture reads, verified outcomes and authorized organizer/umpire entry                              |
+| Matchmaking controls    | Authorized manual queue trigger and organizer queue projections                                     |
+| Sandbagging audits      | Persisted blocked-attempt events and authorized log reads                                           |
+| Continuous vitals       | Authorized all-player telemetry stream and latest snapshot                                          |
 | Organizer rosters       | Registration/team/match projections and authorized operations                                       |
 | Leaderboard lists       | National/state/district scopes and stable cursor DTOs                                               |
 | Full dossiers           | Authorized flattened athlete/scout projection; private notes and shortlist contracts if required    |

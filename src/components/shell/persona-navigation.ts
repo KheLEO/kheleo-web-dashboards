@@ -36,7 +36,9 @@ export const navigation: Record<Workspace, readonly NavigationItem[]> = {
   organizer: [
     { title: "Overview", href: "/organizer", icon: LayoutDashboard },
     { title: "Tournaments", href: "/organizer/tournaments", icon: Trophy },
-    { title: "Create tournament", href: "/organizer/tournaments/new", icon: Trophy },
+    { title: "Create tournament", href: "/organizer/tournaments/create", icon: Trophy },
+    { title: "Brackets & rosters", href: "/organizer/brackets", icon: Users },
+    { title: "Safety center", href: "/organizer/safety", icon: ShieldAlert },
   ],
   scout: [
     { title: "Overview", href: "/scout", icon: LayoutDashboard },

@@ -4,4 +4,4 @@ export function proxy(request: NextRequest): NextResponse {
     new URL(request.nextUrl.pathname.replace(/\/dashboard$/, ""), request.url),
   );
 }
-export const config = { matcher: ["/organizer/dashboard", "/scout/dashboard", "/admin/dashboard"] };
+export const config = { matcher: ["/scout/dashboard", "/admin/dashboard"] };

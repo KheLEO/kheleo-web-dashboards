@@ -25,7 +25,7 @@ For local UI development without Redis, use `SESSION_STORE=memory pnpm dev`. Thi
 | Workspace    | Capabilities                                                                                                                                                                                                                                                         |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Athlete      | Gov-ID login/verification, passport create/edit, sport roles, contact updates/deactivation, nearby discovery, bracket registration conflicts, pool join/leave/status, realtime rosters, national/district individual rank, pose tracking, Bluetooth HR and simulator |
-| Organizer    | Tournament and bracket creation, known-ID event detail, fee/prize configuration, gated safety command center                                                                                                                                                         |
+| Organizer    | Four-step event wizard, venue pinning, GTI tier drafts, known-ID event detail, gated safety alerts and local emergency/audio test                                                                                                                                    |
 | Scout/policy | Elite prospect feed, talent alerts/acknowledgement, authorized athlete passport preview, regional centroid maps and participation/equity table                                                                                                                       |
 | Super admin  | Protected admin workspace with explicit requirements for unavailable verification, moderation, audit, and monitoring APIs                                                                                                                                            |
 
@@ -60,7 +60,7 @@ Production requires HTTPS, private Redis access, and an explicitly configured ba
 - Simulator readings are labeled and remain local outside explicitly isolated staging. Simulator ingestion cannot target match/tournament records.
 - Logout clears the web session/resources. Backend token revocation requires an API that does not yet exist.
 
-See [athlete portal and Phase 1 audit](docs/athlete-portal.md), [verification evidence](docs/verification.md), [backend contracts](docs/backend-contracts.md), [dependencies](docs/backend-dependencies.md), and [architecture](docs/architecture.md).
+See [organizer portal and Phase 2 audit](docs/organizer-portal.md), [athlete portal and Phase 1 audit](docs/athlete-portal.md), [verification evidence](docs/verification.md), [backend contracts](docs/backend-contracts.md), [dependencies](docs/backend-dependencies.md), and [architecture](docs/architecture.md).
 
 ## Verification
 
