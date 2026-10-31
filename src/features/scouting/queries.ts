@@ -13,7 +13,8 @@ export function useProspects(filters: ScoutFeedQuery) {
         { ...filters, limit: 20, ...(pageParam ? { cursor_id: pageParam } : {}) },
         signal,
       ),
-    getNextPageParam: (page) => page.next_cursor ?? undefined,
+    getNextPageParam: (page, _pages, _previous, cursors) =>
+      page.next_cursor && !cursors.includes(page.next_cursor) ? page.next_cursor : undefined,
     maxPages: 5,
   });
 }

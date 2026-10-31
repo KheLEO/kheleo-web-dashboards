@@ -8,7 +8,7 @@ export function usePassport(userId?: string) {
   const { user } = useSession();
   const id = userId ?? user.id;
   return useQuery({
-    queryKey: keys.passport(id),
+    queryKey: [...keys.passport(id), user.id, user.role],
     queryFn: ({ signal }) => getPassport(id, signal),
     retry: (count, error) =>
       count < 2 && (!(error instanceof ApiError) || error.problem.status >= 500),

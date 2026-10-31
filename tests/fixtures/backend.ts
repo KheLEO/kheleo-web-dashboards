@@ -8,6 +8,7 @@ let joined = false;
 let matched = false;
 let profileExists = true;
 let foreignOwner = false;
+let scoutAlertAcknowledged = false;
 const seenMutations: string[] = [];
 function send(response: ServerResponse, data: unknown, status = 200, bare = false): void {
   response.writeHead(status, { "Content-Type": "application/json" });
@@ -48,6 +49,7 @@ const server = createServer(async (request, response) => {
     matched = false;
     profileExists = true;
     foreignOwner = false;
+    scoutAlertAcknowledged = false;
     seenMutations.length = 0;
     send(response, {}, 200, true);
     return;
@@ -127,9 +129,11 @@ const server = createServer(async (request, response) => {
       ? "ORGANIZER"
       : email.startsWith("scout")
         ? "SCOUT"
-        : email.startsWith("admin")
-          ? "SUPER_ADMIN"
-          : "ATHLETE";
+        : email.startsWith("policy")
+          ? "FEDERATION_ADMIN"
+          : email.startsWith("admin")
+            ? "SUPER_ADMIN"
+            : "ATHLETE";
     const user = makeUser(role);
     ok({
       accessToken: `fixture:${role}`,
@@ -308,43 +312,95 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (path === "scouts/feed") {
-    ok(
+    const prospects = [
       {
-        success: true,
-        total: 1,
-        limit: 20,
-        next_cursor: null,
-        data: [
-          {
-            athlete_id: ids.athlete,
-            profile_id: ids.profile,
-            gti: 88.5,
-            primary_sport: "CRICKET",
-            district: "Varanasi",
-            state: "Uttar Pradesh",
-            tier: "RURAL",
-            is_rural_or_underrepresented: true,
-            biomechanical_score: 88,
-            training_consistency_score: 85,
-            match_performance_score: 91,
-            posture_points: 100,
-            alert_count: 1,
-          },
-        ],
+        athlete_id: ids.athlete,
+        profile_id: ids.profile,
+        gti: 88.5,
+        primary_sport: "CRICKET",
+        district: "Varanasi",
+        state: "Uttar Pradesh",
+        tier: "RURAL",
+        is_rural_or_underrepresented: true,
+        biomechanical_score: 88,
+        training_consistency_score: 85,
+        match_performance_score: 91,
+        posture_points: 100,
+        alert_count: 1,
       },
+      {
+        athlete_id: "10000000-0000-4000-8000-000000000009",
+        profile_id: "20000000-0000-4000-8000-000000000009",
+        gti: 90,
+        primary_sport: "FOOTBALL",
+        district: "Pune",
+        state: "Maharashtra",
+        tier: "METRO",
+        is_rural_or_underrepresented: false,
+        biomechanical_score: 90,
+        training_consistency_score: 90,
+        match_performance_score: 90,
+        posture_points: 100,
+        alert_count: 0,
+      },
+    ].filter(
+      (prospect) =>
+        prospect.gti >= Number(url.searchParams.get("min_gti") ?? 0) &&
+        (!url.searchParams.get("sport") ||
+          prospect.primary_sport === url.searchParams.get("sport")) &&
+        (!url.searchParams.get("district") ||
+          prospect.district.toLowerCase() === url.searchParams.get("district")?.toLowerCase()),
+    );
+    ok(
+      { success: true, total: prospects.length, limit: 20, next_cursor: null, data: prospects },
       true,
     );
     return;
   }
-  if (path === "scouts/alerts") {
-    ok([]);
+  if (path === "scouts/alerts" || path === `scouts/alerts/${ids.alert}/acknowledge`) {
+    if (method === "PATCH") scoutAlertAcknowledged = true;
+    const alert = {
+      id: ids.alert,
+      athleteId: ids.athlete,
+      gtiScore: 88.5,
+      district: "Varanasi",
+      sport: "CRICKET",
+      isAcknowledged: scoutAlertAcknowledged,
+      createdAt: "2026-10-30T12:00:00.000Z",
+    };
+    ok(
+      method === "PATCH"
+        ? alert
+        : [
+            {
+              ...alert,
+              athlete: {
+                id: ids.athlete,
+                email: "athlete@example.com",
+                phone: null,
+                athleteProfile: {
+                  id: ids.profile,
+                  primarySport: "CRICKET",
+                  currentGti: "88.5",
+                  district: "Varanasi",
+                  state: "Uttar Pradesh",
+                },
+              },
+            },
+          ].filter(
+            (entry) =>
+              (!url.searchParams.get("sport") || entry.sport === url.searchParams.get("sport")) &&
+              (!url.searchParams.get("district") ||
+                entry.district.toLowerCase() === url.searchParams.get("district")?.toLowerCase()),
+          ),
+    );
     return;
   }
   if (path === "heatmaps/regional") {
     ok(
       {
         success: true,
-        count: 1,
+        count: 4,
         data: [
           {
             district: "Varanasi",
@@ -352,6 +408,27 @@ const server = createServer(async (request, response) => {
             average_gti: 65,
             female_participation_pct: 42,
             centroid: { type: "Point", coordinates: [82.9739, 25.3176] },
+          },
+          {
+            district: "Ghaziabad",
+            total_athletes: 50,
+            average_gti: 90,
+            female_participation_pct: 20,
+            centroid: { type: "Point", coordinates: [77.4538, 28.6692] },
+          },
+          {
+            district: "Meerut",
+            total_athletes: 0,
+            average_gti: 0,
+            female_participation_pct: 0,
+            centroid: null,
+          },
+          {
+            district: "Lucknow",
+            total_athletes: 10,
+            average_gti: 70,
+            female_participation_pct: 30,
+            centroid: { type: "Point", coordinates: [999, 91] },
           },
         ],
       },

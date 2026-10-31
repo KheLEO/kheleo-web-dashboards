@@ -6,7 +6,7 @@ export function ScoutOverview() {
     <div className="grid gap-5 md:grid-cols-3">
       {[
         {
-          href: "/scout/prospects",
+          href: "/scout/feed",
           icon: Radar,
           title: "Find overlooked potential",
           text: "Explore searchable athletes with an elite GTI filter of 85 and above.",
@@ -18,7 +18,7 @@ export function ScoutOverview() {
           text: "Review platform-generated talent alerts and acknowledge your discoveries.",
         },
         {
-          href: "/scout/regional",
+          href: "/scout/heatmaps",
           icon: Map,
           title: "See the regional picture",
           text: "Explore participation, average GTI, and female participation by district.",

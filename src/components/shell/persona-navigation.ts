@@ -42,10 +42,10 @@ export const navigation: Record<Workspace, readonly NavigationItem[]> = {
   ],
   scout: [
     { title: "Overview", href: "/scout", icon: LayoutDashboard },
-    { title: "Discover talent", href: "/scout/prospects", icon: Radar },
+    { title: "Discover talent", href: "/scout/feed", icon: Radar },
     { title: "Talent alerts", href: "/scout/alerts", icon: Bell },
     { title: "Leaderboards", href: "/scout/leaderboards", icon: ListOrdered },
-    { title: "Regional insights", href: "/scout/regional", icon: Map },
+    { title: "Regional insights", href: "/scout/heatmaps", icon: Map },
   ],
   admin: [
     { title: "Overview", href: "/admin", icon: LayoutDashboard },

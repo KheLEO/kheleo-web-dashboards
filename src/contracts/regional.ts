@@ -2,14 +2,14 @@ import { z } from "zod";
 import { jsonObjectSchema } from "./common";
 export const districtSchema = z.object({
   district: z.string(),
-  total_athletes: z.number(),
-  average_gti: z.number(),
-  female_participation_pct: z.number(),
+  total_athletes: z.number().int().min(0),
+  average_gti: z.number().min(0).max(100),
+  female_participation_pct: z.number().min(0).max(100),
   centroid: jsonObjectSchema.nullable(),
 });
 export const regionalSchema = z.object({
   success: z.boolean(),
-  count: z.number(),
+  count: z.number().int().min(0),
   data: z.array(districtSchema),
 });
 export const geoPointSchema = z.object({

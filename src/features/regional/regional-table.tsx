@@ -1,47 +1,85 @@
 "use client";
-import { useState } from "react";
 import { Table } from "@/components/ui/table";
 import type { DistrictHeatmapRecord } from "@/contracts/regional";
-export function RegionalTable({ districts }: { districts: DistrictHeatmapRecord[] }) {
-  const [sort, setSort] = useState<"total_athletes" | "average_gti" | "female_participation_pct">(
-    "total_athletes",
-  );
+import { parseCentroid } from "./centroid-parser";
+import type { RegionalSort } from "./policy-report";
+export interface RegionalTableProps {
+  districts: readonly DistrictHeatmapRecord[];
+  sort: RegionalSort;
+  ascending: boolean;
+  target: number;
+  onSort: (value: RegionalSort) => void;
+  onDirection: (value: boolean) => void;
+}
+export function RegionalTable({
+  districts,
+  sort,
+  ascending,
+  target,
+  onSort,
+  onDirection,
+}: RegionalTableProps) {
   return (
     <div className="space-y-4">
-      <label className="field max-w-xs">
-        Sort districts
-        <select
-          className="control"
-          value={sort}
-          onChange={(event) => setSort(event.target.value as typeof sort)}
-        >
-          <option value="total_athletes">Participation</option>
-          <option value="average_gti">Average GTI</option>
-          <option value="female_participation_pct">Female participation</option>
-        </select>
-      </label>
+      <div className="flex flex-wrap gap-4">
+        <label className="field max-w-xs">
+          Sort districts
+          <select
+            aria-label="Sort districts"
+            className="control"
+            value={sort}
+            onChange={(event) => onSort(event.target.value as RegionalSort)}
+          >
+            <option value="district">District name</option>
+            <option value="total_athletes">Participation</option>
+            <option value="average_gti">Average GTI</option>
+            <option value="female_participation_pct">Female participation</option>
+          </select>
+        </label>
+        <label className="field max-w-xs">
+          Sort direction
+          <select
+            aria-label="Sort direction"
+            className="control"
+            value={ascending ? "ascending" : "descending"}
+            onChange={(event) => onDirection(event.target.value === "ascending")}
+          >
+            <option value="descending">Descending</option>
+            <option value="ascending">Ascending</option>
+          </select>
+        </label>
+      </div>
       <Table>
         <caption className="sr-only">Regional participation and gender-equity summary</caption>
         <thead>
           <tr>
-            <th>District</th>
-            <th>Athletes</th>
-            <th>Average GTI</th>
-            <th>Female participation</th>
+            <th scope="col">District</th>
+            <th scope="col">Athletes</th>
+            <th scope="col">Average GTI</th>
+            <th scope="col">Female participation</th>
+            <th scope="col">Planning flag</th>
+            <th scope="col">Map location</th>
           </tr>
         </thead>
         <tbody>
-          {[...districts]
-            .sort((a, b) => b[sort] - a[sort])
-            .slice(0, 500)
-            .map((district) => (
-              <tr key={district.district}>
-                <td>{district.district}</td>
-                <td className="tabular-nums">{district.total_athletes}</td>
-                <td className="tabular-nums text-primary">{district.average_gti.toFixed(1)}</td>
-                <td className="tabular-nums">{district.female_participation_pct.toFixed(1)}%</td>
-              </tr>
-            ))}
+          {districts.map((district, index) => (
+            <tr key={`${district.district}:${index}`}>
+              <td>{district.district}</td>
+              <td className="tabular-nums">{district.total_athletes}</td>
+              <td className="tabular-nums text-primary">{district.average_gti.toFixed(1)}</td>
+              <td className="tabular-nums">{district.female_participation_pct.toFixed(1)}%</td>
+              <td>
+                {district.female_participation_pct < target ? (
+                  <span className="inline-block rounded bg-destructive px-2 py-1 text-xs text-destructive-foreground">
+                    Below {target}% target
+                  </span>
+                ) : (
+                  "At or above target"
+                )}
+              </td>
+              <td>{parseCentroid(district.centroid) ? "Centroid available" : "Unavailable"}</td>
+            </tr>
+          ))}
         </tbody>
       </Table>
     </div>

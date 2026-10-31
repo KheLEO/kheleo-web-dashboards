@@ -1,3 +1,4 @@
+import { ScoutFeed } from "@/features/scouting/scout-feed";
 import { PageHeading } from "@/components/shared/page-heading";
 import { ScoutOverview } from "@/features/scouting/scout-overview";
 export default function Page() {
@@ -8,7 +9,10 @@ export default function Page() {
         title="Discover the next generation"
         description="Find potential, follow breakthroughs, and understand regional opportunity."
       />
-      <ScoutOverview />
+      <div className="space-y-8">
+        <ScoutOverview />
+        <ScoutFeed />
+      </div>
     </>
   );
 }

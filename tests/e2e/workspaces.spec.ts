@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import type { PolicyReport } from "../../src/features/regional/policy-report";
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { ids } from "../../src/test/factories";
@@ -9,7 +11,9 @@ async function login(page: Page, role = "athlete"): Promise<void> {
   await page.getByLabel("Government document").selectOption("AADHAAR");
   await page.getByLabel("Government ID number").fill("12345678");
   await page.getByRole("button", { name: "Sign in securely" }).click();
-  await expect(page).toHaveURL(new RegExp(`/${role === "admin" ? "admin" : role}$`));
+  await expect(page).toHaveURL(
+    new RegExp(`/${role === "admin" ? "admin" : role === "policy" ? "scout" : role}$`),
+  );
 }
 test.beforeEach(async ({ request }) => {
   await request.post("http://localhost:4100/__control__/reset");
@@ -138,7 +142,7 @@ test("scout feed, authorized passport, and regional table use actual wire projec
   await login(page, "scout");
   await page.goto("/scout/prospects");
   await expect(page.getByText("88.5", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "View athlete passport" }).click();
+  await page.getByRole("link", { name: "View athlete passport" }).first().click();
   await expect(page.getByText("CRICKET", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Full scout dossier" })).toBeVisible();
   await page.goto("/scout/regional");
@@ -559,4 +563,210 @@ test("organizer ownership and athlete role gates protect management actions", as
   await login(page);
   await page.goto("/organizer/tournaments/create");
   await expect(page.getByRole("heading", { name: "Access restricted" })).toBeVisible();
+});
+
+test("scout feed labels underrepresentation and lazily opens an authorized passport inspector", async ({
+  page,
+}) => {
+  const paths: string[] = [];
+  page.on("request", (request) => paths.push(new URL(request.url()).pathname));
+  await login(page, "scout");
+  await page.goto("/scout/feed");
+  await expect(page.getByText("88.5", { exact: true })).toBeVisible();
+  await expect(page.getByText("90.0", { exact: true })).toBeVisible();
+  expect(paths.filter((path) => path.startsWith("/api/backend/passport/"))).toHaveLength(0);
+  await page.getByRole("checkbox", { name: "Underrepresented athletes in loaded pages" }).check();
+  await expect(page.getByText("90.0", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Inspect athlete passport", exact: true }).click();
+  const inspector = page.getByRole("dialog");
+  await expect(inspector.getByText("VERIFIED", { exact: true })).toBeVisible();
+  await expect(
+    inspector.getByRole("heading", { name: "Full scout dossier", exact: true }),
+  ).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Offer academy trial" })).toBeDisabled();
+  await expect(inspector.getByRole("button", { name: "Bookmark to shortlist" })).toBeDisabled();
+  expect(paths.some((path) => path.endsWith("/dossier"))).toBe(false);
+  await page.setViewportSize({ width: 360, height: 800 });
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/scout-inspector-mobile.png", fullPage: true });
+  await page.keyboard.press("Escape");
+  await expect(inspector).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Inspect athlete passport", exact: true }),
+  ).toBeFocused();
+});
+
+test("talent alert acknowledgement preserves projection data and applies actual filters", async ({
+  page,
+}) => {
+  await login(page, "scout");
+  await page.goto("/scout/feed");
+  await page.getByRole("tab", { name: "Talent alerts", exact: true }).click();
+  await expect(page.locator("time")).toHaveAttribute("datetime", "2026-10-30T12:00:00.000Z");
+  const acknowledged = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().endsWith(`/api/backend/scouts/alerts/${ids.alert}/acknowledge`),
+  );
+  await page.getByRole("button", { name: "Acknowledge", exact: true }).click();
+  const response = await acknowledged;
+  expect(response.status()).toBe(200);
+  expect(response.request().postData()).toBe("{}");
+  expect(response.request().headers()["idempotency-key"]).toMatch(/^[0-9a-f-]{36}$/);
+  await expect(page.getByRole("button", { name: "Acknowledged", exact: true })).toBeDisabled();
+  await expect(page.getByRole("heading", { name: "athlete@example.com" })).toBeVisible();
+  await page.getByLabel("Alert sport", { exact: true }).selectOption("FOOTBALL");
+  await page.getByRole("button", { name: "Apply alert filters", exact: true }).click();
+  await expect(
+    page.getByText("No talent alerts match these filters.", { exact: true }),
+  ).toBeVisible();
+});
+
+test("policy heatmap layers, sortable table and exports use the same bounded aggregates", async ({
+  page,
+}) => {
+  await login(page, "scout");
+  await page.goto("/scout/heatmaps");
+  await page.getByLabel("Map metric", { exact: true }).selectOption("equity");
+  await expect(page.getByRole("table").getByText("Below 25% target", { exact: true })).toHaveCount(
+    2,
+  );
+  const map = page.getByLabel("Geospatial results map");
+  await expect(map.locator('path[stroke="rgb(var(--chart-critical))"]')).toHaveCount(1);
+  await expect(page.getByRole("row").filter({ hasText: "Lucknow" })).toContainText("Unavailable");
+  await page.getByLabel("Sort districts", { exact: true }).selectOption("female_participation_pct");
+  await page.getByLabel("Sort direction", { exact: true }).selectOption("ascending");
+  await expect(page.getByRole("row").nth(1)).toContainText("Meerut");
+  const jsonDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export policy report (JSON)", exact: true }).click();
+  const json = await jsonDownload;
+  const jsonPath = await json.path();
+  if (!jsonPath) throw new Error("JSON report was not downloaded.");
+  const report = JSON.parse(await readFile(jsonPath, "utf8")) as PolicyReport;
+  expect(report.metadata).toMatchObject({
+    completeness: "unknown",
+    backend_count: 4,
+    exported_districts: 4,
+    female_participation_planning_target: 25,
+  });
+  expect(report.districts[0]?.district).toBe("Meerut");
+  expect(report.districts.find((district) => district.district === "Lucknow")?.latitude).toBeNull();
+  const csvDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export policy report (CSV)", exact: true }).click();
+  const csv = await csvDownload;
+  const csvPath = await csv.path();
+  if (!csvPath) throw new Error("CSV report was not downloaded.");
+  const csvText = await readFile(csvPath, "utf8");
+  expect(csvText).toContain('"female_participation_pct"');
+  expect(csvText).toContain('"unknown"');
+  expect(csvText).toContain('"Ghaziabad"');
+  await page.getByLabel("Female participation planning target (%)", { exact: true }).fill("50");
+  await expect(map.locator('path[stroke="rgb(var(--chart-critical))"]')).toHaveCount(2);
+  await page.setViewportSize({ width: 360, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: "test-results/scout-policy-mobile.png", fullPage: true });
+});
+
+test("leaderboard lists stay unavailable while known-athlete rank lookup uses the real contract", async ({
+  page,
+}) => {
+  const paths: string[] = [];
+  page.on("request", (request) => paths.push(new URL(request.url()).pathname));
+  await login(page, "scout");
+  await page.goto("/scout/leaderboards");
+  await expect(
+    page.getByRole("heading", { name: "Leaderboard lists and top-three podium" }),
+  ).toBeVisible();
+  await expect(page.getByRole("combobox", { name: /Geographic scope/ })).toBeDisabled();
+  await page.getByLabel("Athlete UUID", { exact: true }).fill(ids.athlete);
+  await page.getByLabel("Rank sport", { exact: true }).selectOption("CRICKET");
+  await page.getByLabel("Rank district (optional)", { exact: true }).fill("Varanasi");
+  const rank = page.waitForRequest((request) =>
+    request.url().includes(`/gti/rank/CRICKET/${ids.athlete}`),
+  );
+  await page.getByRole("button", { name: "Look up athlete rank", exact: true }).click();
+  expect(new URL((await rank).url()).searchParams.get("district")).toBe("Varanasi");
+  await expect(page.getByText("#12", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "District individual rank" })).toBeVisible();
+  expect(paths.some((path) => path.endsWith("gti/leaderboards"))).toBe(false);
+});
+
+test("scout failures remain errors and empty regional data remains an empty state", async ({
+  page,
+}) => {
+  const problem = {
+    type: "about:blank",
+    title: "Forbidden",
+    status: 403,
+    detail: "Scout feed access denied",
+    instance: "",
+    timestamp: new Date().toISOString(),
+  };
+  await page.route("**/api/backend/scouts/feed**", (route) =>
+    route.fulfill({
+      status: 403,
+      contentType: "application/problem+json",
+      body: JSON.stringify(problem),
+    }),
+  );
+  await login(page, "scout");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Scout feed access denied" }),
+  ).toBeVisible();
+  await expect(page.getByText("No profiles in the loaded pages", { exact: false })).toHaveCount(0);
+  await page.route("**/api/backend/heatmaps/regional", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, count: 0, data: [] }),
+    }),
+  );
+  await page.goto("/scout/heatmaps");
+  await expect(
+    page.getByText("No regional participation data is available.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export policy report (CSV)" })).toHaveCount(0);
+});
+
+test("a forbidden passport shows no fabricated dossier content", async ({ page }) => {
+  await page.route("**/api/backend/passport/**", (route) =>
+    route.fulfill({
+      status: 403,
+      contentType: "application/problem+json",
+      body: JSON.stringify({
+        type: "about:blank",
+        title: "Forbidden",
+        status: 403,
+        detail: "Passport access denied",
+        instance: "",
+        timestamp: new Date().toISOString(),
+      }),
+    }),
+  );
+  await login(page, "scout");
+  await page.getByRole("button", { name: "Inspect athlete passport", exact: true }).first().click();
+  await expect(
+    page.getByRole("dialog").getByRole("alert").filter({ hasText: "Passport access denied" }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("VERIFIED", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Offer academy trial" }),
+  ).toBeDisabled();
+});
+
+test("policy accounts use the scout workspace and logout clears private passport state", async ({
+  page,
+}) => {
+  await login(page, "policy");
+  await page.goto("/scout/dashboard");
+  await page.getByRole("button", { name: "Inspect athlete passport", exact: true }).first().click();
+  await expect(page.getByRole("dialog").getByText("VERIFIED", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await login(page);
+  await page.goto(`/scout/athletes/${ids.athlete}`);
+  await expect(page.getByRole("heading", { name: "Access restricted" })).toBeVisible();
+  const result = await page.request.get("/api/backend/scouts/feed?min_gti=85&limit=20");
+  expect(result.status()).toBe(403);
 });

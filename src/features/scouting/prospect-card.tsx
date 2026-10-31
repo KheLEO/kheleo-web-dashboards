@@ -1,3 +1,4 @@
+import { ScoutDossierModal } from "@/components/scout/ScoutDossierModal";
 import Link from "next/link";
 import { ArrowUpRight, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,13 @@ export function ProspectCard({ prospect }: { prospect: ProspectSummary }) {
           <p className="text-muted-foreground">Match</p>
           <p className="mt-1 tabular-nums">{prospect.match_performance_score}</p>
         </div>
+      </div>
+      <p className="mb-4 text-xs leading-5 text-muted-foreground">
+        {prospect.alert_count} unacknowledged platform alerts. Verification, alert timestamps and
+        GTI breakthrough delta are unavailable in this profile projection.
+      </p>
+      <div className="mb-4">
+        <ScoutDossierModal userId={prospect.athlete_id} />
       </div>
       <Link
         className="flex items-center justify-between text-sm font-semibold text-primary"

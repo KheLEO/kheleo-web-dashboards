@@ -10,6 +10,9 @@ export interface MapPoint {
   lng: number;
   label: string;
   value?: number;
+  radiusValue?: number;
+  colorToken?: "chart-gti" | "chart-participation" | "chart-equity" | "chart-critical";
+  detail?: string;
   href?: string;
 }
 export interface LeafletMapProps {
@@ -41,13 +44,13 @@ export default function LeafletMap({ points, center, metric = "gti" }: LeafletMa
               key={point.id}
               center={[point.lat, point.lng]}
               radius={
-                point.value === undefined
+                (point.radiusValue ?? point.value) === undefined
                   ? 8
-                  : Math.min(22, 5 + Math.sqrt(Math.max(0, point.value)))
+                  : Math.min(22, 5 + Math.sqrt(Math.max(0, point.radiusValue ?? point.value ?? 0)))
               }
               pathOptions={{
-                color: `rgb(var(--chart-${metric}))`,
-                fillColor: `rgb(var(--chart-${metric}))`,
+                color: `rgb(var(--${point.colorToken ?? `chart-${metric}`}))`,
+                fillColor: `rgb(var(--${point.colorToken ?? `chart-${metric}`}))`,
                 fillOpacity: 0.45,
                 weight: 2,
               }}
@@ -58,7 +61,11 @@ export default function LeafletMap({ points, center, metric = "gti" }: LeafletMa
                 ) : (
                   <span>{point.label}</span>
                 )}
-                {point.value !== undefined && <p>{point.value}</p>}
+                {point.detail ? (
+                  <p>{point.detail}</p>
+                ) : (
+                  point.value !== undefined && <p>{point.value}</p>
+                )}
               </Popup>
             </CircleMarker>
           ))}
