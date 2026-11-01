@@ -10,7 +10,7 @@ export function Button({ className, variant = "primary", asChild = false, ...pro
   return (
     <Component
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex min-h-11 min-w-0 max-w-full items-center justify-center gap-2 whitespace-normal text-center rounded-md px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         {
           "bg-primary text-primary-foreground hover:bg-accent": variant === "primary",
           "border bg-secondary text-secondary-foreground hover:border-primary":

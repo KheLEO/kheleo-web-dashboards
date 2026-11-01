@@ -36,7 +36,7 @@ export default function AthleteDashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 max-w-full space-y-8">
       <PageHeading
         eyebrow="Athlete Portal"
         title="Welcome to your Sports Passport"
@@ -56,10 +56,10 @@ export default function AthleteDashboardPage() {
               <Link
                 key={action.title}
                 href={action.href}
-                className="group relative flex flex-col justify-between rounded-2xl border border-border/80 bg-kheleo-surface/60 p-5 backdrop-blur-sm transition-all duration-200 hover:border-primary/50 hover:bg-kheleo-surface/90 hover:shadow-lg"
+                className="group relative flex min-w-0 max-w-full flex-col justify-between rounded-2xl border border-border/80 bg-kheleo-surface/60 p-5 backdrop-blur-sm transition-all duration-200 hover:border-primary/50 hover:bg-kheleo-surface/90 hover:shadow-lg"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                       <Icon className="h-5 w-5" />
                     </div>

@@ -23,18 +23,18 @@ export async function AppShell({ workspace, children }: AppShellProps) {
         capabilities: sessionCapabilities(),
       }}
     >
-      <div className="min-h-dvh bg-background text-foreground">
+      <div className="min-h-dvh w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
         {/* Desktop Sidebar */}
         <aside className="fixed inset-y-0 left-0 hidden w-64 overflow-y-auto border-r border-border bg-kheleo-surface/50 backdrop-blur-xl lg:block">
           <Sidebar workspace={workspace} />
         </aside>
 
-        <div className="min-w-0 lg:ml-64 flex flex-col min-h-dvh">
+        <div className="min-w-0 max-w-full lg:ml-64 flex flex-col min-h-dvh">
           <Header workspace={workspace} />
 
           <main
             id="main-content"
-            className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 pb-24 sm:px-8 sm:py-8 lg:pb-12"
+            className="mx-auto w-full min-w-0 max-w-full overflow-x-hidden xl:max-w-[1440px] flex-1 px-4 py-6 pb-24 sm:px-8 sm:py-8 lg:pb-12"
           >
             {children}
           </main>

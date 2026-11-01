@@ -24,14 +24,14 @@ export function MobileBottomNav({ workspace }: { workspace: Workspace }) {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center justify-center gap-1 py-1 px-2 text-[10px] font-medium transition-all ${
+              className={`flex min-w-0 max-w-full flex-1 flex-col items-center justify-center gap-1 py-1 px-2 text-[10px] font-medium transition-all ${
                 active
                   ? "text-primary font-bold scale-105"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Icon size={19} className={active ? "text-primary gold-glow" : ""} />
-              <span className="truncate max-w-[64px]">{title}</span>
+              <span className="w-full min-w-0 truncate text-center">{title}</span>
             </Link>
           );
         })}

@@ -208,6 +208,24 @@ test("passport, mobile navigation, logout, and cache isolation", async ({ page }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+  for (const name of ["Recalculate GTI & show breakdown", "Update primary sport and handedness"]) {
+    const dimensions = await page.getByRole("button", { name, exact: true }).evaluate((button) => {
+      const parent = button.parentElement;
+      if (!parent) throw new Error("Passport action has no container.");
+      return {
+        width: button.getBoundingClientRect().width,
+        parentWidth: parent.clientWidth,
+        scrollWidth: button.scrollWidth,
+        clientWidth: button.clientWidth,
+      };
+    });
+    expect(dimensions.width, `${name} exceeds its content container`).toBeLessThanOrEqual(
+      dimensions.parentWidth,
+    );
+    expect(dimensions.scrollWidth, `${name} clips its label`).toBeLessThanOrEqual(
+      dimensions.clientWidth + 1,
+    );
+  }
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("link", { name: "Identity", exact: true }).click();
   await expect(page.getByRole("heading", { name: "One athlete. One identity." })).toBeVisible();

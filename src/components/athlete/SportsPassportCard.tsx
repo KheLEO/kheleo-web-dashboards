@@ -75,10 +75,10 @@ export function SportsPassportCard() {
   ];
   const gti = analysis.data?.gti ?? profile.currentGti;
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <section
         aria-label="Digital sports passport"
-        className="overflow-hidden rounded-2xl border border-primary/40 bg-card shadow-gold-glow"
+        className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-primary/40 bg-card shadow-gold-glow"
       >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/30 bg-primary/10 p-5">
           <h2 className="text-sm font-semibold uppercase tracking-widest text-primary">
@@ -89,8 +89,8 @@ export function SportsPassportCard() {
             {profile.identityStatus.replaceAll("_", " ")}
           </Badge>
         </div>
-        <div className="grid gap-6 p-6 md:grid-cols-[1fr_auto]">
-          <div>
+        <div className="grid min-w-0 gap-6 p-6 md:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0 max-w-full">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">
               Athlete identity
             </p>
