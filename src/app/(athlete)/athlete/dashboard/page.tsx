@@ -48,7 +48,7 @@ export default function AthleteDashboardPage() {
 
       {/* Core Athlete Feature Hub */}
       <div>
-        <h3 className="text-base font-bold text-foreground mb-4">Athlete Action Hub</h3>
+        <h2 className="text-base font-bold text-foreground mb-4">Athlete Action Hub</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {quickActions.map((action) => {
             const Icon = action.icon;
@@ -67,9 +67,9 @@ export default function AthleteDashboardPage() {
                       {action.badge}
                     </span>
                   </div>
-                  <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                  <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                     {action.title}
-                  </h4>
+                  </h3>
                   <p className="mt-1.5 text-xs text-kheleo-silver-muted leading-relaxed">
                     {action.desc}
                   </p>

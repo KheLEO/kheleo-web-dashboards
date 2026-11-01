@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -63,6 +64,7 @@ export function SchemaForm<T>({
   successMessage = "Changes saved.",
   disabled = false,
 }: SchemaFormProps<T>) {
+  const isHydrated = useHydrated();
   const {
     register,
     handleSubmit,
@@ -132,8 +134,10 @@ export function SchemaForm<T>({
   };
   return (
     <form
+      data-hydrated={isHydrated ? "true" : "false"}
+      aria-busy={!isHydrated || isSubmitting}
       onSubmit={(event) => {
-        if (flight.current) {
+        if (!isHydrated || flight.current) {
           event.preventDefault();
           return;
         }
@@ -163,7 +167,7 @@ export function SchemaForm<T>({
                 aria-describedby={field.hint ? `${field.name}-hint` : undefined}
                 className="control"
                 {...register(field.name)}
-                disabled={disabled || isSubmitting}
+                disabled={disabled || !isHydrated || isSubmitting}
                 required={field.required}
               >
                 <option value="">Select…</option>
@@ -180,7 +184,7 @@ export function SchemaForm<T>({
                 rows={3}
                 className="control"
                 {...register(field.name)}
-                disabled={disabled || isSubmitting}
+                disabled={disabled || !isHydrated || isSubmitting}
               />
             ) : (
               <input
@@ -193,7 +197,7 @@ export function SchemaForm<T>({
                 min={field.min}
                 max={field.max}
                 step={field.step ?? (field.type === "number" ? "any" : undefined)}
-                disabled={disabled || isSubmitting}
+                disabled={disabled || !isHydrated || isSubmitting}
                 autoComplete={field.sensitive ? "off" : undefined}
               />
             )}
@@ -210,7 +214,7 @@ export function SchemaForm<T>({
       </div>
       {failure && <Alert danger>{failure}</Alert>}
       {message && <Alert>{message}</Alert>}
-      <Button type="submit" disabled={disabled || isSubmitting}>
+      <Button type="submit" disabled={disabled || !isHydrated || isSubmitting}>
         {isSubmitting ? "Submitting…" : submitLabel}
       </Button>
     </form>

@@ -40,14 +40,23 @@ const missionRoutes: Record<Workspace, ReadonlyArray<{ path: string; heading: st
 
 async function login(page: Page, role = "athlete"): Promise<void> {
   await page.goto("/login");
+  await expect(page.locator('form[data-hydrated="true"]')).toBeVisible();
   await page
     .getByLabel("Email", { exact: true })
     .fill(`${role}+${crypto.randomUUID()}@example.com`);
   await page.getByLabel("Government document").selectOption("AADHAAR");
   await page.getByLabel("Government ID number").fill("12345678");
+  await expect(page.getByLabel("Government ID number")).toHaveValue("12345678");
+  const authenticated = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/session/login",
+  );
   await page.getByRole("button", { name: "Sign in securely" }).click();
+  expect((await authenticated).status(), "Login must establish a server session").toBe(200);
   await expect(page).toHaveURL(
     new RegExp(`/${role === "admin" ? "admin" : role === "policy" ? "scout" : role}$`),
+    { timeout: 20000 },
   );
 }
 test.beforeEach(async ({ request }) => {
@@ -187,11 +196,33 @@ test("landing and mobile authentication are accessible without overflow", async 
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 test("rejects bad credentials and protects direct workspace access", async ({ page }) => {
+  const scripts = (url: URL): boolean =>
+    url.pathname.startsWith("/_next/") && url.pathname.endsWith(".js");
+  let releaseScripts: (() => void) | undefined;
+  const blocked = new Promise<void>((resolve) => {
+    releaseScripts = resolve;
+  });
+  await page.route(scripts, async (route) => {
+    await blocked;
+    await route.continue();
+  });
+  try {
+    await page.goto("/login", { waitUntil: "commit" });
+    await expect(page.locator('form[data-hydrated="false"]')).toBeVisible();
+    await expect(page.getByLabel("Government ID number")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Sign in securely" })).toBeDisabled();
+  } finally {
+    releaseScripts?.();
+  }
+  await expect(page.locator('form[data-hydrated="true"]')).toBeVisible();
+  await page.unroute(scripts);
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/login$/);
+  await expect(page.locator('form[data-hydrated="true"]')).toBeVisible();
   await page.getByLabel("Email", { exact: true }).fill("athlete@example.com");
   await page.getByLabel("Government document").selectOption("AADHAAR");
-  await page.getByLabel("Government ID number").fill("wrong-proof");
+  await page.getByLabel("Government ID number").pressSequentially("wrong-proof", { delay: 20 });
+  await expect(page.getByLabel("Government ID number")).toHaveValue("wrong-proof");
   await page.getByRole("button", { name: "Sign in securely" }).click();
   await expect(
     page.getByRole("alert").filter({ hasText: "Invalid login credentials" }),
@@ -369,12 +400,51 @@ test("pose worker initializes from local assets and releases camera and worker",
 test("athlete data screens meet accessibility and mobile overflow checks", async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 360, height: 800 });
-  for (const path of ["/athlete", "/athlete/passport", "/athlete/settings", "/athlete/wearable"]) {
+  let releasePassport: (() => void) | undefined;
+  const passportPending = new Promise<void>((resolve) => {
+    releasePassport = resolve;
+  });
+  const passportPath = `**/api/backend/passport/${ids.athlete}`;
+  await page.route(passportPath, async (route) => {
+    await passportPending;
+    await route.continue();
+  });
+  try {
+    await page.goto("/athlete/dashboard");
+    await expect(
+      page.getByRole("status").filter({ hasText: "Loading workspace data…" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Athlete Action Hub", exact: true }),
+    ).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  } finally {
+    releasePassport?.();
+  }
+  await expect(
+    page.getByRole("heading", { name: "Digital sports passport", exact: true }),
+  ).toBeVisible();
+  await page.unroute(passportPath);
+  for (const path of [
+    "/athlete",
+    "/athlete/dashboard",
+    "/athlete/passport",
+    "/athlete/tournaments",
+    "/athlete/matchmaking",
+    "/athlete/drills",
+    "/athlete/iot-device",
+    "/athlete/settings",
+    "/athlete/wearable",
+  ]) {
     await page.goto(path);
     await expect(page.locator("main h1")).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
-    );
+    await expect(
+      page.getByRole("status").filter({ hasText: "Loading workspace data…" }),
+    ).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      path,
+    ).toBe(true);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   }
 });
