@@ -1,14 +1,17 @@
 import { sessionCapabilities } from "@/server/capabilities";
 import "server-only";
 import { z } from "zod";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { authResponseSchema, loginSchema, registerSchema } from "@/contracts/auth";
+import { ApiError } from "@/lib/api/errors";
 import { envelope } from "@/lib/api/response-decoders";
 import {
   createSession,
   destroySession,
+  readSession,
   requireSession,
   refreshSession,
+  authenticatedNest,
 } from "@/server/auth/session";
 import { assertOrigin } from "@/server/security/request-origin";
 import { operationId } from "@/server/security/operation-store";
@@ -46,7 +49,19 @@ export async function sessionHandler(request: Request, action: SessionAction): P
       });
     }
     if (action === "logout") {
-      await destroySession();
+      const session = await readSession();
+      try {
+        if (session)
+          await authenticatedNest(session, {
+            method: "POST",
+            path: "auth/logout",
+            operationId: randomUUID(),
+          });
+      } catch (error: unknown) {
+        if (!(error instanceof ApiError) || ![401, 403].includes(error.problem.status)) throw error;
+      } finally {
+        await destroySession();
+      }
       return privateJson({ loggedOut: true });
     }
     const session = await refreshSession(await requireSession());

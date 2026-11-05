@@ -29,7 +29,11 @@ export function TournamentDiscovery() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const settledFilters = useDebouncedValue(filters, 300);
   const query = useNearby(settledFilters);
-  const rows = Array.from(new Map((query.data ?? []).map((entry) => [entry.id, entry])).values());
+  const rows = Array.from(
+    new Map(
+      (query.data?.pages ?? []).flatMap((page) => page.data).map((entry) => [entry.id, entry]),
+    ).values(),
+  );
   function search(): void {
     const result = nearbyQuerySchema.safeParse({
       lat: Number(lat),
@@ -170,13 +174,12 @@ export function TournamentDiscovery() {
         )}
       </Card>
       <p className="text-xs leading-5 text-muted-foreground">
-        Up to 20 nearby results are shown per search. Narrow the area or sport to explore further.
-        Distance ordering and the backend UUID cursor are inconsistent, so this view does not
-        paginate or claim an exhaustive geographic listing.
+        Nearby results are ordered by distance. Use &quot;Load More Tournaments&quot; to discover
+        additional tournaments in this search radius.
       </p>
       {query.isPending ? (
         <Skeleton />
-      ) : query.error ? (
+      ) : query.error && !query.data ? (
         <ErrorState
           error={query.error}
           retry={() => {
@@ -193,6 +196,27 @@ export function TournamentDiscovery() {
               {rows.map((tournament) => (
                 <TournamentCard key={tournament.id} tournament={tournament} />
               ))}
+            </div>
+          )}
+          {query.isFetchNextPageError && (
+            <ErrorState
+              error={query.error}
+              retry={() => {
+                void query.fetchNextPage();
+              }}
+            />
+          )}
+          {query.hasNextPage && (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="secondary"
+                disabled={query.isFetchingNextPage}
+                onClick={() => {
+                  void query.fetchNextPage();
+                }}
+              >
+                {query.isFetchingNextPage ? "Loading..." : "Load More Tournaments"}
+              </Button>
             </div>
           )}
         </>

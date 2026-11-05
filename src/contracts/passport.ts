@@ -11,9 +11,7 @@ export const createPassportSchema = initialProfileSchema.extend({
   locationLng: z.number().min(-180).max(180).optional(),
   isScoutSearchable: z.boolean().optional(),
 });
-export const updatePassportSchema = createPassportSchema
-  .omit({ dateOfBirth: true, gender: true })
-  .partial();
+export const updatePassportSchema = createPassportSchema.partial();
 export const sportInputSchema = z
   .object({
     sport: z.enum(SportTypeValues),
@@ -43,9 +41,9 @@ export const sportRecordSchema = sportSummarySchema.extend({
 export const passportSchema = z.object({
   userId: uuidSchema,
   athleteProfileId: uuidSchema,
-  dateOfBirth: dateSchema,
-  gender: z.string(),
-  primarySport: z.enum(SportTypeValues),
+  dateOfBirth: dateSchema.nullable(),
+  gender: z.string().nullable(),
+  primarySport: z.enum(SportTypeValues).nullable(),
   secondarySports: z.array(z.enum(SportTypeValues)),
   district: z.string(),
   state: z.string(),
@@ -55,10 +53,13 @@ export const passportSchema = z.object({
     weightKg: z.number().nullable(),
     dominantSide: z.string().nullable(),
   }),
+  isProfileComplete: z.boolean().optional(),
+  isScoutSearchable: z.boolean().optional(),
   currentGti: z.number(),
   wearableScore: z.number(),
   matchPerfScore: z.number(),
   posturePoints: z.number(),
+  biomechanicalScore: z.number(),
   identityStatus: z.enum(VerificationStatusValues),
   sportRecords: z.array(sportSummarySchema),
   allBadges: z.array(jsonObjectSchema),

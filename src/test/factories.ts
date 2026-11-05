@@ -48,6 +48,7 @@ export function makePassport() {
     wearableScore: 50,
     matchPerfScore: 50,
     posturePoints: 10,
+    biomechanicalScore: 65,
     identityStatus: "VERIFIED" as const,
     sportRecords: [],
     allBadges: [],

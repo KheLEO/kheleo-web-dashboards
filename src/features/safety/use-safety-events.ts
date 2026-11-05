@@ -31,7 +31,7 @@ export function useSafetyEvents(tournamentId: string) {
               incident: {
                 id: crypto.randomUUID(),
                 alert: result.data,
-                source: "LIVE",
+                source: result.data.source === "SIMULATOR" ? "SIMULATED" : "LIVE",
                 receivedAt: Date.now(),
                 seenAt: null,
               },

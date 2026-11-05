@@ -6,4 +6,4 @@ interface Context {
 async function handler(request: Request, context: Context): Promise<Response> {
   return relay(request, (await context.params).path);
 }
-export { handler as GET, handler as POST, handler as PATCH, handler as DELETE };
+export { handler as GET, handler as POST, handler as PUT, handler as PATCH, handler as DELETE };

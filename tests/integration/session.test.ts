@@ -16,6 +16,7 @@ import {
   authenticatedNest,
   updateSessionUser,
 } from "@/server/auth/session";
+import { sessionHandler } from "@/server/api/session-handler";
 import { MemoryStore, getStore } from "@/server/auth/session-store";
 import { ApiError } from "@/lib/api/errors";
 const user = {
@@ -190,4 +191,40 @@ describe("refresh coordination", () => {
       token: "new",
     });
   });
+});
+
+describe("upstream logout", () => {
+  beforeEach(() => {
+    vi.stubEnv("SESSION_STORE", "memory");
+    vi.stubEnv("APP_ENV", "test");
+    vi.stubEnv("APP_ORIGIN", "http://localhost:3001");
+    (globalThis as typeof globalThis & { kheleoStore?: MemoryStore }).kheleoStore =
+      new MemoryStore();
+    callNest.mockReset();
+    jar.clear();
+  });
+  afterEach(() => vi.unstubAllEnvs());
+  it.each([false, true])(
+    "revokes upstream and clears the local session, including upstream failure=%s",
+    async (failure) => {
+      const current = { ...session(), accessExpiresAt: Date.now() + 900000 };
+      await saveSession(current);
+      jar.set("kheleo_session", current.id);
+      if (failure) callNest.mockRejectedValue(new Error("Upstream unavailable"));
+      else callNest.mockResolvedValue({ success: true, message: "Logged out" });
+      const response = await sessionHandler(
+        new Request("http://localhost:3001/api/session/logout", {
+          method: "POST",
+          headers: { origin: "http://localhost:3001" },
+        }),
+        "logout",
+      );
+      expect(callNest).toHaveBeenCalledWith(
+        expect.objectContaining({ method: "POST", path: "auth/logout", token: "old" }),
+      );
+      expect(await getStore().get(`session:${current.id}`)).toBeNull();
+      expect(jar.has("kheleo_session")).toBe(false);
+      expect(response.status).toBe(failure ? 500 : 200);
+    },
+  );
 });

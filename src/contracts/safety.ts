@@ -6,15 +6,20 @@ export const telemetrySchema = z
     tournament_id: uuidSchema.optional(),
     bracket_id: uuidSchema.optional(),
     match_id: uuidSchema.optional(),
-    heart_rate: z.number().finite().min(1).max(300),
-    spo2: z.number().finite().min(0).max(100),
-    skin_temperature: z.number().finite().min(20).max(50),
+    source: z.enum(["BLE", "SIMULATOR"]).optional(),
+    baseline_fields: z
+      .array(z.enum(["spo2", "skin_temperature"]))
+      .max(2)
+      .optional(),
+    heart_rate: z.number().finite().min(20).max(260),
+    spo2: z.number().finite().min(50).max(100),
+    skin_temperature: z.number().finite().min(25).max(45),
     timestamp: z.number().finite().positive(),
   })
   .strict();
 export const telemetryResultSchema = z.object({
   alert_triggered: z.boolean(),
-  status: z.enum(["MATCH_PAUSED", "WARNING", "NORMAL"]),
+  status: z.enum(["MATCH_PAUSED", "CRITICAL_ALERT", "WARNING", "NORMAL"]),
   message: z.string().optional(),
 });
 export type TelemetryRequest = z.infer<typeof telemetrySchema>;

@@ -15,6 +15,7 @@ const contact = {
     .regex(/^\+?[1-9]\d{7,14}$/)
     .optional(),
   email: z.email().optional(),
+  identityAccessToken: z.string().min(1).max(8192).optional(),
 };
 export const initialProfileSchema = z
   .object({
@@ -40,7 +41,7 @@ export const loginSchema = z
 export const registerSchema = z
   .object({
     ...contact,
-    role: z.literal("ATHLETE").optional(),
+    role: z.enum(["ATHLETE", "ORGANIZER", "SCOUT"]).optional(),
     governmentId: governmentIdSchema.optional(),
     profile: initialProfileSchema.optional(),
   })
@@ -48,7 +49,14 @@ export const registerSchema = z
   .refine((value) => Boolean(value.phone || value.email), {
     message: "Provide phone or email",
     path: ["email"],
-  });
+  })
+  .refine(
+    (value) => !["ORGANIZER", "SCOUT"].includes(value.role ?? "ATHLETE") || !!value.governmentId,
+    {
+      message: "Organizer and scout signup requires an identity for administrator review",
+      path: ["governmentId"],
+    },
+  );
 export const authUserSchema = z.object({
   id: uuidSchema,
   phone: z.string().nullable(),

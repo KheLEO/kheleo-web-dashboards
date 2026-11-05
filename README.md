@@ -30,13 +30,13 @@ Public signup provisions athletes only. Other personas require authorized backen
 
 ### Digital Sports Passport and identity
 
-Athletes manage demographic, district/state, physical, and sport-role records. The passport displays authoritative identity status, GTI, posture points, wearable score, and match score. Identity verification uses the actual `POST /api/v1/auth/verify-government-id` endpoint; `/auth/verify-gov-id` does not exist in this backend.
+Athletes manage demographic, district/state, physical, and sport-role records. The passport displays authoritative identity status, GTI, posture points, wearable score, and match score. Identity verification supports both `POST /api/v1/auth/verify-government-id` and `/auth/verify-gov-id`. `GET/POST/PATCH /users/profile` targets the authenticated passport. Organizer and scout signup remains pending administrator identity verification. Logout revokes upstream refresh families and removes the server session.
 
 The backend enforces permanent one-to-one identity binding and reattaches the existing profile when registration supplies matching identity/contact proof. Conflicts remain visible. Raw government-ID proof and tokens are not persisted in browser storage. Sport-role edits cannot write verified metrics or earned badges through the relay.
 
 ### PostGIS Tournament Discovery and Anti-Sandbagging Gatekeeper
 
-Location, radius, and sport filters query `/tournaments/nearby`; a client-only Leaflet map complements the cards. Detail pages expose real bracket bounds, capacity, fees, and deadlines. Discovery displays one bounded result set because the backend UUID cursor does not preserve distance ordering; it is not an exhaustive directory.
+Location, radius, and sport filters query `/tournaments/nearby`; a client-only Leaflet map complements the cards. Detail pages expose real bracket bounds, capacity, fees, and deadlines. Discovery follows `(distance_km ASC, id ASC)` keyset cursors through Load More Tournaments. Both PostGIS and Haversine responses include `{ data, next_cursor, has_more }`; the client also decodes legacy arrays.
 
 Registration distinguishes `409 SANDBAGGING_DETECTED` from below-tier and capacity conflicts. A backend-suggested higher bracket opens its real eligibility and a deliberate upgrade/registration action. Showing fees does not imply payment collection or an eligibility override.
 
@@ -46,19 +46,19 @@ Athletes select sport-specific primary and secondary positions, join/leave a bra
 
 ### Client-Side Edge-AI Webcam Studio
 
-MediaPipe inference runs locally in a CPU worker with self-hosted WASM and a checksum-verified pose model. Joint-angle geometry supports cricket bowling, badminton smash, football strike, and athletics sprint-start practice. No raw video, camera frames, or full landmark arrays are uploaded.
+MediaPipe inference runs locally in a CPU worker with self-hosted WASM and a checksum-verified pose model. Joint-angle geometry supports cricket bowling, badminton smash, football strike, and athletics sprint-start practice. Video and camera images remain on-device. Explicit submission sends at most 300 pose landmark frames to the relay for score validation; only the aggregate and its digest reach NestJS.
 
-The pipeline submits at most 15 frames/second, permits one frame in flight, and updates React at most five times/second. Stop, navigation, hidden tabs, and logout release cameras/workers, including late permission responses. Alignment percentages are provisional practice feedback, not validated athletic scores.
+The pipeline submits at most 15 frames/second, permits one frame in flight, and updates React at most five times/second. Stop, navigation, hidden tabs, and logout release cameras/workers, including late permission responses. Scoring policy `1.0.0` checks reference joint-angle windows, at least 30 visible frames, full-body visibility of 0.6 or higher, two movement cycles, and sport-specific cadence. These software reference windows do not establish sporting legality or clinical validation.
 
-The relay generates `x-drill-signature` through **server-side Web Crypto HMAC-SHA256**, signing `userId:drill_type:form_score:timestamp`. Shared signing keys never enter the client bundle. Production scoring remains disabled until reference models/calibration are reviewed. Explicitly isolated staging can enable provisional practice ingestion; a signed browser estimate is not anti-cheat provenance.
+The browser hashes the landmark series with Web Crypto SHA-256 in `x-client-pose-digest`. The relay recomputes the digest and score, then signs all canonical submission fields with **server-side HMAC-SHA256** using the backend FULL_V2 protocol. Shared signing keys never enter the client bundle. Valid sessions award Posture Practice Points and enqueue GTI updates; duplicate pose digests cannot award points again. Browser pose data remains client-reported evidence rather than camera attestation.
 
 ### Web Bluetooth IoT Hub and Match-Pause Command Center
 
-The hub connects to Heart Rate service **`0x180D`**, characteristic **`0x2A37`**, parsing 8-bit and 16-bit packets. A labeled simulator supplies normal and critical scenarios. Standard HR devices do not supply SpO₂ or temperature; unavailable measurements are not invented. Hardware ingestion remains gated pending complete device/context contracts.
+The hub connects to Heart Rate **`0x180D/0x2A37`** with optional Pulse Oximeter **`0x1822/0x2A5F`** and Health Thermometer **`0x1809/0x2A1C`** services. A heart-rate-only strap uses explicit baseline labels for SpO₂ 98% and temperature 36.8°C. These defaults are not measurements. Athletes can opt into streaming BLE readings or labeled simulator stress tests with optional tournament/bracket/match context. Daily monitored sessions update wearable consistency and enqueue GTI recalculation.
 
-Critical thresholds match the backend: **HR > 195 bpm**, **SpO₂ < 90%**, or **temperature > 39.5°C**. The organizer command center validates `MATCH_PAUSE_ALERT`, highlights incidents, and provides opt-in audio, local acknowledgement, and emergency test controls. It cannot perform a server-confirmed pause/resume or emergency dispatch without those backend APIs.
+Critical thresholds match the backend: **HR > 195 bpm**, **SpO₂ < 90%**, or **temperature > 39.5°C**. The organizer command center validates `MATCH_PAUSE_ALERT`, highlights incidents, and provides opt-in audio, local acknowledgement, and emergency test controls. Critical match-bound telemetry can pause a participating active match in the backend. The command center displays incoming directives and context; it does not provide manual pause/resume or emergency dispatch controls.
 
-The existing event gateway globally broadcasts sensitive alerts, so event subscriptions default to disabled. `SAFE_EVENTS_VERIFIED` is an operator assertion after backend isolation fixes, not a fix itself. Simulator ingestion requires isolated staging, rejects match/bracket/tournament context, and never targets production data. Telemetry signs exact JSON bytes through server-only `x-device-signature`.
+Both Socket.IO namespaces authenticate the handshake. Competition rooms require ownership, assignment, administration, or registered participation; safety alerts target explicit rooms and authorized staff role rooms. Telemetry signs exact JSON bytes through server-only `x-device-signature`, including `BLE`/`SIMULATOR` provenance and baseline labels. The backend validates context membership before changing a match. Critical standalone readings also emit alerts, without reporting a persisted match pause.
 
 ### GTI, Scout Dossiers, and Regional Policy Heatmaps
 
@@ -107,12 +107,8 @@ Copy [`.env.example`](.env.example) to `.env.local`; never commit credentials. P
 | `APP_ENV`                       | `development`, `test`, `staging`, or `production`.                                                                                                                                        |
 | `SESSION_STORE`                 | `redis` by default; `memory` only for local development/tests.                                                                                                                            |
 | `REDIS_URL`                     | Private session/refresh/rate-limit/operation store; required in Redis mode.                                                                                                               |
-| `DRILL_HMAC_SECRET`             | Server-only key matching NestJS; does not unlock production scoring.                                                                                                                      |
-| `TELEMETRY_SERVICE_HMAC_SECRET` | Server-only key matching backend telemetry signing.                                                                                                                                       |
-| `SAFE_EVENTS_VERIFIED`          | Defaults `false`; enable only after backend socket privacy is fixed and verified.                                                                                                         |
-| `DRILL_PRACTICE_INGESTION`      | Defaults `false`; provisional ingestion additionally requires isolated staging.                                                                                                           |
-| `SIMULATOR_INGESTION`           | Defaults `false`; requires isolated staging; cannot attach simulations to matches.                                                                                                        |
-| `STAGING_DATA_ISOLATED`         | Defaults `false`; must be `true` with `APP_ENV=staging` for staging ingestion.                                                                                                            |
+| `DRILL_HMAC_SECRET`             | Server-only key matching NestJS; enables validated drill submission.                                                                                                                      |
+| `TELEMETRY_SERVICE_HMAC_SECRET` | Server-only key matching backend telemetry signing; enables BLE and simulator streaming.                                                                                                  |
 
 Unset canonical variables to use aliases; copying defaults otherwise gives them precedence. Production/staging reject memory sessions. Only server processes receive HMAC secrets, which must match the backend.
 

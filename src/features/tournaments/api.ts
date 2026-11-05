@@ -12,8 +12,35 @@ import {
 import { getApi, mutateApi } from "@/lib/api/browser-client";
 import { envelope } from "@/lib/api/response-decoders";
 import type { MutationOperation } from "@/lib/api/operation";
-export const getNearby = (query: NearbyTournamentsQuery, signal?: AbortSignal) =>
-  getApi("tournaments/nearby", envelope(z.array(tournamentLocationSchema)), query, signal);
+const nearbyPageSchema = z.union([
+  z.object({
+    data: z.array(tournamentLocationSchema),
+    next_cursor: z.string().nullable(),
+    has_more: z.boolean(),
+  }),
+  z.array(tournamentLocationSchema),
+]);
+
+export interface NearbyPageResult {
+  data: z.infer<typeof tournamentLocationSchema>[];
+  next_cursor: string | null;
+  has_more: boolean;
+}
+
+export const getNearby = async (
+  query: NearbyTournamentsQuery,
+  signal?: AbortSignal,
+): Promise<NearbyPageResult> => {
+  const result = await getApi("tournaments/nearby", envelope(nearbyPageSchema), query, signal);
+  if (Array.isArray(result)) {
+    return {
+      data: result,
+      next_cursor: null,
+      has_more: false,
+    };
+  }
+  return result;
+};
 export const getTournament = (id: string, signal?: AbortSignal) =>
   getApi(`tournaments/${id}`, envelope(tournamentDetailSchema), undefined, signal);
 export const getBrackets = (id: string, cursor: string | null, signal?: AbortSignal) =>

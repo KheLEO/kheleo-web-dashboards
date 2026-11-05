@@ -1,5 +1,7 @@
 "use client";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useAthleteUpdates } from "@/lib/socket";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/errors";
 import { keys } from "@/lib/query/keys";
 import { useSession } from "@/features/auth/session-provider";
@@ -7,6 +9,12 @@ import { getPassport, getSports } from "./api";
 export function usePassport(userId?: string) {
   const { user } = useSession();
   const id = userId ?? user.id;
+  const client = useQueryClient();
+  const refresh = useCallback(() => {
+    void client.invalidateQueries({ queryKey: keys.passport(id) });
+    void client.invalidateQueries({ queryKey: keys.sports(id) });
+  }, [client, id]);
+  useAthleteUpdates(user.id, refresh, user.role === "ATHLETE" && id === user.id);
   return useQuery({
     queryKey: [...keys.passport(id), user.id, user.role],
     queryFn: ({ signal }) => getPassport(id, signal),

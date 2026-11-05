@@ -1,5 +1,8 @@
 import { jointAngle, type Landmark } from "./joint-angles";
 import type { DrillPreset } from "./drill-catalog";
+import { calibratedDrillReferences, type CalibratedDrillType } from "./scoring-policy";
+import { canonicalJson } from "@/lib/canonical-json";
+import type { PoseFrame } from "@/contracts/drills";
 import type { SubmitDrillRequest } from "@/contracts/drills";
 export interface FrameEvaluation {
   angles: Record<string, number>;
@@ -13,13 +16,28 @@ export interface AngleStats {
   max: number;
 }
 export interface PracticeAggregate {
+  firstTimestamp: number | null;
+  lastTimestamp: number | null;
+  repetitions: number;
+  wasAligned: boolean | null;
+  cadenceValid: boolean;
   frames: number;
   alignedFrames: number;
   angles: Record<string, AngleStats>;
   flags: Set<string>;
 }
 export function createPracticeAggregate(): PracticeAggregate {
-  return { frames: 0, alignedFrames: 0, angles: {}, flags: new Set() };
+  return {
+    frames: 0,
+    alignedFrames: 0,
+    angles: {},
+    flags: new Set(),
+    firstTimestamp: null,
+    lastTimestamp: null,
+    repetitions: 0,
+    wasAligned: null,
+    cadenceValid: true,
+  };
 }
 const joints = {
   elbow: [
@@ -43,6 +61,19 @@ export function evaluatePracticeFrame(
   preset: DrillPreset,
   points: Landmark[],
 ): FrameEvaluation | null {
+  if (
+    points.length !== 33 ||
+    [11, 12, 23, 24, 25, 26, 27, 28].some((index) => {
+      const point = points[index];
+      return (
+        !point ||
+        !Number.isFinite(point.visibility) ||
+        point.visibility < 0.6 ||
+        ![point.x, point.y, point.z].every(Number.isFinite)
+      );
+    })
+  )
+    return null;
   const angles: Record<string, number> = {};
   for (const [joint, sides] of Object.entries(joints))
     for (const [side, indexes] of sides.entries()) {
@@ -64,6 +95,7 @@ export function evaluatePracticeFrame(
 export function accumulatePractice(
   current: PracticeAggregate,
   frame: FrameEvaluation,
+  timestamp?: number,
 ): PracticeAggregate {
   const angles = { ...current.angles };
   for (const [name, value] of Object.entries(frame.angles)) {
@@ -78,6 +110,15 @@ export function accumulatePractice(
       : { samples: 1, sum: value, min: value, max: value };
   }
   return {
+    firstTimestamp: current.firstTimestamp ?? timestamp ?? null,
+    lastTimestamp: timestamp ?? null,
+    repetitions: current.repetitions + Number(current.wasAligned === false && frame.aligned),
+    wasAligned: frame.aligned,
+    cadenceValid:
+      current.cadenceValid &&
+      (timestamp === undefined ||
+        current.lastTimestamp === null ||
+        (timestamp > current.lastTimestamp && timestamp - current.lastTimestamp <= 500)),
     frames: current.frames + 1,
     alignedFrames: current.alignedFrames + Number(frame.aligned),
     angles,
@@ -93,6 +134,20 @@ export function practiceSummary(
   timestamp: number,
 ): SubmitDrillRequest | null {
   if (!aggregate.frames) return null;
+  const reference = calibratedDrillReferences[preset.id as CalibratedDrillType];
+  if (!reference || reference.sport !== preset.sport) return null;
+  const duration =
+    aggregate.firstTimestamp !== null && aggregate.lastTimestamp !== null
+      ? aggregate.lastTimestamp - aggregate.firstTimestamp
+      : 0;
+  const cadence = duration > 0 ? (aggregate.repetitions * 60000) / duration : 0;
+  const validated =
+    aggregate.frames >= reference.window.minValidFrames &&
+    aggregate.repetitions >= 2 &&
+    aggregate.cadenceValid &&
+    duration >= 2000 &&
+    cadence >= reference.window.cadenceMinRpm &&
+    cadence <= reference.window.cadenceMaxRpm;
   return {
     drill_type: preset.id,
     sport: preset.sport,
@@ -100,8 +155,12 @@ export function practiceSummary(
     frames_analyzed: aggregate.frames,
     flaw_flags: [...aggregate.flags],
     joint_angles_summary: {
-      policy: "practice-angle-v1",
-      validated: false,
+      policy: "calibrated-angle-v1",
+      calibrationVersion: reference.calibrationVersion,
+      validated,
+      repetitions: aggregate.repetitions,
+      duration_ms: duration,
+      cadence_rpm: Number(cadence.toFixed(2)),
       ...Object.fromEntries(
         Object.entries(aggregate.angles).map(([name, value]) => [
           name,
@@ -116,4 +175,23 @@ export function practiceSummary(
     },
     timestamp,
   };
+}
+
+export async function computePoseDigest(frames: readonly PoseFrame[]): Promise<string> {
+  const canonical = canonicalJson(frames);
+  const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(buffer), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function evaluatePoseSeries(
+  preset: DrillPreset,
+  frames: readonly PoseFrame[],
+  timestamp: number,
+): SubmitDrillRequest | null {
+  const aggregate = frames.reduce((current, frame) => {
+    const evaluation = evaluatePracticeFrame(preset, frame.landmarks);
+    return evaluation ? accumulatePractice(current, evaluation, frame.timestamp) : current;
+  }, createPracticeAggregate());
+  const summary = practiceSummary(preset, aggregate, timestamp);
+  return summary && summary.frames_analyzed === frames.length ? summary : null;
 }

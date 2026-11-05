@@ -12,6 +12,8 @@ import type {
   FreeAgentStatus,
   AlertSeverity,
   RegistrationStatus,
+  DrillSignatureVersion,
+  TelemetrySource,
 } from "./enums.generated";
 
 export interface UserScalar {
@@ -20,6 +22,7 @@ export interface UserScalar {
   email: string | null;
   role: UserRole;
   isActive: boolean;
+  isRecoveryBlocked: boolean;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }
@@ -50,9 +53,9 @@ export interface IdentityVerificationScalar {
 export interface AthleteProfileScalar {
   id: string;
   userId: string;
-  dateOfBirth: ISODateString;
-  gender: string;
-  primarySport: SportType;
+  dateOfBirth: ISODateString | null;
+  gender: string | null;
+  primarySport: SportType | null;
   secondarySports: SportType[];
   district: string;
   state: string;
@@ -110,6 +113,7 @@ export interface TournamentScalar {
   startDate: ISODateString;
   endDate: ISODateString;
   rulesConfig: JsonValue;
+  isFeatured: boolean;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }
@@ -217,6 +221,9 @@ export interface DrillSubmissionScalar {
   flawFlags: JsonValue;
   jointAnglesSummary: JsonValue;
   signatureHash: string;
+  signatureVersion: DrillSignatureVersion;
+  clientPoseDigest: string | null;
+  metadataVerified: boolean;
   createdAt: ISODateString;
 }
 
@@ -231,6 +238,11 @@ export interface HealthAlertScalar {
   skinTemperature: number;
   triggerReason: string;
   matchPaused: boolean;
+  matchId: string | null;
+  acknowledgedAt: ISODateString | null;
+  acknowledgedById: string | null;
+  baselineFields: string[];
+  source: TelemetrySource;
   createdAt: ISODateString;
 }
 
@@ -276,4 +288,50 @@ export interface IdempotencyRecordScalar {
   responseBody: JsonValue;
   createdAt: ISODateString;
   expiresAt: ISODateString;
+}
+
+export interface SecurityAuditLogScalar {
+  id: string;
+  userId: string | null;
+  action: string;
+  resource: string | null;
+  resourceId: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  metadata: JsonValue | null;
+  createdAt: ISODateString;
+}
+
+export interface WearableSessionScalar {
+  id: string;
+  athleteId: string;
+  sessionDate: ISODateString;
+  source: TelemetrySource;
+  baselineFields: string[];
+  observedAt: ISODateString;
+}
+
+export interface VerifiedMatchResultScalar {
+  id: string;
+  bracketId: string;
+  matchId: string | null;
+  reportedById: string;
+  requestKey: string;
+  fingerprint: string;
+  participantAthleteIds: string[];
+  winnerAthleteIds: string[];
+  createdAt: ISODateString;
+}
+
+export interface OutboxEventScalar {
+  id: string;
+  kind: string;
+  payload: JsonValue;
+  attempts: number;
+  availableAt: ISODateString;
+  lockedUntil: ISODateString | null;
+  lockedBy: string | null;
+  deliveredAt: ISODateString | null;
+  lastError: string | null;
+  createdAt: ISODateString;
 }

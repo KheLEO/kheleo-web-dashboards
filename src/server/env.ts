@@ -7,12 +7,8 @@ const schema = z.object({
   APP_ENV: z.enum(["development", "test", "staging", "production"]).default("development"),
   REDIS_URL: z.url().optional(),
   SESSION_STORE: z.enum(["redis", "memory"]).default("redis"),
-  DRILL_PRACTICE_INGESTION: z.string().default("false"),
   DRILL_HMAC_SECRET: z.string().optional(),
   TELEMETRY_SERVICE_HMAC_SECRET: z.string().optional(),
-  SAFE_EVENTS_VERIFIED: z.string().default("false"),
-  SIMULATOR_INGESTION: z.string().default("false"),
-  STAGING_DATA_ISOLATED: z.string().default("false"),
 });
 export type ServerEnvironment = z.infer<typeof schema>;
 export function getEnvironment(): ServerEnvironment {

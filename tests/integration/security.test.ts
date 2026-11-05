@@ -7,6 +7,7 @@ import { prepareTelemetry } from "@/server/api/telemetry-relay";
 import { assertOrigin } from "@/server/security/request-origin";
 import { routeRegistry } from "@/server/api/route-registry";
 import { ids } from "@/test/factories";
+import { calibratedSession } from "../fixtures/pose";
 import { getEnvironment } from "@/server/env";
 describe("relay security boundaries", () => {
   beforeEach(() => {
@@ -24,7 +25,8 @@ describe("relay security boundaries", () => {
       timestamp: 1700000000000,
     };
     const payload = drillSigningPayload(ids.athlete, drill);
-    expect(payload).toBe(`${ids.athlete}:TEST:91.25:1700000000000`);
+    expect(JSON.parse(payload) as unknown).toMatchObject({ athlete_id: ids.athlete, ...drill });
+    expect(payload).toContain('"joint_angles_summary":{}');
     expect(await signHmac("fixture-secret", payload)).toBe(
       createHmac("sha256", "fixture-secret").update(payload).digest("hex"),
     );
@@ -40,25 +42,13 @@ describe("relay security boundaries", () => {
     vi.stubEnv("NEST_API_URL", "file:///etc/passwd");
     expect(() => getEnvironment()).toThrow();
   });
-  it("does not allow unapproved scoring to modify GTI", async () => {
-    await expect(
-      prepareDrill(ids.athlete, {
-        sport: "CRICKET",
-        drill_type: "TEST",
-        form_score: 100,
-        frames_analyzed: 20,
-        timestamp: Date.now(),
-      }),
-    ).rejects.toMatchObject({ problem: { status: 409, code: "SCORING_NOT_APPROVED" } });
+  it("rejects a calibrated drill without pose integrity evidence", async () => {
+    await expect(prepareDrill(ids.athlete, calibratedSession())).rejects.toMatchObject({
+      problem: { status: 403 },
+    });
   });
   it("rejects expired and identity-mismatched drill submissions", async () => {
-    const drill = {
-      sport: "CRICKET",
-      drill_type: "TEST",
-      form_score: 90,
-      frames_analyzed: 20,
-      timestamp: Date.now(),
-    };
+    const drill = calibratedSession();
     await expect(
       prepareDrill(ids.athlete, { ...drill, athlete_id: ids.organizer }),
     ).rejects.toMatchObject({ problem: { status: 403 } });
@@ -66,12 +56,10 @@ describe("relay security boundaries", () => {
       prepareDrill(ids.athlete, { ...drill, timestamp: Date.now() - 301000 }),
     ).rejects.toMatchObject({ problem: { status: 403 } });
   });
-  it("blocks production simulator ingestion even if the simulator flag is set", async () => {
+  it("requires server signing configuration for production simulator ingestion", async () => {
     vi.stubEnv("APP_ENV", "production");
     vi.stubEnv("SESSION_STORE", "redis");
     vi.stubEnv("REDIS_URL", "redis://localhost:6379");
-    vi.stubEnv("SIMULATOR_INGESTION", "true");
-    vi.stubEnv("STAGING_DATA_ISOLATED", "true");
     await expect(
       prepareTelemetry(
         ids.athlete,
@@ -84,14 +72,12 @@ describe("relay security boundaries", () => {
         },
         true,
       ),
-    ).rejects.toMatchObject({ problem: { status: 403 } });
+    ).rejects.toMatchObject({ problem: { status: 503 } });
   });
   it("signs staging telemetry over the exact forwarded bytes", async () => {
     vi.stubEnv("APP_ENV", "staging");
     vi.stubEnv("SESSION_STORE", "redis");
     vi.stubEnv("REDIS_URL", "redis://localhost:6379");
-    vi.stubEnv("SIMULATOR_INGESTION", "true");
-    vi.stubEnv("STAGING_DATA_ISOLATED", "true");
     vi.stubEnv("TELEMETRY_SERVICE_HMAC_SECRET", "telemetry-test-secret");
     const result = await prepareTelemetry(
       ids.athlete,
@@ -126,3 +112,39 @@ describe("relay security boundaries", () => {
     expect(routeRegistry.some((entry) => entry.pattern.test("gti/leaderboards"))).toBe(false);
   });
 });
+it.each([false, true])(
+  "signs labeled production telemetry (simulated=%s) with optional competition context",
+  async (simulated) => {
+    vi.stubEnv("APP_ENV", "production");
+    vi.stubEnv("SESSION_STORE", "redis");
+    vi.stubEnv("REDIS_URL", "redis://localhost:6379");
+    vi.stubEnv("TELEMETRY_SERVICE_HMAC_SECRET", "telemetry-test-secret");
+    try {
+      const packet = {
+        athlete_id: ids.athlete,
+        tournament_id: ids.tournament,
+        bracket_id: ids.bracket,
+        heart_rate: 202,
+        spo2: 88,
+        skin_temperature: 40,
+        timestamp: Date.now(),
+      };
+      const result = await prepareTelemetry(ids.athlete, packet, simulated);
+      expect(JSON.parse(result.body) as unknown).toMatchObject({
+        ...packet,
+        source: simulated ? "SIMULATOR" : "BLE",
+      });
+      expect(result.signature.value).toBe(
+        createHmac("sha256", "telemetry-test-secret").update(result.body).digest("hex"),
+      );
+      await expect(prepareTelemetry(ids.scout, packet, simulated)).rejects.toMatchObject({
+        problem: { status: 403 },
+      });
+      await expect(
+        prepareTelemetry(ids.athlete, { ...packet, timestamp: Date.now() - 301000 }, simulated),
+      ).rejects.toMatchObject({ problem: { status: 403 } });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  },
+);

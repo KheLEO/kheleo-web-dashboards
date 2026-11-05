@@ -1,5 +1,27 @@
 # Verification evidence
 
+## Prompt 1 verification — 6 November 2026
+
+Both repositories were accessible on `main`. The existing contract check passed; the preflight type check exposed an existing nearby-pagination optional-property error, which this change fixes. Existing partial Prompt 1 edits were retained and completed.
+
+| Check                                                                       | Result                                                                                    |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `pnpm contracts:sync` / `pnpm contracts:check`                              | Passed against the adjacent backend and generated schema snapshot                         |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check`                          | Passed                                                                                    |
+| Frontend `pnpm test`                                                        | 25 files, 132 tests passed                                                                |
+| Frontend `pnpm build`                                                       | Passed                                                                                    |
+| `pnpm test:e2e`                                                             | 48 Chromium tests passed, including mobile/accessibility journeys                         |
+| Backend `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm exec prisma validate` | Passed                                                                                    |
+| Backend `pnpm test`                                                         | 172 tests passed, including real Socket.IO transports and migrated PGlite/PostGIS queries |
+
+New coverage checks unauthorized socket handshakes and room membership, self-authored evidence rejection, pending staff verification, logout/token-family revocation, canonical drill signatures, pose digest replay rejection, valid visibility/cadence, legacy nearby-array decoding, 45-tournament cursor traversal, GATT packet parsing and cleanup, labeled physiological baselines, simulator ingestion, and automatic passport refresh after `GTI_UPDATED`. The browser drill test sends synthetic landmark frames through the real frontend signing relay; the fixture verifies its HMAC and returns the backend's actual bare drill-result shape.
+
+Before backend deployment, apply `20261106000000_telemetry_provenance` with `pnpm prisma:deploy`. Configure matching private drill and telemetry HMAC secrets in both services. The old staging/scoring/privacy flags no longer gate these capabilities.
+
+These checks validate software contracts and authorization with deterministic fixtures and embedded PostgreSQL. They do not certify physical BLE devices, camera provenance, clinical safety, sports-science calibration, hosted Redis/BullMQ throughput, or a production deployment. Scoring policy 1.0.0 defines engineering reference windows; browser-reported landmarks and BLE provenance are not device attestation.
+
+## Historical verification before Prompt 1
+
 Verified locally on **31 October 2026**, against unchanged backend source revision `0067d9445048370c700f7b4bad8fa006cea43651`. Runtime: Node.js **24.19.0**, pnpm **11.24.0**, Next.js **16.4.3**. Node 22 remains the CI configuration; hosted CI has not been executed in this session.
 
 | Check                                     | Result                                                                                                                                        |

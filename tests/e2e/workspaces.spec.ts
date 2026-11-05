@@ -390,7 +390,7 @@ test("pose worker initializes from local assets and releases camera and worker",
       .evaluateHandle(
         (video: HTMLVideoElement) => (video.srcObject as MediaStream).getVideoTracks()[0]!,
       );
-    await expect(page.getByRole("button", { name: "Awaiting scoring calibration" })).toBeDisabled();
+    await expect(page.getByText("Select a sport drill to record a scored session.")).toBeVisible();
     await page.getByRole("button", { name: "Stop", exact: true }).click();
     await expect.poll(() => track.evaluate((item) => item.readyState)).toBe("ended");
     await expect.poll(() => page.workers().length).toBe(0);
@@ -448,12 +448,12 @@ test("athlete data screens meet accessibility and mobile overflow checks", async
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   }
 });
-test("theme tokens update component colors and safety stream stays gated", async ({ page }) => {
+test("theme tokens update component colors with an authenticated safety stream", async ({
+  page,
+}) => {
   await login(page, "organizer");
   await page.goto(`/organizer/tournaments/${ids.tournament}/safety`);
-  await expect(
-    page.getByRole("heading", { name: "Safety stream awaiting isolation verification" }),
-  ).toBeVisible();
+  await expect(page.getByText("Live connection", { exact: true })).toBeVisible();
   await page.evaluate(() =>
     document.documentElement.style.setProperty("--kheleo-gold-rgb", "100 200 150"),
   );
@@ -556,7 +556,9 @@ test("all four sport presets are reachable without submitting camera frames", as
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   await page.getByRole("link", { name: /Cricket bowling/ }).click();
   await expect(page.getByRole("button", { name: "Start camera" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Awaiting scoring calibration" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Submit drill for practice points" }),
+  ).toBeDisabled();
 });
 
 test("sport editor sends self-reported roles without injecting verified metrics", async ({
@@ -774,7 +776,7 @@ test("local emergency preview records seen time and releases opted-in audio with
         events: number;
       }
     ).events,
-  ).toBe(0);
+  ).toBe(1);
   await page.getByRole("button", { name: "Open navigation", exact: true }).click();
   await page.getByRole("link", { name: "Overview", exact: true }).click();
   await expect
@@ -1189,4 +1191,234 @@ test("theme changes remain usable when browser preference storage rejects writes
       ),
     )
     .toBe("18 52 86");
+});
+
+test("passport loads all three weighted GTI scores before recalculation", async ({
+  page,
+  request,
+}) => {
+  await login(page);
+  await page.goto("/athlete/passport");
+  await expect(page.getByRole("group", { name: "Biomechanical Form", exact: true })).toContainText(
+    "65.0",
+  );
+  await expect(page.getByRole("group", { name: "Biomechanical Form", exact: true })).toContainText(
+    "35%",
+  );
+  await expect(
+    page.getByRole("group", { name: "Wearable Consistency", exact: true }),
+  ).toContainText("50.0");
+  await expect(
+    page.getByRole("group", { name: "Wearable Consistency", exact: true }),
+  ).toContainText("25%");
+  await expect(
+    page.getByRole("group", { name: "Verified Match Performance", exact: true }),
+  ).toContainText("50.0");
+  await expect(
+    page.getByRole("group", { name: "Verified Match Performance", exact: true }),
+  ).toContainText("40%");
+  expect(
+    await (await request.get("http://localhost:4100/__control__/mutations")).json(),
+  ).not.toContain(`POST gti/recalculate/${ids.athlete}`);
+});
+
+test("nearby cursor discovery retains every page beyond twenty tournaments", async ({
+  page,
+  request,
+}) => {
+  await request.post("http://localhost:4100/__control__/nearby-pages");
+  await login(page);
+  await page.goto("/athlete/tournaments");
+  const tournaments = page.getByRole("heading", { name: /^Nearby Tournament / });
+  await expect(tournaments).toHaveCount(20);
+  const next = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/backend/tournaments/nearby?") &&
+      response.url().includes("cursor="),
+  );
+  await page.getByRole("button", { name: "Load More Tournaments", exact: true }).click();
+  expect(new URL((await next).url()).searchParams.get("cursor")).toBe(
+    "30000000-0000-4000-8000-000000000020",
+  );
+  await expect(tournaments).toHaveCount(40);
+  await page.getByRole("button", { name: "Load More Tournaments", exact: true }).click();
+  await expect(tournaments).toHaveCount(45);
+  await expect(
+    page.getByRole("heading", { name: "Nearby Tournament 01", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Nearby Tournament 45", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Load More Tournaments", exact: true }),
+  ).toHaveCount(0);
+  expect(new Set(await tournaments.allTextContents()).size).toBe(45);
+});
+
+test("calibrated browser submissions cross the real signing relay and update the passport", async ({
+  page,
+}) => {
+  const { calibratedSession } = await import("../fixtures/pose");
+  const { canonicalJson } = await import("../../src/lib/canonical-json");
+  await login(page);
+  const submission = calibratedSession();
+  const result = await page.evaluate(
+    async ({ submissionJson, canonical }) => {
+      const input = JSON.parse(submissionJson) as Record<string, unknown>;
+      const digest = Array.from(
+        new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical))),
+        (byte) => byte.toString(16).padStart(2, "0"),
+      ).join("");
+      const send = async (
+        body: Record<string, unknown>,
+      ): Promise<{ status: number; body: unknown }> => {
+        const response = await fetch("/api/backend/drills/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": crypto.randomUUID(),
+            "x-client-pose-digest": digest,
+          },
+          body: JSON.stringify(body),
+        });
+        return { status: response.status, body: (await response.json()) as unknown };
+      };
+      return { valid: await send(input), forged: await send({ ...input, form_score: 100 }) };
+    },
+    {
+      submissionJson: JSON.stringify(submission),
+      canonical: canonicalJson(submission.pose_frames),
+    },
+  );
+  expect(result.valid.status).toBe(200);
+  expect(result.valid.body).toMatchObject({
+    success: true,
+    posture_points_awarded: 400,
+    current_biomechanical_score: 40,
+  });
+  expect(result.forged.status).toBe(403);
+  await page.goto("/athlete/passport");
+  await expect(page.getByRole("group", { name: "Biomechanical Form", exact: true })).toContainText(
+    "40.0",
+  );
+});
+
+test("opted-in simulator stress packets update wearable consistency and confirm backend alerts", async ({
+  page,
+  request,
+}) => {
+  await login(page);
+  await page.goto("/athlete/wearable");
+  await page.getByRole("button", { name: "Pair virtual Fitness Band", exact: true }).click();
+  await page.getByRole("button", { name: "Simulate critical", exact: true }).click();
+  const sent = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/backend/safety/telemetry-webhook") &&
+      response.request().method() === "POST",
+  );
+  await page.getByLabel("Stream readings to my athlete record", { exact: true }).check();
+  const response = await sent;
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON()).toMatchObject({
+    source: "SIMULATOR",
+    athlete_id: ids.athlete,
+  });
+  await expect(
+    page.getByRole("status").filter({ hasText: "Backend ingestion status: CRITICAL_ALERT" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Disconnect / stop", exact: true }).click();
+  expect(await (await request.get("http://localhost:4100/__control__/mutations")).json()).toContain(
+    "POST safety/telemetry-webhook",
+  );
+  await page.goto("/athlete/passport");
+  await expect(
+    page.getByRole("group", { name: "Wearable Consistency", exact: true }),
+  ).toContainText("5.0");
+});
+
+test("heart-rate-only BLE streaming labels physiological baselines and releases the device", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const heart = Object.assign(new EventTarget(), {
+      value: new DataView(Uint8Array.from([0, 110]).buffer),
+      startNotifications: async (): Promise<void> => {
+        timer = setInterval(
+          () => heart.dispatchEvent(new Event("characteristicvaluechanged")),
+          250,
+        );
+      },
+    });
+    let timer: ReturnType<typeof setInterval>;
+    const gatt = {
+      connected: true,
+      connect: async () => gatt,
+      disconnect: () => {
+        clearInterval(timer);
+        Object.assign(window, { __bleDisconnected: true });
+      },
+      getPrimaryService: async (id: number) => {
+        if (id !== 0x180d) throw new DOMException("Service not available", "NotFoundError");
+        return { getCharacteristic: async () => heart };
+      },
+    };
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: { requestDevice: async () => Object.assign(new EventTarget(), { gatt }) },
+    });
+  });
+  await login(page);
+  await page.goto("/athlete/wearable");
+  await page.getByRole("button", { name: "Connect Bluetooth device", exact: true }).click();
+  await expect(page.getByText("110 bpm", { exact: true })).toBeVisible();
+  await expect(page.getByText("Baseline default · not measured", { exact: true })).toHaveCount(2);
+  const sent = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/backend/safety/telemetry-webhook") &&
+      response.request().method() === "POST",
+  );
+  await page.getByLabel("Stream readings to my athlete record", { exact: true }).check();
+  const response = await sent;
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON()).toMatchObject({
+    source: "BLE",
+    spo2: 98,
+    skin_temperature: 36.8,
+    baseline_fields: ["spo2", "skin_temperature"],
+  });
+  await expect(
+    page.getByRole("status").filter({ hasText: "Backend ingestion status: NORMAL" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Disconnect / stop", exact: true }).click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __bleDisconnected: boolean }).__bleDisconnected,
+    ),
+  ).toBe(true);
+});
+
+test("GTI_UPDATED refreshes the athlete passport without a reload", async ({ page, request }) => {
+  await login(page);
+  await page.goto("/athlete/passport");
+  await expect(page.getByRole("group", { name: "Biomechanical Form", exact: true })).toContainText(
+    "65.0",
+  );
+  await expect
+    .poll(
+      async () =>
+        (
+          (await (await request.get("http://localhost:4100/__control__/sockets")).json()) as {
+            events: number;
+          }
+        ).events,
+    )
+    .toBe(1);
+  await request.post("http://localhost:4100/__control__/gti-update");
+  await expect(page.getByRole("group", { name: "Biomechanical Form", exact: true })).toContainText(
+    "94.0",
+  );
+  await expect(page.getByRole("meter", { name: "Composite GTI" })).toHaveAttribute(
+    "aria-valuenow",
+    "65.4",
+  );
 });

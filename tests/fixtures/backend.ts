@@ -1,3 +1,5 @@
+import { createHmac } from "node:crypto";
+import { canonicalJson } from "../../src/lib/canonical-json";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { Server } from "socket.io";
 import { ids, makeUser, makePassport, makeBracket, makeTournament } from "../../src/test/factories";
@@ -9,6 +11,8 @@ let matched = false;
 let profileExists = true;
 let foreignOwner = false;
 let scoutAlertAcknowledged = false;
+let nearbyPages = false;
+let passport = makePassport();
 const seenMutations: string[] = [];
 function send(response: ServerResponse, data: unknown, status = 200, bare = false): void {
   response.writeHead(status, { "Content-Type": "application/json" });
@@ -51,6 +55,26 @@ const server = createServer(async (request, response) => {
     foreignOwner = false;
     scoutAlertAcknowledged = false;
     seenMutations.length = 0;
+    nearbyPages = false;
+    passport = makePassport();
+    send(response, {}, 200, true);
+    return;
+  }
+  if (url.pathname === "/__control__/gti-update") {
+    passport.biomechanicalScore = 94;
+    const previousGti = passport.currentGti;
+    passport.currentGti = 0.35 * 94 + 0.25 * passport.wearableScore + 0.4 * passport.matchPerfScore;
+    io.of("/ws/events").to(`athlete:${ids.athlete}`).emit("GTI_UPDATED", {
+      athleteId: ids.athlete,
+      previousGti,
+      newGti: passport.currentGti,
+      eliteBreached: false,
+    });
+    send(response, {}, 200, true);
+    return;
+  }
+  if (url.pathname === "/__control__/nearby-pages") {
+    nearbyPages = true;
     send(response, {}, 200, true);
     return;
   }
@@ -148,8 +172,97 @@ const server = createServer(async (request, response) => {
     send(response, problem(401, "Missing token"), 401);
     return;
   }
-  if (path === "auth/verify-government-id") {
+  if (path === "auth/logout") {
+    ok({ success: true });
+    return;
+  }
+  if (path === "auth/verify-government-id" || path === "auth/verify-gov-id") {
     ok({ message: "Verified", verified: true, idHashPrefix: "abcd1234" });
+    return;
+  }
+  if (path === "users/profile") {
+    ok(passport);
+    return;
+  }
+  if (path === "drills/submit") {
+    const signed = canonicalJson({
+      athlete_id: body.athlete_id,
+      sport: body.sport,
+      drill_type: body.drill_type,
+      form_score: body.form_score,
+      frames_analyzed: body.frames_analyzed,
+      flaw_flags: body.flaw_flags ?? [],
+      joint_angles_summary: body.joint_angles_summary ?? {},
+      timestamp: body.timestamp,
+    });
+    if (
+      request.headers["x-drill-signature"] !==
+      createHmac("sha256", "e2e-drill-signing-secret").update(signed).digest("hex")
+    ) {
+      send(response, problem(403, "Drill HMAC mismatch"), 403);
+      return;
+    }
+    passport.biomechanicalScore = Number(body.form_score);
+    passport.posturePoints += Math.round(Number(body.form_score) * 10);
+    passport.currentGti =
+      0.35 * passport.biomechanicalScore +
+      0.25 * passport.wearableScore +
+      0.4 * passport.matchPerfScore;
+    ok(
+      {
+        success: true,
+        posture_points_awarded: Math.round(Number(body.form_score) * 10),
+        current_biomechanical_score: passport.biomechanicalScore,
+      },
+      true,
+    );
+    return;
+  }
+  if (path === "safety/telemetry-webhook") {
+    if (
+      request.headers["x-device-signature"] !==
+      createHmac("sha256", "e2e-telemetry-signing-secret").update(raw).digest("hex")
+    ) {
+      send(response, problem(403, "Telemetry HMAC mismatch"), 403);
+      return;
+    }
+    passport.wearableScore = 5;
+    passport.currentGti =
+      0.35 * passport.biomechanicalScore +
+      0.25 * passport.wearableScore +
+      0.4 * passport.matchPerfScore;
+    const critical =
+      Number(body.heart_rate) > 195 ||
+      Number(body.spo2) < 90 ||
+      Number(body.skin_temperature) > 39.5;
+    if (critical)
+      io.of("/ws/events")
+        .to(`athlete:${ids.athlete}`)
+        .to("role:ORGANIZER")
+        .emit("MATCH_PAUSE_ALERT", {
+          event: "MATCH_PAUSE_ALERT",
+          event_id: crypto.randomUUID(),
+          severity: "CRITICAL",
+          athlete_id: ids.athlete,
+          athlete_name: "Fixture athlete",
+          source: body.source,
+          tournament_id: body.tournament_id,
+          bracket_id: body.bracket_id,
+          match_id: body.match_id,
+          vitals: {
+            heart_rate: body.heart_rate,
+            spo2: body.spo2,
+            skin_temperature: body.skin_temperature,
+          },
+          directive:
+            body.source === "SIMULATOR"
+              ? "SIMULATOR STRESS TEST: MANDATORY REST"
+              : "MANDATORY REST",
+        });
+    ok({
+      alert_triggered: critical,
+      status: critical ? (body.match_id ? "MATCH_PAUSED" : "CRITICAL_ALERT") : "NORMAL",
+    });
     return;
   }
   if (path.startsWith("users/")) {
@@ -188,11 +301,27 @@ const server = createServer(async (request, response) => {
       return;
     }
     profileExists = true;
-    ok(makePassport());
+    ok(passport);
     return;
   }
   if (path === "tournaments/nearby") {
-    ok([{ ...makeTournament(), minGti: 0, maxGti: 100, prizePool: 25000, distanceKm: 4.2 }]);
+    const rows = nearbyPages
+      ? Array.from({ length: 45 }, (_, index) => ({
+          ...makeTournament(),
+          id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+          name: `Nearby Tournament ${String(index + 1).padStart(2, "0")}`,
+          prizePool: 25000,
+          minGti: 0,
+          maxGti: 100,
+          distanceKm: Math.floor(index / 2),
+        }))
+      : [{ ...makeTournament(), minGti: 0, maxGti: 100, prizePool: 25000, distanceKm: 4.2 }];
+    const cursor = url.searchParams.get("cursor");
+    const start = cursor ? rows.findIndex((row) => row.id === cursor) + 1 : 0;
+    const limit = Number(url.searchParams.get("limit") ?? 20);
+    const data = rows.slice(start, start + limit);
+    const has_more = start + limit < rows.length;
+    ok({ data, next_cursor: has_more ? data.at(-1)!.id : null, has_more });
     return;
   }
   if (path === "tournaments" && method === "POST") {
@@ -295,6 +424,13 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (path.startsWith("gti/recalculate/")) {
+    passport = {
+      ...passport,
+      biomechanicalScore: 80,
+      wearableScore: 70,
+      matchPerfScore: 67.5,
+      currentGti: 72.5,
+    };
     ok({
       athleteId: ids.athlete,
       gti: 72.5,
@@ -447,6 +583,23 @@ io.of("/ws/matchmaking").on("connection", (socket) => {
     void socket.join(`bracket:${data.bracketId}`);
   });
 });
+io.of("/ws/events")
+  .use((socket, next) => {
+    const token: unknown = socket.handshake.auth.token;
+    if (typeof token !== "string" || !token.startsWith("fixture:")) {
+      next(new Error("Unauthorized"));
+      return;
+    }
+    const role = token.slice("fixture:".length);
+    void socket.join(`role:${role}`);
+    if (role === "ATHLETE") void socket.join(`athlete:${ids.athlete}`);
+    next();
+  })
+  .on("connection", (socket) => {
+    socket.on("join:tournament", (data: { tournamentId: string }) => {
+      void socket.join(`tournament:${data.tournamentId}`);
+    });
+  });
 server.listen(4100, "localhost");
 process.on("SIGTERM", () => {
   void io.close();

@@ -1,3 +1,4 @@
+import { calibratedDrillReferences } from "./scoring-policy";
 import type { SportType } from "@/contracts/enums.generated";
 export interface DrillPreset {
   id: string;
@@ -17,8 +18,8 @@ export const practicePresets: readonly DrillPreset[] = [
     description:
       "Practice elbow-extension alignment. This does not determine bowling legality or release timing.",
     joint: "elbow",
-    minimum: 150,
-    maximum: 180,
+    minimum: calibratedDrillReferences.CRICKET_BOWLING.window.minAngle,
+    maximum: calibratedDrillReferences.CRICKET_BOWLING.window.maxAngle,
     flag: "ELBOW_ANGLE_OUT_OF_RANGE",
   },
   {
@@ -27,8 +28,8 @@ export const practicePresets: readonly DrillPreset[] = [
     name: "Badminton smash",
     description: "Explore overhead shoulder alignment; contact timing is not inferred.",
     joint: "shoulder",
-    minimum: 135,
-    maximum: 180,
+    minimum: calibratedDrillReferences.BADMINTON_SMASH.window.minAngle,
+    maximum: calibratedDrillReferences.BADMINTON_SMASH.window.maxAngle,
     flag: "SHOULDER_ANGLE_OUT_OF_RANGE",
   },
   {
@@ -37,19 +38,18 @@ export const practicePresets: readonly DrillPreset[] = [
     name: "Football strike",
     description: "Practice knee-extension alignment without inferring ball contact or power.",
     joint: "knee",
-    minimum: 145,
-    maximum: 180,
+    minimum: calibratedDrillReferences.FOOTBALL_STRIKE.window.minAngle,
+    maximum: calibratedDrillReferences.FOOTBALL_STRIKE.window.maxAngle,
     flag: "KNEE_ANGLE_OUT_OF_RANGE",
   },
   {
     id: "ATHLETICS_SPRINT_START",
     sport: "ATHLETICS",
     name: "Athletics sprint start",
-    description:
-      "Explore a provisional hip-flexion practice range, not a calibrated start-performance score.",
+    description: "Practice hip flexion through repeated sprint-start movements.",
     joint: "hip",
-    minimum: 45,
-    maximum: 100,
+    minimum: calibratedDrillReferences.ATHLETICS_SPRINT_START.window.minAngle,
+    maximum: calibratedDrillReferences.ATHLETICS_SPRINT_START.window.maxAngle,
     flag: "HIP_ANGLE_OUT_OF_RANGE",
   },
 ];

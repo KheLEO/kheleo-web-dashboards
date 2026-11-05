@@ -40,6 +40,8 @@ export default defineConfig({
         NEST_API_URL: "http://localhost:4100/api/v1",
         SESSION_STORE: "memory",
         APP_ENV: "test",
+        DRILL_HMAC_SECRET: "e2e-drill-signing-secret",
+        TELEMETRY_SERVICE_HMAC_SECRET: "e2e-telemetry-signing-secret",
         NEXT_PUBLIC_SOCKET_ORIGIN: "http://localhost:4100",
       },
     },

@@ -14,9 +14,9 @@ export function ProfileForm({ profile }: { profile?: AthletePassport }) {
   const client = useQueryClient();
   const defaults: Record<string, string> = profile
     ? {
-        dateOfBirth: profile.dateOfBirth.slice(0, 10),
-        gender: profile.gender,
-        primarySport: profile.primarySport,
+        dateOfBirth: profile.dateOfBirth?.slice(0, 10) ?? "",
+        gender: profile.gender ?? "",
+        primarySport: profile.primarySport ?? "",
         secondarySports: profile.secondarySports.join(", "),
         district: profile.district,
         state: profile.state,
@@ -28,11 +28,7 @@ export function ProfileForm({ profile }: { profile?: AthletePassport }) {
     : { isScoutSearchable: "true", tierClassification: "RURAL" };
   return (
     <SchemaForm
-      fields={
-        profile
-          ? profileFields.filter((field) => !["dateOfBirth", "gender"].includes(field.name))
-          : profileFields
-      }
+      fields={profileFields}
       schema={profile ? updatePassportSchema : createPassportSchema}
       defaults={defaults}
       submitLabel={profile ? "Save passport" : "Create sports passport"}

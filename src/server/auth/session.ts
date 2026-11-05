@@ -139,7 +139,7 @@ export async function refreshSession(session: Session, force = false): Promise<S
           fail(401, "Your session has ended.");
         return updated;
       } catch (error: unknown) {
-        if (error instanceof ApiError && error.problem.status === 401)
+        if (error instanceof ApiError && [401, 403].includes(error.problem.status))
           await store.delete(`session:${session.id}`);
         throw error;
       } finally {

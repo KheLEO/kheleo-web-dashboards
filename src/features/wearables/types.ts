@@ -4,6 +4,7 @@ export interface BiometricReading {
   skinTemperature: number | null;
   timestamp: number;
   source: "bluetooth" | "simulator";
+  baselineFields?: ("spo2" | "skin_temperature")[];
 }
 export interface BiometricSource {
   start(

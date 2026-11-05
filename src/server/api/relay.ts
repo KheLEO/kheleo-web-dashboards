@@ -51,16 +51,18 @@ export async function relay(request: Request, parts: string[]): Promise<Response
     }
     if (!route.body)
       return privateJson(await authenticatedNest(session, { method: request.method, path, query }));
-    if (Number(request.headers.get("content-length") ?? "0") > 262144)
+    const maxPayloadBytes = route.signed === "drill" ? 2 * 1024 * 1024 : 262144;
+    if (Number(request.headers.get("content-length") ?? "0") > maxPayloadBytes)
       fail(413, "Request payload is too large.");
     const text = await request.text();
-    if (text.length > 262144) fail(413, "Request payload is too large.");
+    if (new TextEncoder().encode(text).byteLength > maxPayloadBytes)
+      fail(413, "Request payload is too large.");
     const parsed: unknown = text ? (JSON.parse(text) as unknown) : {};
     const body = route.body.parse(parsed);
     const id = operationId(request);
     const prepared =
       route.signed === "drill"
-        ? await prepareDrill(session.user.id, body)
+        ? await prepareDrill(session.user.id, body, request.headers.get("x-client-pose-digest"))
         : route.signed === "telemetry"
           ? await prepareTelemetry(
               session.user.id,
@@ -69,6 +71,8 @@ export async function relay(request: Request, parts: string[]): Promise<Response
             )
           : { body: JSON.stringify(body) };
     await registerOperation(session.user.id, `${request.method}:${path}`, id, prepared.body);
+    if (path === `users/${session.user.id}` && request.method === "DELETE")
+      await authenticatedNest(session, { method: "POST", path: "auth/logout", operationId: id });
     const response = await authenticatedNest(session, {
       method: request.method,
       path,
@@ -76,11 +80,14 @@ export async function relay(request: Request, parts: string[]): Promise<Response
       operationId: id,
       ...prepared,
     });
-    if (path === "auth/verify-government-id") {
+    if (path === "auth/verify-government-id" || path === "auth/verify-gov-id") {
       const verification = envelope(verificationSchema).parse(response);
       await updateSessionUser(session.id, { isVerified: verification.verified });
     }
-    if (path === `passport/${session.user.id}` && request.method === "POST") {
+    if (
+      (path === `passport/${session.user.id}` || path === "users/profile") &&
+      request.method === "POST"
+    ) {
       const passport = envelope(passportSchema).parse(response);
       await updateSessionUser(session.id, { athleteProfileId: passport.athleteProfileId });
     }
@@ -90,7 +97,9 @@ export async function relay(request: Request, parts: string[]): Promise<Response
     }
     if (path === `users/${session.user.id}` && request.method === "DELETE") {
       const user = envelope(userSchema).parse(response);
-      if (!user.isActive) await destroySession();
+      if (!user.isActive) {
+        await destroySession();
+      }
     }
     return privateJson(response);
   } catch (error: unknown) {

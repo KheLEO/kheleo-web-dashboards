@@ -132,6 +132,11 @@ describe("allowlisted relay", () => {
     expect(await getStore().get(`session:${cookie.value}`)).toBeNull();
     const next = await relay(request(`users/${ids.athlete}`, "GET"), ["users", ids.athlete]);
     expect(next.status).toBe(401);
-    expect(callNest).toHaveBeenCalledTimes(1);
+    expect(callNest).toHaveBeenCalledTimes(2);
+    expect(callNest.mock.calls[0]?.[0]).toMatchObject({ method: "POST", path: "auth/logout" });
+    expect(callNest.mock.calls[1]?.[0]).toMatchObject({
+      method: "DELETE",
+      path: `users/${ids.athlete}`,
+    });
   });
 });

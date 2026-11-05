@@ -30,7 +30,7 @@ export function PassportCard({
             Primary discipline
           </p>
           <h2 className="mt-2 text-2xl font-semibold">
-            {profile.primarySport.replaceAll("_", " ")}
+            {profile.primarySport?.replaceAll("_", " ") ?? "Choose your primary sport"}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
             {profile.district}, {profile.state}

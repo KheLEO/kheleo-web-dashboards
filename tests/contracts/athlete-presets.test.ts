@@ -46,7 +46,7 @@ describe("athlete practice summaries", () => {
       frames_analyzed: 2,
       flaw_flags: ["ELBOW_ANGLE_OUT_OF_RANGE"],
       timestamp: 1700000000000,
-      joint_angles_summary: { policy: "practice-angle-v1", validated: false },
+      joint_angles_summary: { policy: "calibrated-angle-v1", validated: false },
     });
     expect(summary).not.toHaveProperty("video");
     expect(summary).not.toHaveProperty("landmarks");

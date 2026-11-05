@@ -12,6 +12,28 @@ export const submitDrillSchema = z
     timestamp: z.number().finite().positive(),
   })
   .strict();
+export const poseFrameSchema = z
+  .object({
+    timestamp: z.number().finite().nonnegative(),
+    landmarks: z
+      .array(
+        z
+          .object({
+            x: z.number().finite(),
+            y: z.number().finite(),
+            z: z.number().finite(),
+            visibility: z.number().min(0).max(1),
+          })
+          .strict(),
+      )
+      .length(33),
+  })
+  .strict();
+export const poseSubmissionSchema = submitDrillSchema.extend({
+  pose_frames: z.array(poseFrameSchema).min(30).max(300),
+});
+export type PoseFrame = z.infer<typeof poseFrameSchema>;
+export type PoseSubmission = z.infer<typeof poseSubmissionSchema>;
 export const drillResultSchema = z.object({
   success: z.boolean(),
   posture_points_awarded: z.number(),

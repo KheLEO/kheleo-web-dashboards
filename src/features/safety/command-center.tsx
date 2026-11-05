@@ -107,8 +107,8 @@ function EventCommandCenter({ tournamentId, name }: { tournamentId: string; name
         </div>
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
           The emergency test is a labeled local preview. It exercises the visual/audio workflow
-          without sending telemetry, joining unsafe sockets, or changing any match. End-to-end
-          webhook testing needs isolated staging and authorized athlete context.
+          without sending telemetry or changing a match. Athlete wearable streaming supports labeled
+          hardware and simulator packets with authorized competition context.
         </p>
         {alarm.error && (
           <p role="status" className="mt-3 text-sm">
@@ -118,8 +118,8 @@ function EventCommandCenter({ tournamentId, name }: { tournamentId: string; name
       </Card>
       {!safety.enabled && (
         <DependencyState
-          title="Safety stream awaiting isolation verification"
-          description="The current event gateway broadcasts sensitive safety alerts globally. Live subscriptions stay disabled until connection authentication, room authorization, and targeted broadcasting are verified."
+          title="Safety stream unavailable"
+          description="Live safety events are unavailable in this deployment."
         />
       )}
       {safety.enabled && safety.status !== "connected" && (

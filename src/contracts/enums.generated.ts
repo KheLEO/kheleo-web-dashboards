@@ -46,6 +46,7 @@ export const TournamentStatusValues = [
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
+  "SUSPENDED",
 ] as const;
 export type TournamentStatus = (typeof TournamentStatusValues)[number];
 
@@ -96,3 +97,9 @@ export const RegistrationStatusValues = [
   "REJECTED_SANDBAGGING",
 ] as const;
 export type RegistrationStatus = (typeof RegistrationStatusValues)[number];
+
+export const DrillSignatureVersionValues = ["LEGACY", "FULL", "FULL_V2"] as const;
+export type DrillSignatureVersion = (typeof DrillSignatureVersionValues)[number];
+
+export const TelemetrySourceValues = ["DEVICE_HMAC", "ATHLETE_JWT", "BLE", "SIMULATOR"] as const;
+export type TelemetrySource = (typeof TelemetrySourceValues)[number];

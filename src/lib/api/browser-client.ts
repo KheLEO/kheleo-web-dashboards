@@ -9,6 +9,15 @@ export const browserClient = axios.create({
   timeout: 20000,
   withCredentials: true,
 });
+browserClient.interceptors.request.use((config) => {
+  if (
+    ["POST", "PUT", "PATCH", "DELETE"].includes(config.method?.toUpperCase() ?? "") &&
+    !config.headers.has("Idempotency-Key")
+  ) {
+    config.headers.set("Idempotency-Key", crypto.randomUUID());
+  }
+  return config;
+});
 browserClient.interceptors.response.use(
   (response) => response,
   (error: unknown) => Promise.reject(asApiError(error)),
@@ -29,7 +38,7 @@ export async function mutateApi<T>(
   path: string,
   schema: z.ZodType<T>,
   operation: MutationOperation,
-  method: "POST" | "PATCH" | "DELETE" = "POST",
+  method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST",
   extraHeaders?: Record<string, string>,
 ): Promise<T> {
   const response = await browserClient.request<unknown>({

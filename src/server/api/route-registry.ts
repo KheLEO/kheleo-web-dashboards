@@ -11,7 +11,7 @@ import {
 } from "@/contracts/tournaments";
 import { joinPoolSchema } from "@/contracts/matchmaking";
 import { scoutFeedQuerySchema } from "@/contracts/scouting";
-import { submitDrillSchema } from "@/contracts/drills";
+import { poseSubmissionSchema } from "@/contracts/drills";
 import { telemetrySchema } from "@/contracts/safety";
 import { updateUserSchema } from "@/contracts/users";
 import type { UserRole } from "@/contracts/enums.generated";
@@ -40,6 +40,25 @@ export const routeRegistry: readonly RelayRoute[] = [
     method: "POST",
     pattern: path("auth/verify-government-id"),
     body: governmentIdSchema,
+    query: noQuery,
+  },
+  {
+    method: "POST",
+    pattern: path("auth/verify-gov-id"),
+    body: governmentIdSchema,
+    query: noQuery,
+  },
+  { method: "GET", pattern: path("users/profile"), query: noQuery },
+  {
+    method: "POST",
+    pattern: path("users/profile"),
+    body: createPassportSchema,
+    query: noQuery,
+  },
+  {
+    method: "PATCH",
+    pattern: path("users/profile"),
+    body: updatePassportSchema,
     query: noQuery,
   },
   { method: "GET", pattern: path(`users/${uuid}`), query: noQuery, identity: "self" },
@@ -133,7 +152,7 @@ export const routeRegistry: readonly RelayRoute[] = [
   {
     method: "POST",
     pattern: path("drills/submit"),
-    body: submitDrillSchema,
+    body: poseSubmissionSchema,
     query: noQuery,
     roles: athletes,
     signed: "drill",

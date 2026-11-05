@@ -83,10 +83,10 @@ export function DrillCamera({ preset }: { preset?: DrillPreset }) {
       <DrillSummary state={state} />
       {preset && (
         <Card>
-          <h2 className="font-semibold">{preset.name} · provisional alignment feedback</h2>
+          <h2 className="font-semibold">{preset.name} · form and cadence feedback</h2>
           <p className="my-3 text-sm text-muted-foreground">
-            Practice range: {preset.minimum}–{preset.maximum}° at the {preset.joint}. These
-            heuristics are not calibrated sports performance measurements.
+            Practice range: {preset.minimum}–{preset.maximum}° at the {preset.joint}. Scoring policy
+            1.0.0 requires visible joints and repeated movements within the preset cadence.
           </p>
           <div className="flex flex-wrap gap-2">
             {practice?.flags.map((flag) => (
@@ -106,14 +106,7 @@ export function DrillCamera({ preset }: { preset?: DrillPreset }) {
           <PracticeSubmission key={summary?.timestamp ?? "pending"} summary={summary} />
         </Card>
       )}
-      <Card>
-        <h2 className="font-semibold">GTI submission</h2>
-        <p className="my-3 text-sm leading-6 text-muted-foreground">
-          Pose tracking and joint angles are available. Calibrated sport-specific scoring is
-          required before results can be submitted to your permanent record.
-        </p>
-        <Button disabled>Awaiting scoring calibration</Button>
-      </Card>
+      {!preset && <Alert>Select a sport drill to record a scored session.</Alert>}
     </div>
   );
 }

@@ -1,4 +1,6 @@
 "use client";
+import { useEffect } from "react";
+import { gtiEventSchema } from "@/contracts/realtime";
 import { Manager, type Socket } from "socket.io-client";
 import { z } from "zod";
 import { browserClient } from "@/lib/api/browser-client";
@@ -172,4 +174,21 @@ export function subscribeNamespace(
       window.removeEventListener("kheleo:session-ended", disposeRealtime);
     }
   };
+}
+
+export function useAthleteUpdates(athleteId: string, onUpdate: () => void, enabled = true): void {
+  useEffect(() => {
+    if (!enabled) return;
+    return subscribeNamespace("/ws/events", {
+      rooms: [{ event: "join:athlete", id: athleteId }],
+      events: {
+        GTI_UPDATED: (input: unknown) => {
+          const result = gtiEventSchema.safeParse(input);
+          if (result.success && result.data.athleteId === athleteId) onUpdate();
+        },
+      },
+      status: () => undefined,
+      connected: onUpdate,
+    });
+  }, [athleteId, onUpdate, enabled]);
 }

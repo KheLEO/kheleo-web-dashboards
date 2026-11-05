@@ -1,4 +1,5 @@
 "use client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { HeartPulse, Thermometer, Droplets } from "lucide-react";
 import { useSession } from "@/features/auth/session-provider";
@@ -11,7 +12,8 @@ import { ErrorState } from "@/components/shared/async-state";
 import { VitalsChart } from "@/features/safety/vitals-chart";
 import { telemetryResultSchema, type TelemetryResponse, classifyVitals } from "@/contracts/safety";
 import { asApiError } from "@/lib/api/errors";
-import { sendSimulatedTelemetry } from "@/features/safety/api";
+import { telemetrySchema } from "@/contracts/safety";
+import { sendHardwareTelemetry, sendSimulatedTelemetry } from "@/features/safety/api";
 import { useWearable } from "./use-wearable";
 import { BluetoothSource } from "./bluetooth-source.client";
 import { SimulatorSource } from "./simulator-source.client";
@@ -19,6 +21,9 @@ import { SimulatorControls } from "./simulator-controls";
 import { TelemetryDispatcher } from "./telemetry-dispatcher";
 export function WearablePanel() {
   const wearable = useWearable();
+  const queryClient = useQueryClient();
+  const [context, setContext] = useState({ tournament_id: "", bracket_id: "", match_id: "" });
+  const readingSource = wearable.latest?.source;
   const session = useSession();
   const [virtualDevice, setVirtualDevice] = useState<string | null>(null);
   const [ingestion, setIngestion] = useState<TelemetryResponse | null>(null);
@@ -26,11 +31,17 @@ export function WearablePanel() {
   const [failure, setFailure] = useState<Error | null>(null);
   const dispatcher = useRef<TelemetryDispatcher | null>(null);
   useEffect(() => {
-    if (!ingest || !session.capabilities.simulatorIngestion) return;
+    if (!ingest || !session.capabilities.simulatorIngestion || wearable.status !== "connected")
+      return;
     let active = true;
     const next = new TelemetryDispatcher(
       async (operation) => {
-        const result = telemetryResultSchema.parse(await sendSimulatedTelemetry(operation));
+        const result = telemetryResultSchema.parse(
+          await (readingSource === "simulator"
+            ? sendSimulatedTelemetry(operation)
+            : sendHardwareTelemetry(operation)),
+        );
+        void queryClient.invalidateQueries({ queryKey: ["passport", session.user.id] });
         if (active) setIngestion(result);
         return result;
       },
@@ -42,26 +53,43 @@ export function WearablePanel() {
       next.stop();
       dispatcher.current = null;
     };
-  }, [ingest, session.capabilities.simulatorIngestion]);
+  }, [
+    ingest,
+    session.capabilities.simulatorIngestion,
+    readingSource,
+    wearable.status,
+    queryClient,
+    session.user.id,
+  ]);
   const reading = wearable.latest;
   useEffect(() => {
     if (
       !ingest ||
       !dispatcher.current ||
       !reading ||
-      reading.source !== "simulator" ||
       reading.spo2 === null ||
       reading.skinTemperature === null
     )
       return;
-    dispatcher.current.push({
+    const packet = telemetrySchema.safeParse({
       athlete_id: session.user.id,
       heart_rate: reading.heartRate,
       spo2: reading.spo2,
       skin_temperature: reading.skinTemperature,
       timestamp: reading.timestamp,
+      source: reading.source === "simulator" ? "SIMULATOR" : "BLE",
+      ...(reading.source === "bluetooth" ? { baseline_fields: reading.baselineFields ?? [] } : {}),
+      ...Object.fromEntries(
+        Object.entries(context)
+          .filter(([, value]) => value.trim())
+          .map(([key, value]) => [key, value.trim()]),
+      ),
     });
-  }, [reading, ingest, session.user.id]);
+    if (!packet.success) {
+      return;
+    }
+    dispatcher.current.push(packet.data);
+  }, [reading, ingest, session.user.id, context]);
   const severity =
     reading && reading.spo2 !== null && reading.skinTemperature !== null
       ? classifyVitals({
@@ -80,9 +108,9 @@ export function WearablePanel() {
           </Badge>
         </div>
         <p className="mb-5 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Use a compatible Bluetooth heart-rate device. The standard heart-rate service supplies no
-          SpO₂ or skin temperature. Those values remain unavailable and real ingestion stays
-          disabled.
+          Connect a Bluetooth heart-rate device with optional pulse oximeter and thermometer
+          services. A heart-rate-only strap uses labeled baselines of 98% SpO₂ and 36.8°C; those
+          values are not measured.
         </p>
         <div className="flex flex-wrap gap-3">
           <Button
@@ -132,7 +160,9 @@ export function WearablePanel() {
           detail={
             reading?.source === "simulator"
               ? "Simulated oxygen saturation"
-              : "Additional hardware service required"
+              : reading?.baselineFields?.includes("spo2")
+                ? "Baseline default · not measured"
+                : "Oximeter measurement"
           }
         />
         <MetricCard
@@ -142,10 +172,56 @@ export function WearablePanel() {
           detail={
             reading?.source === "simulator"
               ? "Simulated skin temperature"
-              : "Additional hardware service required"
+              : reading?.baselineFields?.includes("skin_temperature")
+                ? "Baseline default · not measured"
+                : "Thermometer measurement"
           }
         />
       </div>
+      {session.capabilities.simulatorIngestion && (
+        <Card>
+          <h2 className="font-semibold">Telemetry context</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            {(["tournament_id", "bracket_id", "match_id"] as const).map((field) => (
+              <label key={field} className="field">
+                Optional {field.replace("_id", " ID")}
+                <input
+                  className="control"
+                  value={context[field]}
+                  aria-invalid={Boolean(
+                    context[field] &&
+                    !/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(
+                      context[field],
+                    ),
+                  )}
+                  onChange={(event) => {
+                    setContext((current) => ({ ...current, [field]: event.target.value }));
+                    setFailure(
+                      event.target.value &&
+                        !/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(
+                          event.target.value,
+                        )
+                        ? new Error("Competition IDs must be valid UUIDs.")
+                        : null,
+                    );
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+          <label className="mt-5 flex items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={ingest}
+              onChange={(event) => {
+                setFailure(null);
+                setIngest(event.target.checked);
+              }}
+            />
+            Stream readings to my athlete record
+          </label>
+        </Card>
+      )}
       <Card>
         <div className="mb-4 flex flex-wrap gap-3">
           <h2 className="font-semibold">Biometric simulator</h2>
@@ -163,8 +239,9 @@ export function WearablePanel() {
           )}
         </div>
         <p className="mb-5 text-sm leading-6 text-muted-foreground">
-          Local preview only unless an isolated staging deployment explicitly enables ingestion.
-          Simulation cannot pause a real match.
+          Simulator readings are labeled stress-test data. Enable streaming to test backend alerts
+          and wearable consistency updates. Competition context requires your registered
+          participation.
         </p>
         <div className="mb-5 flex flex-wrap gap-3">
           {["Galaxy Watch", "Fitness Band"].map((device) => (
@@ -193,23 +270,10 @@ export function WearablePanel() {
             void wearable.connect(new SimulatorSource(scenario));
           }}
         />
-        {session.capabilities.simulatorIngestion && (
-          <label className="mt-5 flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={ingest}
-              onChange={(event) => {
-                setFailure(null);
-                setIngest(event.target.checked);
-              }}
-            />
-            Send simulated readings to isolated staging
-          </label>
-        )}
         <VitalsChart readings={wearable.readings} />
         <p role="status" className="mt-4 text-xs">
           {ingestion
-            ? `Backend ingestion status: ${ingestion.status}${ingestion.status === "MATCH_PAUSED" ? " — directive only; no match context supplied" : ""}`
+            ? `Backend ingestion status: ${ingestion.status}${reading?.source === "simulator" ? " · simulator stress test" : ""}`
             : "No backend ingestion confirmed. Local severity labels are previews."}
         </p>
         {failure && (
@@ -231,8 +295,8 @@ export function WearablePanel() {
       </Card>
       {severity === "CRITICAL" && reading?.source === "simulator" && (
         <Alert danger>
-          SIMULATED CRITICAL READING — mandatory rest directive preview. No production match has
-          been paused.
+          SIMULATED CRITICAL READING — stress-test data. Check backend ingestion status for any
+          safety action.
         </Alert>
       )}
     </div>

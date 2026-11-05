@@ -10,7 +10,7 @@ import { ProfileForm } from "@/features/passport/profile-form";
 import { savePassport, saveSport } from "@/features/passport/api";
 import { recalculateGti } from "@/features/rankings/api";
 import { sportRoles } from "@/features/athlete/sport-options";
-import { sportInputSchema, updatePassportSchema } from "@/contracts/passport";
+import { sportInputSchema, updatePassportSchema, type AthletePassport } from "@/contracts/passport";
 import { SportTypeValues, type SportType } from "@/contracts/enums.generated";
 import { ApiError, asApiError } from "@/lib/api/errors";
 import { createOperation, type MutationOperation } from "@/lib/api/operation";
@@ -43,8 +43,19 @@ export function SportsPassportCard() {
       flight.current = false;
     },
     mutationFn: (action: MutationOperation) => recalculateGti(user.id, action),
-    onSuccess: () => {
+    onSuccess: (result) => {
       operation.current = null;
+      client.setQueriesData<AthletePassport>({ queryKey: ["passport", user.id] }, (previous) =>
+        previous
+          ? {
+              ...previous,
+              currentGti: result.gti,
+              biomechanicalScore: result.biomechanicalScore,
+              wearableScore: result.wearableScore,
+              matchPerfScore: result.matchPerformanceScore,
+            }
+          : previous,
+      );
       void client.invalidateQueries({ queryKey: ["passport", user.id] });
     },
   });
@@ -64,16 +75,35 @@ export function SportsPassportCard() {
       />
     );
   const profile = query.data;
+  if (!profile.primarySport || !profile.dateOfBirth || !profile.gender)
+    return (
+      <Card>
+        <h2 className="mb-5 text-lg font-semibold">Complete your sports passport</h2>
+        <ProfileForm profile={profile} />
+      </Card>
+    );
   const sport = selected ?? profile.primarySport;
   const record = records.data?.pages
     .flatMap((page) => page.data)
     .find((entry) => entry.sport === sport);
   const components = [
-    { label: "Biomechanical form", weight: 35, value: analysis.data?.biomechanicalScore },
-    { label: "Wearable consistency", weight: 25, value: analysis.data?.wearableScore },
-    { label: "Match performance", weight: 40, value: analysis.data?.matchPerformanceScore },
+    {
+      label: "Biomechanical Form",
+      weight: 35,
+      value: profile.biomechanicalScore,
+    },
+    {
+      label: "Wearable Consistency",
+      weight: 25,
+      value: profile.wearableScore,
+    },
+    {
+      label: "Verified Match Performance",
+      weight: 40,
+      value: profile.matchPerfScore,
+    },
   ];
-  const gti = analysis.data?.gti ?? profile.currentGti;
+  const gti = profile.currentGti;
   return (
     <div className="min-w-0 max-w-full space-y-6">
       <section
@@ -166,28 +196,29 @@ export function SportsPassportCard() {
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             {components.map((entry) => (
-              <div key={entry.label} className="rounded-lg border bg-background p-4">
+              <div
+                key={entry.label}
+                role="group"
+                aria-label={entry.label}
+                className="rounded-lg border bg-background p-4"
+              >
                 <div className="flex flex-wrap justify-between gap-2 text-xs">
                   <span>{entry.label}</span>
                   <strong className="text-primary">{entry.weight}%</strong>
                 </div>
-                <p className="mt-3 text-xl tabular-nums">
-                  {entry.value === undefined ? "Unavailable" : entry.value.toFixed(1)}
-                </p>
+                <p className="mt-3 text-xl tabular-nums">{entry.value.toFixed(1)}</p>
                 <div className="mt-3 h-1.5 overflow-hidden rounded bg-secondary">
-                  <div className="h-full bg-primary" style={{ width: `${entry.value ?? 0}%` }} />
+                  <div className="h-full bg-primary" style={{ width: `${entry.value}%` }} />
                 </div>
-                {entry.value !== undefined && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Contribution {((entry.value * entry.weight) / 100).toFixed(2)}
-                  </p>
-                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Contribution {((entry.value * entry.weight) / 100).toFixed(2)}
+                </p>
               </div>
             ))}
           </div>
           <p className="my-4 text-xs leading-5 text-muted-foreground">
-            The passport response omits the computed component breakdown. Recalculation retrieves
-            authoritative components and updates GTI; it is never triggered automatically.
+            Live scores from your passport are shown. Recalculation retrieves the latest
+            authoritative components and updates GTI.
           </p>
           <div className="flex flex-wrap gap-3">
             <Button

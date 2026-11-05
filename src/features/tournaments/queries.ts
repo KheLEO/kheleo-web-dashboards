@@ -5,12 +5,17 @@ import { useSession } from "@/features/auth/session-provider";
 import { getNearby, getTournament, getBrackets } from "./api";
 export function useNearby(filters: NearbyTournamentsQuery | null) {
   const { user } = useSession();
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["nearby", user.id, filters],
-    queryFn: ({ signal }) => {
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => {
       if (!filters) throw new Error("Choose a search location.");
-      return getNearby(filters, signal);
+      return getNearby({ ...filters, ...(pageParam ? { cursor: pageParam } : {}) }, signal);
     },
+    getNextPageParam: (page, _pages, _previous, cursors) =>
+      page.has_more && page.next_cursor && !cursors.includes(page.next_cursor)
+        ? page.next_cursor
+        : undefined,
     enabled: filters !== null,
   });
 }

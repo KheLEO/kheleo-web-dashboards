@@ -7,3 +7,5 @@ export const sendSimulatedTelemetry = (operation: MutationOperation) =>
   mutateApi("safety/telemetry-webhook", envelope(telemetryResultSchema), operation, "POST", {
     "x-kheleo-simulator": "true",
   });
+export const sendHardwareTelemetry = (operation: MutationOperation) =>
+  mutateApi("safety/telemetry-webhook", envelope(telemetryResultSchema), operation);

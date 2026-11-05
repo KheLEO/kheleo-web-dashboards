@@ -13,11 +13,13 @@ import {
   practiceSummary,
   type FrameEvaluation,
 } from "./preset-evaluation";
-import type { SubmitDrillRequest } from "@/contracts/drills";
+import { scoringPolicy } from "./scoring-policy";
+import type { PoseFrame, PoseSubmission } from "@/contracts/drills";
 export function useDrillSession(preset?: DrillPreset) {
+  const poses = useRef<PoseFrame[]>([]);
   const aggregate = useRef(createPracticeAggregate());
   const [practice, setPractice] = useState<FrameEvaluation | null>(null);
-  const [summary, setSummary] = useState<SubmitDrillRequest | null>(null);
+  const [summary, setSummary] = useState<PoseSubmission | null>(null);
   const [state, dispatch] = useReducer(drillSessionReducer, initialDrillState);
   const [cameraRequest, setCameraRequest] = useState<{ generation: number } | null>(null);
   const webcam = useRef<Webcam | null>(null);
@@ -42,7 +44,10 @@ export function useDrillSession(preset?: DrillPreset) {
     busy.current = false;
   }, []);
   const stop = useCallback((): void => {
-    if (preset) setSummary(practiceSummary(preset, aggregate.current, Date.now()));
+    if (preset) {
+      const result = practiceSummary(preset, aggregate.current, Date.now());
+      setSummary(result ? { ...result, pose_frames: poses.current } : null);
+    }
     release();
     setCameraRequest(null);
     dispatch({ type: "stop" });
@@ -68,6 +73,7 @@ export function useDrillSession(preset?: DrillPreset) {
     release();
     validFrames.current = 0;
     aggregate.current = createPracticeAggregate();
+    poses.current = [];
     setPractice(null);
     setSummary(null);
     lastFrame.current = 0;
@@ -99,7 +105,21 @@ export function useDrillSession(preset?: DrillPreset) {
         if (canvas.current) drawLandmarks(canvas.current, message.landmarks);
         const evaluated =
           preset && message.valid ? evaluatePracticeFrame(preset, message.worldLandmarks) : null;
-        if (evaluated) aggregate.current = accumulatePractice(aggregate.current, evaluated);
+        if (evaluated) {
+          const timestamp = Math.round(lastFrame.current);
+          const landmarks = message.worldLandmarks.map((point) => ({
+            x: Number(point.x.toFixed(4)),
+            y: Number(point.y.toFixed(4)),
+            z: Number(point.z.toFixed(4)),
+            visibility: Number(point.visibility.toFixed(4)),
+          }));
+          const quantized = preset ? evaluatePracticeFrame(preset, landmarks) : null;
+          if (quantized) {
+            poses.current.push({ timestamp, landmarks });
+            aggregate.current = accumulatePractice(aggregate.current, quantized, timestamp);
+            if (poses.current.length >= scoringPolicy.maxPoseFrames) stop();
+          }
+        }
         if (message.valid && (!preset || evaluated)) validFrames.current++;
         if (performance.now() - lastSummary.current >= 200) {
           setPractice(evaluated);
