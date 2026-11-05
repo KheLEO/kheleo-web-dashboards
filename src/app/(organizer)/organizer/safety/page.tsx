@@ -1,3 +1,4 @@
+import { OwnedTournaments } from "@/features/organizer/owned-tournaments";
 import { z } from "zod";
 import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/shared/page-heading";
@@ -15,12 +16,15 @@ export default async function Page({
       <PageHeading
         eyebrow="organizer"
         title="Safety command center"
-        description="Select an owned event to inspect observed safety alerts and test the local emergency workflow."
+        description="Select an owned event to monitor live vitals, acknowledge incidents, and record medical clearance."
       />
       {tournamentId ? (
         <CommandCenter key={tournamentId} tournamentId={tournamentId} />
       ) : (
-        <EventSelector destination="safety" />
+        <div className="space-y-6">
+          <OwnedTournaments />
+          <EventSelector destination="safety" />
+        </div>
       )}
     </>
   );

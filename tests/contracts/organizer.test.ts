@@ -86,3 +86,16 @@ describe("local safety incidents", () => {
     expect(safetyAlertReducer(state, { type: "receive", incident: incident("69") })).toBe(state);
   });
 });
+
+it("refreshes an open incident's vitals while preserving its local seen timestamp", () => {
+  const first = incident("live");
+  first.seenAt = 123;
+  const updated = {
+    ...incident("live"),
+    alert: { ...first.alert, vitals: { ...first.alert.vitals, heart_rate: 207 } },
+  };
+  const result = safetyAlertReducer({ incidents: [first] }, { type: "receive", incident: updated });
+  expect(result.incidents).toHaveLength(1);
+  expect(result.incidents[0]?.seenAt).toBe(123);
+  expect(result.incidents[0]?.alert.vitals.heart_rate).toBe(207);
+});

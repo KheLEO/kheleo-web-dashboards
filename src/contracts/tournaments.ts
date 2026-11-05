@@ -1,3 +1,4 @@
+import { competitionConfigSchema } from "./organizer";
 import { z } from "zod";
 import {
   BracketTypeValues,
@@ -35,12 +36,14 @@ export const tournamentLocationSchema = z.object({
 });
 export const createTournamentSchema = z
   .object({
+    rulesConfig: competitionConfigSchema.optional(),
+    status: z.enum(TournamentStatusValues).optional(),
     name: z.string().trim().min(1).max(255),
     sport: z.enum(SportTypeValues),
     minGti: z.number().min(0).max(100).optional(),
     maxGti: z.number().min(0).max(100).optional(),
     maxTeams: z.number().int().min(2),
-    teamSize: z.number().int().min(1),
+    teamSize: z.number().int().min(1).max(30),
     prizePool: z.number().min(0).optional(),
     venueName: z.string().trim().min(1).max(255),
     venueLat: z.number().min(-90).max(90),
@@ -59,11 +62,27 @@ export const createTournamentSchema = z
       Date.parse(v.registrationDeadline) <= Date.parse(v.startDate) &&
       Date.parse(v.startDate) <= Date.parse(v.endDate),
     { message: "Registration deadline, start, and end must be chronological", path: ["endDate"] },
+  )
+  .refine(
+    (value) =>
+      !value.rulesConfig?.roleQuotas ||
+      Object.values(value.rulesConfig.roleQuotas).reduce((sum, count) => sum + count, 0) ===
+        value.teamSize,
+    { message: "Role quota total must equal team size", path: ["rulesConfig", "roleQuotas"] },
+  )
+  .refine(
+    (value) =>
+      !value.rulesConfig?.prizeBreakdown ||
+      Object.values(value.rulesConfig.prizeBreakdown).reduce((sum, amount) => sum + amount, 0) <=
+        (value.prizePool ?? 0),
+    { message: "Prize allocation exceeds the prize pool", path: ["rulesConfig", "prizeBreakdown"] },
   );
+export const updateTournamentSchema = z.object(createTournamentSchema.shape).partial().strict();
 export const createBracketSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
     tierName: z.string().trim().min(1).max(100),
+    config: competitionConfigSchema.optional(),
     minGti: z.number().min(0).max(100),
     maxGti: z.number().min(0).max(100),
     entryFee: z.number().min(0).optional(),
@@ -75,6 +94,7 @@ export const createBracketSchema = z
     message: "Minimum GTI cannot exceed maximum",
     path: ["maxGti"],
   });
+export const updateBracketSchema = z.object(createBracketSchema.shape).partial().strict();
 export const registerBracketSchema = z.object({ teamId: uuidSchema.optional() }).strict();
 export const bracketSchema = z.object({
   id: uuidSchema,

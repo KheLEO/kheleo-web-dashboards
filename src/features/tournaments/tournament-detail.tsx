@@ -83,7 +83,7 @@ export function TournamentDetailView({
               </Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href={`/organizer/tournaments/${tournamentId}/edit`}>Editing availability</Link>
+              <Link href={`/organizer/tournaments/${tournamentId}/edit`}>Edit tournament</Link>
             </Button>
           </div>
         )}

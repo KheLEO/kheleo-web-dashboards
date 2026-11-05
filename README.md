@@ -2,13 +2,13 @@
 
 The role-based web application for KheLEO: verified athlete identities, digital sports passports, fair competition entry, free-agent teams, private browser pose analysis, wearable monitoring, and grassroots talent discovery.
 
-`kheleo-web-dashboards` runs alongside the NestJS `kheleo-core-backend`. It uses Next.js App Router, React, strict TypeScript, Tailwind CSS, TanStack Query, Socket.IO, MediaPipe, and Leaflet. Browser API requests pass through an authenticated, allowlisted Next.js relay; PostgreSQL/PostGIS and BullMQ remain backend responsibilities. Audited backend source: [`0067d94`](docs/contracts/source.json).
+`kheleo-web-dashboards` runs alongside the NestJS `kheleo-core-backend`. It uses Next.js App Router, React, strict TypeScript, Tailwind CSS, TanStack Query, Socket.IO, MediaPipe, and Leaflet. Browser API requests pass through an authenticated, allowlisted Next.js relay; PostgreSQL/PostGIS and BullMQ remain backend responsibilities. Backend source revision and schema checksum: [contract source](docs/contracts/source.json).
 
 ## Invention alignment and current scope
 
 The **Kheleo Invention Disclosure Form** describes a permanent identity-bound profile, local technique analysis without video upload, complementary free-agent rosters, GTI-based fairness, biometric safety, and regional talent discovery. The frontend implements available contracts and shows explicit dependency states where contracts are missing.
 
-The disclosure is the product specification, not evidence of legal patent validation or complete implementation. Leaderboard lists, historical dossiers, scout outreach, admin moderation/audit APIs, approved drill scoring, full wearable telemetry, and confidential safety rooms remain external requirements. See [the frontend audit](docs/frontend-audit.md) and [backend prerequisites](docs/backend-dependencies.md).
+The disclosure describes product goals. Current contracts include calibrated software drill scoring, multi-sensor telemetry, confidential safety subscriptions, organizer operations, scouting, and administration. Physical device provenance, clinical clearance, and production service operation require separate validation. See [verification evidence](docs/verification.md) and [deployment prerequisites](docs/backend-dependencies.md).
 
 ## Routes and access
 
@@ -24,7 +24,7 @@ The landing page provides four portal entry points. Protected server layouts enf
 
 Short workspace roots and older `/register`, `/athlete/wearable`, `/scout/prospects`, and `/scout/regional` paths remain supported. Detail routes support passport editing, tournament/bracket/pool workflows, organizer events, and scout passport inspection. `UMPIRE` accounts receive an unsupported-workspace screen.
 
-Public signup provisions athletes only. Other personas require authorized backend provisioning. Authentication uses contact details plus government-ID proof; no password, OTP, Supabase authentication, or client role-switching flow is fabricated.
+Public signup supports athletes, organizers, and scouts; organizer/scout access remains pending administrator identity approval. Privileged administrators require authorized provisioning. Authentication uses contact details plus government-ID proof; no password, OTP, Supabase authentication, or client role-switching flow is fabricated.
 
 ## Multi-portal features
 
@@ -56,9 +56,9 @@ The browser hashes the landmark series with Web Crypto SHA-256 in `x-client-pose
 
 The hub connects to Heart Rate **`0x180D/0x2A37`** with optional Pulse Oximeter **`0x1822/0x2A5F`** and Health Thermometer **`0x1809/0x2A1C`** services. A heart-rate-only strap uses explicit baseline labels for SpO₂ 98% and temperature 36.8°C. These defaults are not measurements. Athletes can opt into streaming BLE readings or labeled simulator stress tests with optional tournament/bracket/match context. Daily monitored sessions update wearable consistency and enqueue GTI recalculation.
 
-Critical thresholds match the backend: **HR > 195 bpm**, **SpO₂ < 90%**, or **temperature > 39.5°C**. The organizer command center validates `MATCH_PAUSE_ALERT`, highlights incidents, and provides opt-in audio, local acknowledgement, and emergency test controls. Critical match-bound telemetry can pause a participating active match in the backend. The command center displays incoming directives and context; it does not provide manual pause/resume or emergency dispatch controls.
+Critical thresholds match the backend: **HR > 195 bpm**, **SpO₂ < 90%**, or **temperature > 39.5°C**. The organizer command center loads a paginated all-player wall from persisted telemetry and refreshes on `VITALS_UPDATED` and `MATCH_PAUSE_ALERT`. It shows actual match pause states, reading timestamps, source labels, and athletes awaiting readings. Critical incidents open a full-screen override with opt-in siren audio. Medical-check notes and acknowledgements persist on the backend; resuming a paused match requires explicit field-staff clearance confirmation and all critical incidents acknowledged. Recording dispatch confirmation does not itself dispatch medical personnel.
 
-Both Socket.IO namespaces authenticate the handshake. Competition rooms require ownership, assignment, administration, or registered participation; safety alerts target explicit rooms and authorized staff role rooms. Telemetry signs exact JSON bytes through server-only `x-device-signature`, including `BLE`/`SIMULATOR` provenance and baseline labels. The backend validates context membership before changing a match. Critical standalone readings also emit alerts, without reporting a persisted match pause.
+Both Socket.IO namespaces authenticate the handshake. Competition rooms require ownership, assignment, administration, or registered participation; competition medical events target private `safety:tournament`, `safety:bracket`, and `safety:match` rooms joined only by authorized staff. Participants and unrelated organizers receive no competition medical broadcast. Standalone alerts use the affected athlete’s personal room. Telemetry signs exact JSON bytes through server-only `x-device-signature`, including `BLE`/`SIMULATOR` provenance and baseline labels. The backend validates context membership before changing a match. Critical standalone readings also emit alerts, without reporting a persisted match pause.
 
 ### GTI, Scout Dossiers, and Regional Policy Heatmaps
 
@@ -70,7 +70,7 @@ Regional views display backend PostGIS aggregates as centroid circles plus a sor
 
 ### Organizer and Super Admin Consoles
 
-Organizers create supported event metadata, venue coordinates, dates, capacity/prize configuration, and GTI brackets through a multi-step wizard. Owned directories, editing, roster administration, detailed statistics, and results require backend APIs; their screens explain the dependency.
+Organizers see five live scoped KPIs, a paginated owned-event directory, populated event editing, and saved bracket editing/deletion. Tournament and bracket JSON configuration stores validated role quotas and per-place prizes. The bracket workspace provides verified team rosters, queued free agents, a matchmaker trigger, persisted sandbagging rejection logs, and named verified match results. Results update sport counters and enqueue GTI recalculation. Prize totals represent configured INR pools rather than payouts.
 
 Super admins inspect known users through the authorized existing API, check frontend session connectivity, and customize the browser theme. Governance, moderation, identity/HMAC/sandbagging audit streams, and infrastructure-health views identify missing contracts. They do not fabricate audit records, operational metrics, or moderation actions.
 

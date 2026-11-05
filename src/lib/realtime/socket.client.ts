@@ -10,6 +10,7 @@ export type Namespace = "/ws/matchmaking" | "/ws/events";
 interface IncomingEvents {
   ROSTER_FORMED: (value: unknown) => void;
   MATCH_PAUSE_ALERT: (value: unknown) => void;
+  VITALS_UPDATED: (value: unknown) => void;
   GTI_UPDATED: (value: unknown) => void;
 }
 interface OutgoingEvents {
@@ -147,6 +148,9 @@ export function subscribeNamespace(
     });
     current.socket.on("MATCH_PAUSE_ALERT", (value) => {
       for (const consumer of current.consumers.values()) consumer.events.MATCH_PAUSE_ALERT?.(value);
+    });
+    current.socket.on("VITALS_UPDATED", (value) => {
+      for (const consumer of current.consumers.values()) consumer.events.VITALS_UPDATED?.(value);
     });
     current.socket.on("GTI_UPDATED", (value) => {
       for (const consumer of current.consumers.values()) consumer.events.GTI_UPDATED?.(value);

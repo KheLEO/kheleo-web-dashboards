@@ -1,5 +1,22 @@
 # Verification evidence
 
+## Prompt 2 verification — 6 November 2026
+
+Prompt 1 entrypoint aliases, relay PUT handling, all three numeric GTI components, authenticated socket handshakes, and room membership checks were verified before organizer implementation. The audit found broad staff-role medical broadcasts; these now use private authorized safety scopes, excluding participant rooms and unrelated organizers.
+
+| Check                                                                       | Result                                             |
+| --------------------------------------------------------------------------- | -------------------------------------------------- |
+| `pnpm contracts:sync` / `pnpm contracts:check`                              | Passed against the updated adjacent backend schema |
+| Frontend `pnpm lint`, `pnpm typecheck`, `pnpm build`                        | Passed                                             |
+| Frontend `pnpm test`                                                        | 26 files, 140 tests passed                         |
+| `pnpm test:e2e`                                                             | 54 Chromium tests passed                           |
+| Backend `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm exec prisma validate` | Passed                                             |
+| Backend `pnpm test`                                                         | 182 tests passed                                   |
+
+New checks cover scoped KPIs and owned cursors, roster/pool access, custom quota team formation using the actual matcher, durable rejection logs after rollback, named match results and retry deduplication, medical endpoint authorization, latest snapshots and incident coalescing, and real Socket.IO privacy. Embedded PostgreSQL applies the new migration and stores snapshots and medical-check fields. Browser tests verify populated event/bracket editing, deletion, queue-to-roster refresh, result-driven passport changes, and full-screen incident acknowledgement/resume across reloads.
+
+Deploy migration `20261106010000_organizer_operations` before enabling the updated backend. Browser E2E uses deterministic backend fixtures; it does not exercise hosted PostgreSQL, Redis/BullMQ workers, physical wearables, clinical care, or production deployment. Medical dispatch and clearance are explicit staff confirmations stored with audit provenance.
+
 ## Prompt 1 verification — 6 November 2026
 
 Both repositories were accessible on `main`. The existing contract check passed; the preflight type check exposed an existing nearby-pagination optional-property error, which this change fixes. Existing partial Prompt 1 edits were retained and completed.

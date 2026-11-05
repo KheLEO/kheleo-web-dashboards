@@ -36,6 +36,5 @@ export function useBrackets(id: string) {
       page.has_more && page.next_cursor && !cursors.includes(page.next_cursor)
         ? page.next_cursor
         : undefined,
-    maxPages: 5,
   });
 }

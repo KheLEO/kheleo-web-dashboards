@@ -12,6 +12,7 @@ export const rosterEventSchema = z.object({
 });
 export const pauseEventSchema = z.object({
   event_id: uuidSchema.optional(),
+  alert_id: uuidSchema.optional(),
   source: z.enum(["BLE", "SIMULATOR", "ATHLETE_JWT", "DEVICE_HMAC"]).optional(),
   baseline_fields: z.array(z.enum(["spo2", "skin_temperature"])).optional(),
   event: z.literal("MATCH_PAUSE_ALERT"),
@@ -33,3 +34,17 @@ export const gtiEventSchema = z.object({
 export type RosterFormedEvent = z.infer<typeof rosterEventSchema>;
 export type MatchPauseAlert = z.infer<typeof pauseEventSchema>;
 export type GtiUpdatedEvent = z.infer<typeof gtiEventSchema>;
+
+export const vitalsUpdatedEventSchema = z.object({
+  tournament_id: uuidSchema,
+  athlete_id: uuidSchema,
+  heart_rate: z.number(),
+  spo2: z.number(),
+  skin_temperature: z.number(),
+  severity: z.enum(["NORMAL", "WARNING", "CRITICAL"]),
+  observed_at: z.string(),
+  source: z.string(),
+  baseline_fields: z.array(z.string()),
+  match_id: uuidSchema.optional(),
+  bracket_id: uuidSchema.optional(),
+});

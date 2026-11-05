@@ -1,82 +1,178 @@
 "use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table } from "@/components/ui/table";
-import { DependencyState } from "@/components/shared/dependency-state";
 import { ConnectionStatusBadge } from "@/components/shared/connection-status";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ErrorState } from "@/components/shared/async-state";
+import { ErrorState, EmptyState } from "@/components/shared/async-state";
+import { LoadMore } from "@/components/shared/cursor-list";
 import { useSession } from "@/features/auth/session-provider";
 import { useTournament } from "@/features/tournaments/queries";
-import { classifyVitals } from "@/contracts/safety";
+import { acknowledgeSafetySchema, type HealthAlert, type AthleteVitals } from "@/contracts/safety";
+import { sameOperation, type MutationOperation } from "@/lib/api-client";
 import { useSafetyEvents } from "./use-safety-events";
 import { useSafetyAlarm } from "./use-safety-alarm";
+import { useTournamentVitals, useSafetyHistory } from "./use-safety-data";
+import { acknowledgeSafety } from "./api";
 import { CriticalAlertDialog } from "./critical-alert-dialog";
 import type { SafetyIncident } from "./alert-reducer";
-import { VitalsChart } from "./vitals-chart";
-function IncidentWall({ incidents }: { incidents: SafetyIncident[] }) {
-  const athletes = new Map<string, SafetyIncident>();
-  for (const incident of incidents) {
-    const key = `${incident.source}:${incident.alert.athlete_id}`;
-    if (!athletes.has(key)) athletes.set(key, incident);
-  }
+interface AckAction {
+  id: string;
+  operation: MutationOperation;
+}
+function incidentFromAlert(alert: HealthAlert, name: string): SafetyIncident {
+  return {
+    id: alert.id,
+    source: alert.source === "SIMULATOR" ? "SIMULATED" : "LIVE",
+    receivedAt: Date.parse(alert.createdAt),
+    seenAt: null,
+    alert: {
+      event: "MATCH_PAUSE_ALERT",
+      severity: "CRITICAL",
+      alert_id: alert.id,
+      athlete_id: alert.athleteId,
+      athlete_name: name,
+      vitals: {
+        heart_rate: alert.heartRate,
+        spo2: alert.spo2,
+        skin_temperature: alert.skinTemperature,
+      },
+      directive: alert.triggerReason,
+      ...(alert.matchId ? { match_id: alert.matchId } : {}),
+      ...(alert.tournamentId ? { tournament_id: alert.tournamentId } : {}),
+      ...(alert.bracketId ? { bracket_id: alert.bracketId } : {}),
+    },
+  };
+}
+function PlayerVital({ reading }: { reading: AthleteVitals }) {
+  const color =
+    reading.severity === "CRITICAL"
+      ? "border-destructive bg-destructive/15"
+      : reading.severity === "WARNING"
+        ? "border-warning bg-warning/10"
+        : reading.severity === "NORMAL"
+          ? "border-success bg-success/10"
+          : "border-border";
   return (
-    <div className="grid gap-5 md:grid-cols-2">
-      {Array.from(athletes.values()).map((incident) => {
-        const alert = incident.alert;
-        const level = classifyVitals(alert.vitals);
-        const readings = incidents
-          .filter(
-            (entry) =>
-              entry.source === incident.source && entry.alert.athlete_id === alert.athlete_id,
-          )
-          .reverse()
-          .map((entry) => ({
-            heartRate: entry.alert.vitals.heart_rate,
-            spo2: entry.alert.vitals.spo2,
-            skinTemperature: entry.alert.vitals.skin_temperature,
-            timestamp: entry.receivedAt,
-          }));
-        return (
-          <Card key={`${incident.source}:${alert.athlete_id}`}>
-            <p className="text-xs text-muted-foreground">
-              {incident.source} · received {new Date(incident.receivedAt).toLocaleTimeString()}
-            </p>
-            <h3 className="mt-2 font-semibold">{alert.athlete_name}</h3>
-            <p
-              className={`mt-3 text-sm font-semibold ${level === "CRITICAL" ? "inline-block rounded bg-destructive px-2 py-1 text-destructive-foreground" : level === "WARNING" ? "text-warning" : "text-success"}`}
-            >
-              {level} · latest observed alert sample
-            </p>
-            <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
-              <div>
-                <dt className="text-xs text-muted-foreground">Heart rate</dt>
-                <dd>{alert.vitals.heart_rate} bpm</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">SpO₂</dt>
-                <dd>{alert.vitals.spo2}%</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Skin temp</dt>
-                <dd>{alert.vitals.skin_temperature}°C</dd>
-              </div>
-            </dl>
-            <VitalsChart readings={readings} />
-            <p className="mt-3 text-xs text-muted-foreground">
-              Sparse alert observations only; these are not a continuous vitals feed or current
-              safety clearance.
-            </p>
-          </Card>
-        );
-      })}
-    </div>
+    <section
+      aria-label={`Vitals for ${reading.name}`}
+      className={`relative rounded-xl border-2 p-5 ${color}`}
+    >
+      {reading.severity === "CRITICAL" && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-xl border-2 border-destructive motion-safe:animate-pulse"
+        />
+      )}
+      <h3 className="break-words font-semibold">{reading.name}</h3>
+      <p className="my-3 text-sm font-semibold">{reading.severity.replaceAll("_", " ")}</p>
+      <dl className="grid grid-cols-3 gap-3 text-sm">
+        <div>
+          <dt>Heart rate</dt>
+          <dd>{reading.heart_rate === null ? "Awaiting reading" : `${reading.heart_rate} bpm`}</dd>
+        </div>
+        <div>
+          <dt>SpO₂</dt>
+          <dd>{reading.spo2 === null ? "Awaiting reading" : `${reading.spo2}%`}</dd>
+        </div>
+        <div>
+          <dt>Temperature</dt>
+          <dd>
+            {reading.skin_temperature === null
+              ? "Awaiting reading"
+              : `${reading.skin_temperature}°C`}
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-4 text-xs">
+        {reading.source ?? "No source yet"}
+        {reading.baseline_fields.length
+          ? ` · baseline defaults: ${reading.baseline_fields.join(", ")}`
+          : ""}
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {reading.observedAt
+          ? `Observed ${new Date(reading.observedAt).toLocaleString()}`
+          : "No telemetry has been received for this athlete."}
+      </p>
+      {reading.matchId && (
+        <p className="mt-3 break-all text-xs">
+          Match {reading.matchId} · {reading.matchStatus}
+        </p>
+      )}
+    </section>
   );
 }
 function EventCommandCenter({ tournamentId, name }: { tournamentId: string; name: string }) {
-  const safety = useSafetyEvents(tournamentId);
-  const alarm = useSafetyAlarm(safety.unseen !== null);
+  const client = useQueryClient();
+  const { user } = useSession();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vitals = useTournamentVitals(tournamentId);
+  const history = useSafetyHistory(tournamentId);
+  const refresh = useCallback(() => {
+    if (timer.current) return;
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      for (const key of ["safety-vitals", "safety-history", "organizer-summary"])
+        void client.invalidateQueries({ queryKey: [key, user.id] });
+    }, 500);
+  }, [client, user.id]);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const safety = useSafetyEvents(tournamentId, refresh);
+  const readings = [
+    ...new Map(
+      vitals.data?.pages
+        .flatMap((page) => page.data)
+        .map((reading) => [reading.athleteId, reading]) ?? [],
+    ).values(),
+  ];
+  const matches = [
+    ...new Map(
+      vitals.data?.pages.flatMap((page) => page.matches).map((match) => [match.id, match]) ?? [],
+    ).values(),
+  ];
+  const alerts = [
+    ...new Map(
+      [
+        ...(history.data?.pages.flatMap((page) => page.data) ?? []),
+        ...(vitals.data?.pages.flatMap((page) => page.activeAlerts) ?? []),
+      ].map((alert) => [alert.id, alert]),
+    ).values(),
+  ];
+  const [focused, setFocused] = useState<SafetyIncident | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [note, setNote] = useState("");
+  const [validation, setValidation] = useState<string | null>(null);
+  const operations = useRef(new Map<string, MutationOperation>());
+  const active = alerts.find(
+    (alert) => alert.severity === "CRITICAL" && !alert.acknowledgedAt && !dismissed.has(alert.id),
+  );
+  const persisted = active
+    ? incidentFromAlert(
+        active,
+        readings.find((reading) => reading.athleteId === active.athleteId)?.name ??
+          active.athleteId,
+      )
+    : null;
+  const incident = safety.unseen ?? focused ?? persisted;
+  const alarm = useSafetyAlarm(incident !== null);
+  const ack = useMutation({
+    mutationFn: (action: AckAction) => acknowledgeSafety(action.id, action.operation),
+    onSuccess: refresh,
+  });
+  const markSeen = (): void => {
+    if (incident) setDismissed((previous) => new Set([...previous, incident.id]));
+    safety.markSeen();
+    setFocused(null);
+  };
   return (
     <div className="space-y-6">
       <Card>
@@ -88,9 +184,8 @@ function EventCommandCenter({ tournamentId, name }: { tournamentId: string; name
           <ConnectionStatusBadge status={safety.status} />
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
-          Critical: heart rate above 195 bpm, SpO₂ below 90%, or skin temperature above 39.5°C.
-          Warning: above 185 bpm, below 93%, or above 38.5°C respectively. Normal requires all three
-          measurements within warning boundaries.
+          Critical: HR above 195 bpm, SpO₂ below 90%, or temperature above 39.5°C. Warning: above
+          185 bpm, below 93%, or above 38.5°C. Readings show their observation time and source.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Button
@@ -105,10 +200,9 @@ function EventCommandCenter({ tournamentId, name }: { tournamentId: string; name
             Simulate Critical Field Emergency
           </Button>
         </div>
-        <p className="mt-4 text-xs leading-5 text-muted-foreground">
-          The emergency test is a labeled local preview. It exercises the visual/audio workflow
-          without sending telemetry or changing a match. Athlete wearable streaming supports labeled
-          hardware and simulator packets with authorized competition context.
+        <p className="mt-4 text-xs text-muted-foreground">
+          The emergency preview runs locally. Streaming telemetry and recorded medical checks use
+          the server.
         </p>
         {alarm.error && (
           <p role="status" className="mt-3 text-sm">
@@ -116,89 +210,235 @@ function EventCommandCenter({ tournamentId, name }: { tournamentId: string; name
           </p>
         )}
       </Card>
-      {!safety.enabled && (
-        <DependencyState
-          title="Safety stream unavailable"
-          description="Live safety events are unavailable in this deployment."
-        />
-      )}
-      {safety.enabled && safety.status !== "connected" && (
-        <Alert danger>Stream disconnected or reconnecting. Current safety status is unknown.</Alert>
-      )}
-      {safety.unseen && (
-        <section
-          role="alert"
-          className="rounded-xl border-2 border-destructive bg-destructive/10 p-5"
-        >
-          <p className="text-xs font-semibold text-primary">{safety.unseen.source}</p>
-          <h2 className="mt-2 text-xl font-bold">MANDATORY MATCH PAUSE DIRECTIVE</h2>
-          <p className="mt-3 text-sm">{safety.unseen.alert.directive}</p>
-          <p className="mt-3 text-xs">
-            Contact field officials and medical staff. This directive is not confirmation of a
-            persisted match pause.
-          </p>
-        </section>
-      )}
-      <h2 className="text-xl font-semibold">Observed biometric alerts</h2>
-      {safety.incidents.length === 0 ? (
-        <Alert>
-          No alert samples have been received in this browser session. This does not establish that
-          all athletes are safe or that there are no outstanding incidents.
+      {safety.status !== "connected" && (
+        <Alert danger>
+          Stream disconnected or reconnecting. Showing the latest persisted observations.
         </Alert>
-      ) : (
-        <IncidentWall incidents={safety.incidents} />
       )}
+      <h2 className="text-xl font-semibold">All-Player Biometric Wall</h2>
+      {vitals.isPending ? (
+        <Skeleton />
+      ) : vitals.error ? (
+        <ErrorState
+          error={vitals.error}
+          retry={() => {
+            void vitals.refetch();
+          }}
+        />
+      ) : !readings.length ? (
+        <EmptyState>No active registered athletes in this tournament yet.</EmptyState>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {readings.map((reading) => (
+            <PlayerVital key={reading.athleteId} reading={reading} />
+          ))}
+        </div>
+      )}
+      <LoadMore
+        hasNext={vitals.hasNextPage}
+        loading={vitals.isFetchingNextPage}
+        load={() => {
+          void vitals.fetchNextPage();
+        }}
+      />
       <Card>
-        <h2 className="mb-4 text-lg font-semibold">Incident observations · this browser session</h2>
-        <p className="mb-5 text-xs text-muted-foreground">
-          Latest 50 observations, held in memory. “Seen” is local only; timestamps do not confirm
-          medical dispatch, match state, or durable acknowledgement.
-        </p>
-        {safety.incidents.length ? (
+        <h2 className="mb-4 text-xl font-semibold">Current match states</h2>
+        {!matches.length ? (
+          <p className="text-sm">No active matches.</p>
+        ) : (
+          <div className="space-y-4">
+            {matches.map((match) => (
+              <div className="rounded border p-4" key={match.id}>
+                <p className="break-all text-sm">
+                  Match {match.id} · <strong>{match.status}</strong>
+                </p>
+                {match.pauseReason && <p className="mt-2 text-sm">{match.pauseReason}</p>}
+                {match.status === "PAUSED_SAFETY" && (
+                  <Button
+                    className="mt-3"
+                    variant="secondary"
+                    onClick={() => {
+                      const alert = alerts.find((entry) => entry.matchId === match.id);
+                      if (alert)
+                        setFocused(
+                          incidentFromAlert(
+                            alert,
+                            readings.find((reading) => reading.athleteId === alert.athleteId)
+                              ?.name ?? alert.athleteId,
+                          ),
+                        );
+                      else
+                        setValidation(
+                          "Load incident history to review the medical clearance for this match.",
+                        );
+                    }}
+                  >
+                    Review medical clearance
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      <Card>
+        <h2 className="mb-4 text-xl font-semibold">Persisted incident history</h2>
+        <label className="field mb-5">
+          Incident medical-check note
+          <textarea
+            className="control"
+            value={note}
+            maxLength={1000}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        </label>
+        {history.isPending ? (
+          <Skeleton />
+        ) : history.error ? (
+          <ErrorState error={history.error} />
+        ) : !history.data?.pages.flatMap((page) => page.data).length ? (
+          <EmptyState>No persisted incidents for this tournament.</EmptyState>
+        ) : (
           <Table>
-            <caption className="sr-only">Local incident observations and seen timestamps</caption>
+            <caption className="sr-only">Persisted health alerts and medical checks</caption>
             <thead>
               <tr>
-                <th>Source / athlete</th>
-                <th>Received</th>
-                <th>Seen locally</th>
-                <th>Match context</th>
+                <th>Athlete / source</th>
+                <th>Severity</th>
+                <th>Recorded</th>
+                <th>Medical check</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {safety.incidents.map((entry) => (
-                <tr key={entry.id}>
-                  <td className="min-w-40">
-                    {entry.source}
-                    <br />
-                    {entry.alert.athlete_name}
-                  </td>
-                  <td>{new Date(entry.receivedAt).toLocaleTimeString()}</td>
-                  <td>
-                    {entry.seenAt === null
-                      ? "Not seen"
-                      : new Date(entry.seenAt).toLocaleTimeString()}
-                  </td>
-                  <td>{entry.alert.match_id ?? "Not supplied"}</td>
-                </tr>
-              ))}
+              {history.data.pages
+                .flatMap((page) => page.data)
+                .map((alert) => (
+                  <tr key={alert.id}>
+                    <td className="break-all">
+                      {readings.find((reading) => reading.athleteId === alert.athleteId)?.name ??
+                        alert.athleteId}
+                      <p>{alert.source}</p>
+                    </td>
+                    <td>{alert.severity}</td>
+                    <td>{new Date(alert.createdAt).toLocaleString()}</td>
+                    <td>
+                      {alert.acknowledgedAt ? (
+                        <>
+                          {new Date(alert.acknowledgedAt).toLocaleString()}
+                          <p>{alert.medicalCheckNote}</p>
+                        </>
+                      ) : (
+                        "Awaiting acknowledgement"
+                      )}
+                    </td>
+                    <td>
+                      <div className="flex flex-wrap gap-3">
+                        {alert.severity === "CRITICAL" && (
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              setFocused(
+                                incidentFromAlert(
+                                  alert,
+                                  readings.find((reading) => reading.athleteId === alert.athleteId)
+                                    ?.name ?? alert.athleteId,
+                                ),
+                              )
+                            }
+                          >
+                            Review incident
+                          </Button>
+                        )}
+                        {!alert.acknowledgedAt && (
+                          <Button
+                            disabled={ack.isPending}
+                            variant="ghost"
+                            onClick={() => {
+                              const parsed = acknowledgeSafetySchema.safeParse({
+                                medicalCheckNote: note,
+                                medicalCheckDispatched: true,
+                              });
+                              if (!parsed.success) {
+                                setValidation(
+                                  "Enter a medical-check note of at least five characters.",
+                                );
+                                return;
+                              }
+                              setValidation(null);
+                              const operation = sameOperation(
+                                operations.current.get(alert.id) ?? null,
+                                parsed.data,
+                              );
+                              operations.current.set(alert.id, operation);
+                              ack.mutate({ id: alert.id, operation });
+                            }}
+                          >
+                            Acknowledge incident
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </Table>
-        ) : (
-          <p className="text-sm text-muted-foreground">No local observations yet.</p>
         )}
+        <LoadMore
+          hasNext={history.hasNextPage}
+          loading={history.isFetchingNextPage}
+          load={() => {
+            void history.fetchNextPage();
+          }}
+        />
+        {validation && <Alert danger>{validation}</Alert>}
+        {ack.error && <ErrorState error={ack.error} />}
       </Card>
-      <DependencyState
-        title="Continuous vitals, persisted safety history and match status"
-        description="An authorized active-athlete telemetry stream, durable incident history, current-match snapshot, medical-dispatch acknowledgement, and match pause/resume APIs are unavailable. This page cannot establish that a match is paused or resumed."
-      />
+      {safety.incidents.filter((entry) => !entry.alert.alert_id).length > 0 && (
+        <Card>
+          <h2 className="mb-4 font-semibold">Local emergency previews</h2>
+          <Table>
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Received</th>
+                <th>Seen locally</th>
+              </tr>
+            </thead>
+            <tbody>
+              {safety.incidents
+                .filter((entry) => !entry.alert.alert_id)
+                .map((entry) => (
+                  <tr key={entry.id}>
+                    <td>{entry.source}</td>
+                    <td>{new Date(entry.receivedAt).toLocaleTimeString()}</td>
+                    <td>
+                      {entry.seenAt ? new Date(entry.seenAt).toLocaleTimeString() : "Not seen"}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </Table>
+        </Card>
+      )}
       <CriticalAlertDialog
-        incident={safety.unseen}
-        onSeen={safety.markSeen}
+        key={incident?.id ?? "none"}
+        incident={incident}
+        onSeen={markSeen}
         alarmEnabled={alarm.enabled}
         toggleAlarm={() => {
           void alarm.toggle();
         }}
+        onUpdated={() => {
+          if (incident) setFocused(incident);
+          refresh();
+        }}
+        acknowledged={Boolean(
+          alerts.find((alert) => alert.id === incident?.alert.alert_id)?.acknowledgedAt,
+        )}
+        matchPaused={matches.some(
+          (match) => match.id === incident?.alert.match_id && match.status === "PAUSED_SAFETY",
+        )}
       />
     </div>
   );
@@ -216,13 +456,8 @@ export function CommandCenter({ tournamentId }: { tournamentId: string }) {
         }}
       />
     );
-  if (event.data.organizerId !== user.id && user.role !== "SUPER_ADMIN")
-    return (
-      <DependencyState
-        title="Event owner access required"
-        description="Open an event owned by your account. Broader safety access requires an explicit backend authorization contract."
-      />
-    );
+  if (user.role === "ORGANIZER" && event.data.organizerId !== user.id)
+    return <Alert danger>Access restricted: this safety wall belongs to another organizer.</Alert>;
   return (
     <EventCommandCenter key={tournamentId} tournamentId={tournamentId} name={event.data.name} />
   );

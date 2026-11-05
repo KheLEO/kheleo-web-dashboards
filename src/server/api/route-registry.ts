@@ -1,3 +1,4 @@
+import { withGtiAliases } from "./gti-aliases";
 import "server-only";
 import { z } from "zod";
 import { cursorQuerySchema } from "@/contracts/common";
@@ -6,13 +7,16 @@ import { createPassportSchema, updatePassportSchema, sportInputSchema } from "@/
 import {
   createBracketSchema,
   createTournamentSchema,
+  updateTournamentSchema,
+  updateBracketSchema,
   nearbyQuerySchema,
   registerBracketSchema,
 } from "@/contracts/tournaments";
 import { joinPoolSchema } from "@/contracts/matchmaking";
 import { scoutFeedQuerySchema } from "@/contracts/scouting";
 import { poseSubmissionSchema } from "@/contracts/drills";
-import { telemetrySchema } from "@/contracts/safety";
+import { recordMatchResultSchema } from "@/contracts/organizer";
+import { acknowledgeSafetySchema, resumeSafetySchema, telemetrySchema } from "@/contracts/safety";
 import { updateUserSchema } from "@/contracts/users";
 import type { UserRole } from "@/contracts/enums.generated";
 
@@ -104,12 +108,121 @@ export const routeRegistry: readonly RelayRoute[] = [
     query: noQuery,
     identity: "self",
   },
+  {
+    method: "GET",
+    pattern: path("tournaments/organizer/summary"),
+    query: noQuery,
+    roles: organizers,
+  },
+  {
+    method: "GET",
+    pattern: path("tournaments/organizer/mine"),
+    query: cursorQuerySchema,
+    roles: organizers,
+  },
+  {
+    method: "PATCH",
+    pattern: path(tournament),
+    body: withGtiAliases(updateTournamentSchema),
+    query: noQuery,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "DELETE",
+    pattern: path(tournament),
+    body: noBody,
+    query: noQuery,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "PATCH",
+    pattern: path(bracket),
+    body: withGtiAliases(updateBracketSchema),
+    query: noQuery,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "DELETE",
+    pattern: path(bracket),
+    body: noBody,
+    query: noQuery,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "GET",
+    pattern: path(`${bracket}/registrations`),
+    query: cursorQuerySchema,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "GET",
+    pattern: path(`${bracket}/free-agents/pool`),
+    query: cursorQuerySchema,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "POST",
+    pattern: path(`${bracket}/free-agents/process`),
+    body: noBody,
+    query: noQuery,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "GET",
+    pattern: path(`${tournament}/sandbagging-logs`),
+    query: cursorQuerySchema,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "POST",
+    pattern: path(`${bracket}/matches/results`),
+    body: recordMatchResultSchema,
+    query: noQuery,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "GET",
+    pattern: path(`safety/tournaments/${uuid}/vitals`),
+    query: cursorQuerySchema,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "GET",
+    pattern: path(`safety/tournaments/${uuid}/alerts`),
+    query: cursorQuerySchema,
+    roles: organizers,
+    ownsTournament: true,
+  },
+  {
+    method: "PATCH",
+    pattern: path(`safety/alerts/${uuid}/acknowledge`),
+    body: acknowledgeSafetySchema,
+    query: noQuery,
+    roles: organizers,
+  },
+  {
+    method: "POST",
+    pattern: path(`safety/matches/${uuid}/resume`),
+    body: resumeSafetySchema,
+    query: noQuery,
+    roles: organizers,
+  },
   { method: "GET", pattern: path("tournaments/nearby"), query: nearbyQuerySchema },
   { method: "GET", pattern: path(tournament), query: noQuery },
   {
     method: "POST",
     pattern: path("tournaments"),
-    body: createTournamentSchema,
+    body: withGtiAliases(createTournamentSchema),
     query: noQuery,
     roles: organizers,
   },
@@ -117,7 +230,7 @@ export const routeRegistry: readonly RelayRoute[] = [
   {
     method: "POST",
     pattern: path(`${tournament}/brackets`),
-    body: createBracketSchema,
+    body: withGtiAliases(createBracketSchema),
     query: noQuery,
     roles: organizers,
     ownsTournament: true,

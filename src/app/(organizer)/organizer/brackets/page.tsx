@@ -1,3 +1,4 @@
+import { OwnedTournaments } from "@/features/organizer/owned-tournaments";
 import { z } from "zod";
 import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/shared/page-heading";
@@ -15,12 +16,15 @@ export default async function Page({
       <PageHeading
         eyebrow="organizer"
         title="Brackets and registrations"
-        description="Open an event to configure GTI tiers and inspect roster-management availability."
+        description="Open an event to configure GTI tiers and manage registrations, queues, and match results."
       />
       {tournamentId ? (
         <BracketWorkspace key={tournamentId} tournamentId={tournamentId} />
       ) : (
-        <EventSelector destination="brackets" />
+        <div className="space-y-6">
+          <OwnedTournaments />
+          <EventSelector destination="brackets" />
+        </div>
       )}
     </>
   );

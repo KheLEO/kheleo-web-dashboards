@@ -587,27 +587,39 @@ test("sport editor sends self-reported roles without injecting verified metrics"
   );
 });
 
-test("organizer KPIs and unsupported management tools never invent data or actions", async ({
+test("organizer dashboard and management panels use live contracts without dependency placeholders", async ({
   page,
 }) => {
   await login(page, "organizer");
   await page.goto("/organizer/dashboard");
-  await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(5);
+  await expect(
+    page.getByRole("group", { name: "Active tournaments hosted", exact: true }),
+  ).toContainText("1");
+  await expect(page.getByRole("group", { name: "Registered athletes", exact: true })).toContainText(
+    "2",
+  );
+  await expect(
+    page.getByRole("group", { name: "Configured prize pool (INR)", exact: true }),
+  ).toContainText("25,000");
+  await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Manage Brackets/Rosters", exact: true }),
+  ).toBeVisible();
   await page.goto(`/organizer/brackets?tournamentId=${ids.tournament}`);
-  await expect(
-    page.getByRole("heading", { name: "Verified rosters and free-agent queue inspector" }),
-  ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Anti-sandbagging audit log" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Fixtures and verified match results" }),
-  ).toBeVisible();
+  for (const name of [
+    "Verified Roster & Registrations Inspector",
+    "Free-Agent Pool Queue Monitor",
+    "Anti-Sandbagging Fair-Play Block Log",
+    "Match Result & Score Verification Form",
+  ])
+    await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
+  await expect(page.getByText("Awaiting platform support", { exact: true })).toHaveCount(0);
   await page.goto(`/organizer/tournaments/${ids.tournament}/edit`);
-  await expect(page.getByText("Awaiting platform support", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Tournament name", { exact: true })).toHaveValue(
+    "Varanasi Grassroots Cup",
+  );
   await page.goto("/organizer/tournaments");
-  await expect(page.getByLabel("Tournament UUID")).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Create tournament", exact: true }).last(),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit", exact: true })).toBeVisible();
 });
 
 test("venue pin and GTI range controls share the wizard draft and validate chronology", async ({
@@ -795,7 +807,9 @@ test("organizer ownership and athlete role gates protect management actions", as
   await login(page, "organizer");
   await request.post("http://localhost:4100/__control__/foreign-owner");
   await page.goto(`/organizer/tournaments/${ids.tournament}/safety`);
-  await expect(page.getByRole("heading", { name: "Event owner access required" })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "belongs to another organizer" }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Simulate Critical Field Emergency" })).toHaveCount(
     0,
   );
@@ -1421,4 +1435,241 @@ test("GTI_UPDATED refreshes the athlete passport without a reload", async ({ pag
     "aria-valuenow",
     "65.4",
   );
+});
+
+test("organizer can save populated event edits with custom role quotas and prize allocation", async ({
+  page,
+}) => {
+  await login(page, "organizer");
+  await page.goto(`/organizer/tournaments/${ids.tournament}/edit`);
+  await expect(page.getByLabel("Tournament name", { exact: true })).toHaveValue(
+    "Varanasi Grassroots Cup",
+  );
+  await page.getByLabel("Tournament name", { exact: true }).fill("Updated Campus Cup");
+  await page.getByLabel("Tournament status", { exact: true }).selectOption("IN_PROGRESS");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByLabel("Team size", { exact: true }).fill("3");
+  await page.getByLabel("Customize free-agent role quotas", { exact: true }).check();
+  for (const role of ["BATSMAN", "BOWLER", "WICKETKEEPER"])
+    await page.getByLabel(`${role} slots`, { exact: true }).fill("1");
+  await page.getByLabel("Allocate per-place prizes", { exact: true }).check();
+  await page.getByLabel("First place prize (INR)", { exact: true }).fill("10000");
+  await page.getByLabel("Second place prize (INR)", { exact: true }).fill("5000");
+  await page.getByLabel("Third place prize (INR)", { exact: true }).fill("2000");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().endsWith(`/api/backend/tournaments/${ids.tournament}`),
+  );
+  await page.getByRole("button", { name: "Save tournament changes", exact: true }).click();
+  const result = await saved;
+  expect(result.status()).toBe(200);
+  expect(result.request().postDataJSON()).toMatchObject({
+    name: "Updated Campus Cup",
+    status: "IN_PROGRESS",
+    teamSize: 3,
+    rulesConfig: {
+      roleQuotas: { BATSMAN: 1, BOWLER: 1, WICKETKEEPER: 1, ALL_ROUNDER: 0 },
+      prizeBreakdown: { first: 10000, second: 5000, third: 2000 },
+    },
+  });
+  await page.goto(`/organizer/tournaments/${ids.tournament}/edit`);
+  await expect(page.getByLabel("Tournament name", { exact: true })).toHaveValue(
+    "Updated Campus Cup",
+  );
+});
+
+test("saved brackets support quota/prize updates and explicit deletion", async ({ page }) => {
+  await login(page, "organizer");
+  await page.goto(`/organizer/tournaments/${ids.tournament}/brackets`);
+  await page.getByText("Manage bracket configuration", { exact: true }).click();
+  const editor = page.getByRole("form", { name: "Community tier", exact: true });
+  await editor.getByLabel("Maximum GTI", { exact: true }).fill("65");
+  await editor.getByLabel("Customize free-agent role quotas", { exact: true }).check();
+  await editor.getByLabel("BOWLER slots", { exact: true }).fill("11");
+  await editor.getByLabel("Allocate per-place prizes", { exact: true }).check();
+  await editor.getByLabel("First place prize (INR)", { exact: true }).fill("1000");
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().endsWith(`/api/backend/tournaments/${ids.tournament}/brackets/${ids.bracket}`),
+  );
+  await editor.getByRole("button", { name: "Save bracket changes", exact: true }).click();
+  const result = await saved;
+  expect(result.status()).toBe(200);
+  expect(result.request().postDataJSON()).toMatchObject({
+    maxGti: 65,
+    config: { roleQuotas: { BOWLER: 11 }, prizeBreakdown: { first: 1000, second: 0, third: 0 } },
+  });
+  await expect(page.getByRole("status").filter({ hasText: "Bracket saved" })).toBeVisible();
+  page.once("dialog", (dialog) => {
+    void dialog.accept();
+  });
+  const deleted = page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" &&
+      response.url().endsWith(`/api/backend/tournaments/${ids.tournament}/brackets/${ids.bracket}`),
+  );
+  await editor.getByRole("button", { name: "Delete bracket", exact: true }).click();
+  expect((await deleted).status()).toBe(200);
+  await expect(editor).toHaveCount(0);
+});
+
+test("organizer reads rosters and fair-play logs and triggers a real queue refresh", async ({
+  page,
+}) => {
+  await login(page, "organizer");
+  await page.goto(`/organizer/tournaments/${ids.tournament}/rosters`);
+  await expect(page.getByRole("tabpanel")).toContainText("athlete@example.com");
+  await expect(page.getByRole("tabpanel")).toContainText("VERIFIED");
+  await page
+    .getByRole("tab", { name: "Anti-Sandbagging Fair-Play Block Log", exact: true })
+    .click();
+  await expect(page.getByRole("tabpanel")).toContainText("SANDBAGGING_DETECTED");
+  await expect(page.getByRole("tabpanel")).toContainText("72.5");
+  await page.getByRole("tab", { name: "Free-Agent Pool Queue Monitor", exact: true }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("queue-01@example.com");
+  const processed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(`/brackets/${ids.bracket}/free-agents/process`),
+  );
+  await page.getByRole("button", { name: "Trigger Matchmaker", exact: true }).click();
+  expect((await processed).status()).toBe(200);
+  await expect(page.getByRole("status").filter({ hasText: "Eligible teams formed" })).toBeVisible();
+  await expect(page.getByRole("tabpanel")).toContainText("No queued free agents");
+  await page
+    .getByRole("tab", { name: "Verified Roster & Registrations Inspector", exact: true })
+    .click();
+  await expect(page.getByRole("tabpanel")).toContainText("FA-Roster-TEST");
+  await expect(page.getByRole("tabpanel")).toContainText("queue-11@example.com");
+});
+
+test("organizer records named match outcomes and the athlete receives the updated match component", async ({
+  page,
+  request,
+}) => {
+  await request.post("http://localhost:4100/__control__/event-in-progress");
+  await login(page, "organizer");
+  await page.goto(`/organizer/brackets?tournamentId=${ids.tournament}`);
+  await page
+    .getByRole("tab", { name: "Match Result & Score Verification Form", exact: true })
+    .click();
+  await page.getByLabel("Match name", { exact: true }).fill("Campus semi-final");
+  await page.getByLabel("Score summary", { exact: true }).fill("2-1");
+  await page.getByLabel("Result for athlete@example.com", { exact: true }).selectOption("winner");
+  await page.getByLabel("Result for opponent@example.com", { exact: true }).selectOption("loser");
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(`/brackets/${ids.bracket}/matches/results`),
+  );
+  await page.getByRole("button", { name: "Record verified result", exact: true }).click();
+  const response = await saved;
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON()).toMatchObject({
+    matchName: "Campus semi-final",
+    winnerAthleteIds: [ids.athlete],
+    loserAthleteIds: ["10000000-0000-4000-8000-000000000005"],
+    scoreSummary: { summary: "2-1" },
+  });
+  await expect(page.getByRole("status").filter({ hasText: "Result verified" })).toBeVisible();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await login(page);
+  await page.goto("/athlete/passport");
+  await expect(
+    page.getByRole("group", { name: "Verified Match Performance", exact: true }),
+  ).toContainText("51.0");
+});
+
+test("the confidential safety wall persists a critical incident, medical acknowledgement and match resume", async ({
+  page,
+  request,
+}) => {
+  await login(page, "organizer");
+  await page.goto(`/organizer/tournaments/${ids.tournament}/safety`);
+  await expect(page.getByText("Live connection", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Vitals for athlete@example.com", exact: true }),
+  ).toContainText("NORMAL");
+  await request.post("http://localhost:4100/__control__/critical-safety");
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await page.reload();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText("205 bpm");
+  await expect(dialog).toContainText("PAUSED_SAFETY");
+  expect(
+    await dialog.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return {
+        left: bounds.left,
+        top: bounds.top,
+        width: bounds.width,
+        height: bounds.height,
+        screenWidth: innerWidth,
+        screenHeight: innerHeight,
+      };
+    }),
+  ).toEqual({ left: 0, top: 0, width: 1280, height: 720, screenWidth: 1280, screenHeight: 720 });
+  await dialog
+    .getByLabel("Medical check / clearance note", { exact: true })
+    .fill("Medical staff dispatched and checked the athlete");
+  const acknowledged = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().endsWith(`/safety/alerts/${ids.alert}/acknowledge`),
+  );
+  await dialog
+    .getByRole("button", {
+      name: "Acknowledge & Confirm Match Paused / Medical Check Dispatched",
+      exact: true,
+    })
+    .click();
+  expect((await acknowledged).status()).toBe(200);
+  await expect(
+    dialog.getByText("Medical check recorded on the server.", { exact: true }),
+  ).toBeVisible();
+  await request.post("http://localhost:4100/__control__/normal-safety");
+  await dialog
+    .getByLabel("Medical clearance has been confirmed by field staff", { exact: true })
+    .check();
+  const resumed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().includes("/safety/matches/") &&
+      response.url().endsWith("/resume"),
+  );
+  await dialog.getByRole("button", { name: "Clear Athlete & Resume Match", exact: true }).click();
+  expect((await resumed).status()).toBe(200);
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("table").filter({ hasText: "BLE" })).toContainText(
+    "Medical staff dispatched and checked the athlete",
+  );
+  await page.reload();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Vitals for athlete@example.com", exact: true }),
+  ).toContainText("NORMAL");
+});
+
+test("tournament deletion removes the owned directory entry after confirmation", async ({
+  page,
+}) => {
+  await login(page, "organizer");
+  await page.goto("/organizer/tournaments");
+  page.once("dialog", (dialog) => {
+    void dialog.accept();
+  });
+  const removed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" &&
+      response.url().endsWith(`/api/backend/tournaments/${ids.tournament}`),
+  );
+  await page.getByRole("button", { name: "Delete tournament", exact: true }).click();
+  expect((await removed).status()).toBe(200);
+  await expect(
+    page.getByText("No tournaments yet. Create your first event.", { exact: true }),
+  ).toBeVisible();
 });

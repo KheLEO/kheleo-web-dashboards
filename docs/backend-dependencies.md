@@ -1,42 +1,11 @@
-# Backend dependencies
+# Deployment prerequisites and validation limits
 
-These are activation prerequisites, not implemented or guessed endpoints. No change to the backend repository is included.
+Prompt 1 and Prompt 2 implement the core athlete and organizer contracts in the adjacent backend. The former dependency list is superseded by [current contracts](backend-contracts.md) and [verification evidence](verification.md).
 
-| Capability              | Required backend work                                                                                    |
-| ----------------------- | -------------------------------------------------------------------------------------------------------- |
-| Privileged onboarding   | Authorized provisioning of organizer, scout, federation, and admin accounts                              |
-| Event directory         | Paginated organizer-owned list with enforced ownership                                                   |
-| Event editing           | Validated update DTO and authorized update action                                                        |
-| Event configuration     | Custom sports, rules descriptions, per-place prize allocations and configurable role quotas              |
-| Organizer statistics    | Scoped counts for events, verified registrations, formed teams, payouts and current alerts               |
-| Match results           | Fixture reads, verified outcomes and authorized organizer/umpire entry                                   |
-| Matchmaking controls    | Authorized manual queue trigger and organizer queue projections                                          |
-| Matchmaking rooms       | Authorize bracket membership before joining; frontend uses authenticated personal user rooms only        |
-| Sandbagging audits      | Persisted blocked-attempt events and authorized log reads                                                |
-| Continuous vitals       | Authorized all-player telemetry stream and latest snapshot                                               |
-| Organizer rosters       | Registration/team/match projections and authorized operations                                            |
-| Leaderboard lists       | National/state/district scopes and stable cursor DTOs                                                    |
-| Scout outreach          | Authorized trial offers, sponsorship inquiries, athlete notifications and saved shortlists               |
-| Dossier history         | Season GTI series, signed drill evidence, recovery metrics and verified podium projections               |
-| Alert enrichment        | Verification, rural status and previous-GTI/delta fields; scout-specific acknowledgement if required     |
-| Full dossiers           | Authorized flattened athlete/scout projection; private notes and shortlist contracts if required         |
-| Admin tools             | Organizer review, event moderation, duplicate-ID audit, HMAC audit, system/queue health APIs             |
-| Safe event sockets      | Connection authentication, authorized subscriptions, and removal of global sensitive broadcasts          |
-| Durable safety state    | Alert history/current snapshot, stable event IDs, match acknowledgement/resume contracts                 |
-| Scout realtime          | Authorized scout room subscription                                                                       |
-| Nearby pagination       | Cursor ordered consistently with distance and unique tie-breaker                                         |
-| Scout feed pagination   | Unique stable tie-breaker for score ordering                                                             |
-| Regional completeness   | Completeness/limit metadata, state-disambiguated districts, consistent spatial/fallback aggregation      |
-| Drill scoring           | Approved and versioned scoring/calibration; stronger provenance if anti-cheat proof is required          |
-| Full wearable ingestion | Documented SpO₂/temperature services and authorized athlete/match context                                |
-| Backend logout          | Token revocation endpoint for immediate backend invalidation                                             |
-| Verified sport evidence | Reject athlete-authored `verifiedMetrics`/`earnedBadges`; provide separate self-reported stance metadata |
-| Account deactivation    | Revoke token families and reject inactive accounts in JWT validation and token refresh                   |
+Before deployment, apply backend migrations with `pnpm prisma:deploy`, including `20261106000000_telemetry_provenance` and `20261106010000_organizer_operations`. The latter adds latest tournament telemetry snapshots, durable medical-check notes, and named match score summaries. Configure PostgreSQL/PostGIS, Redis/BullMQ, and matching private drill/telemetry HMAC secrets in both services. New organizer/scout accounts require administrator approval of bound identity evidence.
 
-`SAFE_EVENTS_VERIFIED=false` remains the default. Enabling it is an operator assertion that the listed socket defects have been fixed and tested; it is not itself a fix.
+Safe event subscriptions are enabled by default because handshake authentication and private staff safety rooms are enforced server-side. Legacy `SAFE_EVENTS_VERIFIED`, staging-only drill, and simulator activation flags do not gate these contracts. Athletes may submit authenticated signed BLE or labeled simulator readings with verified competition membership; baseline physiological fields remain explicitly labeled.
 
-Simulator ingestion requires `APP_ENV=staging`, `SIMULATOR_INGESTION=true`, `STAGING_DATA_ISOLATED=true`, private Redis, and the correct server-side HMAC secret. Production simulation never ingests. The simulator rejects match, bracket, and tournament IDs because authorized match membership cannot currently be established.
+Software calibration version 1.0.0 is an engineering scoring policy. Browser camera landmarks and BLE provenance are self-reported rather than hardware attestation. Medical-check dispatch and clearance are recorded staff confirmations; the application does not arrange emergency response or certify clinical readiness. Observe reading timestamps and missing-data states when operating the safety wall.
 
-Production drill scoring is hard-gated in the relay. Provisional practice ingestion requires `APP_ENV=staging`, `DRILL_PRACTICE_INGESTION=true`, `STAGING_DATA_ISOLATED=true`, private Redis, and the server-only drill HMAC secret. These estimates must never be represented as calibrated performance or sent to production. Additional hardware services are required before hardware ingestion can be enabled.
-
-The frontend rejects verified metrics and earned badges in sport-record writes and terminates the current local session after successful self-deactivation. These controls apply to the frontend relay. The current backend still accepts those evidence fields from self-service clients, and backend deactivation does not revoke refresh tokens or check active status when validating existing access tokens. Direct API clients and other active sessions require backend remediation.
+Local fixture E2E, Socket.IO transport tests, and migrated embedded PostgreSQL tests do not establish hosted infrastructure reliability, clinical performance, physical device compatibility, concurrency capacity, or production deployment. Physical device and production service validation remain separate deployment work.

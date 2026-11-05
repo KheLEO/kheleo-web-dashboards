@@ -12,7 +12,7 @@ export function MetricCard({
   icon: LucideIcon;
 }) {
   return (
-    <Card>
+    <Card role="group" aria-label={label}>
       <div className="flex items-center justify-between text-muted-foreground">
         <span className="text-xs font-medium uppercase tracking-widest">{label}</span>
         <Icon size={17} />

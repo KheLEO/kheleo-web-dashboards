@@ -1,17 +1,18 @@
 import { PageHeading } from "@/components/shared/page-heading";
-import { DependencyState } from "@/components/shared/dependency-state";
-export default function Page() {
+import { BracketWorkspace } from "@/features/organizer/bracket-workspace";
+import { z } from "zod";
+import { notFound } from "next/navigation";
+export default async function Page({ params }: { params: Promise<{ tournamentId: string }> }) {
+  const { tournamentId } = await params;
+  if (!z.uuid().safeParse(tournamentId).success) notFound();
   return (
     <>
       <PageHeading
-        eyebrow="workspace"
-        title="Roster management"
-        description="Capability availability"
+        eyebrow="organizer"
+        title="Verified rosters and registrations"
+        description="Inspect athlete verification, matchmaking queues, fair-play blocks, and match results."
       />
-      <DependencyState
-        title="Roster management"
-        description="Organizer registration lists, team reads, and authorized roster operations require additional backend contracts."
-      />
+      <BracketWorkspace tournamentId={tournamentId} />
     </>
   );
 }

@@ -32,7 +32,7 @@ Source revision and schema checksum: [contracts/source.json](contracts/source.js
 
 The global response interceptor skips objects already containing `success`. Never globally unwrap `data` recursively. Errors use RFC 7807 with optional validation and business-code extensions.
 
-Cursor pages have `data`, `next_cursor`, `has_more`, and `count`. Brackets and sport records use `cursor_id`, default limit 20, maximum 100. Scout feed also uses `cursor_id` but omits `has_more`. Alerts and heatmaps expose no cursor metadata. Nearby uses `cursor` and exact `(distance_km ASC, id ASC)` ordering on both PostGIS and Haversine paths. Its client decoder also accepts legacy arrays.
+Cursor pages have `data`, `next_cursor`, `has_more`, and `count`. Brackets and sport records use `cursor_id`, default limit 20, maximum 100. Scout feed also uses `cursor_id` but omits `has_more`. Legacy scout alerts and heatmaps expose no cursor metadata. Organizer lists, roster/pool/log projections, and tournament safety snapshots/history use `cursor_id` and the standard cursor envelope. Nearby uses `cursor` and exact `(distance_km ASC, id ASC)` ordering on both PostGIS and Haversine paths. Its client decoder also accepts legacy arrays.
 
 Raw Prisma Decimal fields serialize as strings. Mapped passport/location/registration DTOs convert selected fields to numbers. Dates serialize as ISO strings. Generated scalar interfaces intentionally omit relations and unsupported PostGIS fields.
 
@@ -41,9 +41,25 @@ Registration conflicts preserve `SANDBAGGING_DETECTED`, `BELOW_MINIMUM_TIER`, ac
 ## Realtime
 
 - `/ws/matchmaking`: backend supports `join:user {userId}` and `join:bracket {bracketId}`. The frontend subscribes only to its authenticated personal user room and can join bracket rooms when membership or staff authorization is established. Receive `ROSTER_FORMED {event,data:{team_id,team_name,bracket_id,roster}}` and refetch the authorized pool state.
-- `/ws/events`: emit `join:athlete {athleteId}`, `join:tournament {tournamentId}`, `join:match {matchId}`. Receive bare `MATCH_PAUSE_ALERT` and `GTI_UPDATED` payloads.
+- `/ws/events`: emit `join:athlete {athleteId}`, `join:tournament {tournamentId}`, `join:match {matchId}`. Receive bare `MATCH_PAUSE_ALERT`, `VITALS_UPDATED`, and `GTI_UPDATED` payloads.
 - No leave-room message exists. There is no implemented scout-room join handler.
-- Both namespaces reject unauthenticated handshakes. Tournament/bracket/match joins require ownership, assigned umpire status, administration, or actual participant membership. Safety broadcasts target the athlete, supplied competition rooms, and authorized staff role rooms.
+- Both namespaces reject unauthenticated handshakes. Tournament/bracket/match joins require ownership, assigned umpire status, administration, or actual participant membership. Competition safety broadcasts use private `safety:tournament:<id>`, `safety:bracket:<id>`, and `safety:match:<id>` room unions after staff authorization; regular participant rooms and staff role rooms receive no medical broadcasts. Standalone critical alerts target the affected athlete only.
+
+## Organizer operations
+
+`GET tournaments/organizer/summary` returns active event count, distinct registered athletes, configured INR prize total, formed free-agent teams, and unacknowledged warning/critical alerts. `GET tournaments/organizer/mine` returns owned events, or all events for federation/super administrators. Both enforce role access; event-scoped operations enforce ownership in the backend and relay.
+
+Tournament and bracket `PATCH` / `DELETE` mutations require an idempotency key. `rulesConfig` / `config` accept `roleQuotas` and `prizeBreakdown`. Quota totals must match event team size; prizes are nonnegative and cannot exceed the configured event pool. Bracket quotas override event quotas, then sport defaults. Both GTI naming styles are accepted; contradictory aliases are rejected.
+
+| Path under `tournaments/:tournamentId`         | Response / behavior                                                                                                                |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `GET brackets/:bracketId/registrations`        | Cursor page of team/individual entries with verified GTI, identity status, roles, and rosters                                      |
+| `GET brackets/:bracketId/free-agents/pool`     | Cursor page of QUEUED/MATCHING athletes                                                                                            |
+| `POST brackets/:bracketId/free-agents/process` | `{ formed }` from the real role-based matchmaker                                                                                   |
+| `GET sandbagging-logs`                         | Cursor page of persisted rejection audit records, retained outside rolled-back registration transactions                           |
+| `POST brackets/:bracketId/matches/results`     | `{ matchName, winnerAthleteIds, loserAthleteIds, scoreSummary, matchId? }`; updates counters, stores verified result, enqueues GTI |
+
+`GET safety/tournaments/:tournamentId/vitals` returns paginated active registered athletes, latest readings or `AWAITING_READING`, active critical incidents, and actual match states. `GET .../alerts` provides durable history. `PATCH safety/alerts/:id/acknowledge` requires `{ medicalCheckNote, medicalCheckDispatched: true }`; `POST safety/matches/:matchId/resume` requires `{ medicalClearanceConfirmed: true, medicalClearanceNote }`. Acknowledgement and clearance are field-staff assertions stored with actor/audit provenance. The service does not dispatch or certify medical care.
 
 ## Signing and idempotency
 

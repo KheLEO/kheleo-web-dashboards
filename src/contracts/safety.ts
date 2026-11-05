@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidSchema } from "./common";
+import { cursorPageSchema, dateSchema, uuidSchema } from "./common";
 export const telemetrySchema = z
   .object({
     athlete_id: uuidSchema,
@@ -33,3 +33,62 @@ export function classifyVitals(
     return "WARNING";
   return "NORMAL";
 }
+
+export const acknowledgeSafetySchema = z
+  .object({
+    medicalCheckNote: z.string().trim().min(5).max(1000),
+    medicalCheckDispatched: z.literal(true),
+  })
+  .strict();
+export const resumeSafetySchema = z
+  .object({
+    medicalClearanceConfirmed: z.literal(true),
+    medicalClearanceNote: z.string().trim().min(5).max(1000),
+  })
+  .strict();
+export const healthAlertSchema = z.object({
+  id: uuidSchema,
+  athleteId: uuidSchema,
+  tournamentId: uuidSchema.nullable(),
+  bracketId: uuidSchema.nullable(),
+  matchId: uuidSchema.nullable(),
+  severity: z.enum(["NORMAL", "WARNING", "CRITICAL"]),
+  heartRate: z.number(),
+  spo2: z.number(),
+  skinTemperature: z.number(),
+  triggerReason: z.string(),
+  matchPaused: z.boolean(),
+  source: z.string(),
+  baselineFields: z.array(z.string()),
+  acknowledgedAt: dateSchema.nullable(),
+  acknowledgedById: uuidSchema.nullable(),
+  medicalCheckNote: z.string().nullable(),
+  medicalCheckDispatched: z.boolean(),
+  createdAt: dateSchema,
+});
+export const athleteVitalsSchema = z.object({
+  athleteId: uuidSchema,
+  name: z.string(),
+  heart_rate: z.number().nullable(),
+  spo2: z.number().nullable(),
+  skin_temperature: z.number().nullable(),
+  severity: z.enum(["NORMAL", "WARNING", "CRITICAL", "AWAITING_READING"]),
+  observedAt: dateSchema.nullable(),
+  source: z.string().nullable(),
+  baseline_fields: z.array(z.string()),
+  matchId: uuidSchema.nullable(),
+  matchStatus: z.string().nullable(),
+});
+export const safetyMatchSchema = z.object({
+  id: uuidSchema,
+  bracketId: uuidSchema,
+  status: z.string(),
+  pauseReason: z.string().nullable(),
+});
+export const vitalsPageSchema = cursorPageSchema(athleteVitalsSchema).extend({
+  matches: z.array(safetyMatchSchema),
+  activeAlerts: z.array(healthAlertSchema).default([]),
+});
+export const safetyHistoryPageSchema = cursorPageSchema(healthAlertSchema);
+export type HealthAlert = z.infer<typeof healthAlertSchema>;
+export type AthleteVitals = z.infer<typeof athleteVitalsSchema>;

@@ -1,62 +1,71 @@
+"use client";
 import Link from "next/link";
-import { Trophy, Users, Coins, Network, ShieldAlert, ArrowUpRight } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Trophy, Users, Coins, Network, ShieldAlert } from "lucide-react";
 import { MetricCard } from "@/components/shared/metric-card";
-import { DependencyState } from "@/components/shared/dependency-state";
-import { EventSelector } from "@/features/organizer/event-selector";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/shared/async-state";
+import { useOrganizerSummary } from "@/features/organizer/queries";
+import { OwnedTournaments } from "@/features/organizer/owned-tournaments";
+import { formatMoney } from "@/lib/format";
 export function OrganizerOverview() {
-  const metrics = [
-    {
-      label: "Active tournaments hosted",
-      detail: "Organizer-owned event totals need a listing API.",
-      icon: Trophy,
-    },
-    {
-      label: "Verified athletes registered",
-      detail: "Registration and verified-roster counts are unavailable.",
-      icon: Users,
-    },
-    {
-      label: "Prize pool distributed (INR)",
-      detail: "Configured prize pools do not establish payouts.",
-      icon: Coins,
-    },
-    {
-      label: "Free-agent teams formed",
-      detail: "Organizer matchmaking aggregates are unavailable.",
-      icon: Network,
-    },
-    {
-      label: "Active IoT safety alerts",
-      detail: "No durable safety snapshot exists; this is not a zero-alert claim.",
-      icon: ShieldAlert,
-    },
-  ];
+  const query = useOrganizerSummary();
+  const metrics = query.data
+    ? [
+        {
+          label: "Active tournaments hosted",
+          icon: Trophy,
+          value: String(query.data.activeTournamentsCount),
+          detail: "Registration open or in progress",
+        },
+        {
+          label: "Registered athletes",
+          icon: Users,
+          value: String(query.data.totalRegisteredAthletes),
+          detail: "Distinct athletes in confirmed registrations",
+        },
+        {
+          label: "Configured prize pool (INR)",
+          icon: Coins,
+          value: formatMoney(query.data.totalPrizePoolInr),
+          detail: "Configured event prizes; payment is separate",
+        },
+        {
+          label: "Free-agent teams formed",
+          icon: Network,
+          value: String(query.data.freeAgentTeamsFormed),
+          detail: "Persisted teams formed by matchmaking",
+        },
+        {
+          label: "Active IoT safety alerts",
+          icon: ShieldAlert,
+          value: String(query.data.activeSafetyAlertsCount),
+          detail: "Unacknowledged warning and critical alerts",
+        },
+      ]
+    : [];
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {metrics.map((metric) => (
-          <MetricCard key={metric.label} {...metric} value="Unavailable" />
-        ))}
-      </div>
-      <Card>
-        <Trophy className="mb-5 text-primary" size={28} />
-        <h2 className="text-2xl font-semibold">Build a fairer competition</h2>
-        <p className="mb-6 mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-          Pin your venue, configure event capacity and prizes, then build GTI bracket tiers.
-        </p>
-        <Button asChild>
-          <Link href="/organizer/tournaments/create">
-            Create tournament <ArrowUpRight size={16} />
-          </Link>
-        </Button>
-      </Card>
-      <EventSelector />
-      <DependencyState
-        title="Your event directory"
-        description="A paginated organizer-owned tournament listing is not yet exposed by the platform. Created events open directly by their returned ID. KPI cards remain unavailable until authoritative totals exist."
-      />
+      {query.isPending ? (
+        <Skeleton />
+      ) : query.error ? (
+        <ErrorState
+          error={query.error}
+          retry={() => {
+            void query.refetch();
+          }}
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {metrics.map((metric) => (
+            <MetricCard key={metric.label} {...metric} />
+          ))}
+        </div>
+      )}
+      <Button asChild>
+        <Link href="/organizer/tournaments/create">Create tournament</Link>
+      </Button>
+      <OwnedTournaments />
     </div>
   );
 }

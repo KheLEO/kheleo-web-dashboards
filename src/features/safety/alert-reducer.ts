@@ -23,6 +23,14 @@ export function safetyAlertReducer(
           : entry,
       ),
     };
-  if (state.incidents.some((entry) => entry.id === action.incident.id)) return state;
+  const existing = state.incidents.find((entry) => entry.id === action.incident.id);
+  if (existing) {
+    if (JSON.stringify(existing.alert) === JSON.stringify(action.incident.alert)) return state;
+    return {
+      incidents: state.incidents.map((entry) =>
+        entry.id === action.incident.id ? { ...action.incident, seenAt: entry.seenAt } : entry,
+      ),
+    };
+  }
   return { incidents: [action.incident, ...state.incidents].slice(0, 50) };
 }

@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { tournamentSchema, bracketSchema } from "../../src/contracts/tournaments";
+import type { HealthAlert, AthleteVitals } from "../../src/contracts/safety";
 import { createHmac } from "node:crypto";
 import { canonicalJson } from "../../src/lib/canonical-json";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -14,6 +17,136 @@ let scoutAlertAcknowledged = false;
 let nearbyPages = false;
 let passport = makePassport();
 const seenMutations: string[] = [];
+type FixtureTournament = z.infer<typeof tournamentSchema>;
+type FixtureBracket = z.infer<typeof bracketSchema>;
+const tournaments = new Map<string, FixtureTournament>();
+const brackets = new Map<string, FixtureBracket>();
+const healthAlerts = new Map<string, HealthAlert>();
+const vitals = new Map<string, AthleteVitals>();
+const opponentId = "10000000-0000-4000-8000-000000000005";
+const safetyMatchId = "91000000-0000-4000-8000-000000000001";
+let matchState = "LIVE";
+let matchesRecorded = 0;
+function queuedAthletes() {
+  return Array.from({ length: 11 }, (_, index) => ({
+    id: `13000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+    userId: `12000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+    name: `queue-${String(index + 1).padStart(2, "0")}@example.com`,
+    gti: 50,
+    identityStatus: "VERIFIED",
+    isActive: true,
+    role:
+      index < 6 ? "BATSMAN" : index < 9 ? "BOWLER" : index === 9 ? "WICKETKEEPER" : "ALL_ROUNDER",
+    primaryRole:
+      index < 6 ? "BATSMAN" : index < 9 ? "BOWLER" : index === 9 ? "WICKETKEEPER" : "ALL_ROUNDER",
+    secondaryRole: null,
+    status: "QUEUED",
+    joinedAt: "2026-11-01T00:00:00.000Z",
+  }));
+}
+function seedOrganizer(): void {
+  tournaments.clear();
+  brackets.clear();
+  healthAlerts.clear();
+  vitals.clear();
+  matchState = "LIVE";
+  matchesRecorded = 0;
+  tournaments.set(ids.tournament, tournamentSchema.parse(makeTournament()));
+  brackets.set(ids.bracket, bracketSchema.parse(makeBracket()));
+  brackets.set(
+    ids.higher,
+    bracketSchema.parse({
+      ...makeBracket(),
+      id: ids.higher,
+      name: "Gold tier",
+      tierName: "GOLD",
+      minGti: "60",
+      maxGti: "100",
+    }),
+  );
+  for (const [id, name] of [
+    [ids.athlete, "athlete@example.com"],
+    [opponentId, "opponent@example.com"],
+  ])
+    vitals.set(id!, {
+      athleteId: id!,
+      name: name!,
+      heart_rate: 110,
+      spo2: 98,
+      skin_temperature: 36.8,
+      severity: "NORMAL",
+      observedAt: new Date().toISOString(),
+      source: "BLE",
+      baseline_fields: [],
+      matchId: safetyMatchId,
+      matchStatus: "LIVE",
+    });
+}
+seedOrganizer();
+function triggerCritical(): void {
+  matchState = "PAUSED_SAFETY";
+  const alert: HealthAlert = {
+    id: ids.alert,
+    athleteId: ids.athlete,
+    tournamentId: ids.tournament,
+    bracketId: ids.bracket,
+    matchId: safetyMatchId,
+    severity: "CRITICAL",
+    heartRate: 205,
+    spo2: 88,
+    skinTemperature: 40,
+    triggerReason: "CRITICAL BIOMETRIC EXTREME",
+    matchPaused: true,
+    source: "BLE",
+    baselineFields: [],
+    acknowledgedAt: null,
+    acknowledgedById: null,
+    medicalCheckNote: null,
+    medicalCheckDispatched: false,
+    createdAt: new Date().toISOString(),
+  };
+  healthAlerts.set(alert.id, alert);
+  const current = vitals.get(ids.athlete)!;
+  vitals.set(ids.athlete, {
+    ...current,
+    heart_rate: 205,
+    spo2: 88,
+    skin_temperature: 40,
+    severity: "CRITICAL",
+    matchStatus: matchState,
+    observedAt: new Date().toISOString(),
+  });
+  io.of("/ws/events").to(`safety:tournament:${ids.tournament}`).emit("VITALS_UPDATED", {
+    tournament_id: ids.tournament,
+    athlete_id: ids.athlete,
+    heart_rate: 205,
+    spo2: 88,
+    skin_temperature: 40,
+    severity: "CRITICAL",
+    observed_at: new Date().toISOString(),
+    source: "BLE",
+    baseline_fields: [],
+    match_id: safetyMatchId,
+    bracket_id: ids.bracket,
+  });
+  io.of("/ws/events")
+    .to(`safety:tournament:${ids.tournament}`)
+    .emit("MATCH_PAUSE_ALERT", {
+      event: "MATCH_PAUSE_ALERT",
+      event_id: crypto.randomUUID(),
+      alert_id: alert.id,
+      severity: "CRITICAL",
+      athlete_id: ids.athlete,
+      athlete_name: "athlete@example.com",
+      tournament_id: ids.tournament,
+      bracket_id: ids.bracket,
+      match_id: safetyMatchId,
+      source: "BLE",
+      vitals: { heart_rate: 205, spo2: 88, skin_temperature: 40 },
+      directive: "MANDATORY REST: PAUSE ACTIVITY IMMEDIATELY",
+    });
+}
+
 function send(response: ServerResponse, data: unknown, status = 200, bare = false): void {
   response.writeHead(status, { "Content-Type": "application/json" });
   response.end(
@@ -57,6 +190,30 @@ const server = createServer(async (request, response) => {
     seenMutations.length = 0;
     nearbyPages = false;
     passport = makePassport();
+    seedOrganizer();
+    send(response, {}, 200, true);
+    return;
+  }
+  if (url.pathname === "/__control__/event-in-progress") {
+    tournaments.set(ids.tournament, { ...tournaments.get(ids.tournament)!, status: "IN_PROGRESS" });
+    send(response, {}, 200, true);
+    return;
+  }
+  if (url.pathname === "/__control__/critical-safety") {
+    triggerCritical();
+    send(response, {}, 200, true);
+    return;
+  }
+  if (url.pathname === "/__control__/normal-safety") {
+    const current = vitals.get(ids.athlete)!;
+    vitals.set(ids.athlete, {
+      ...current,
+      heart_rate: 110,
+      spo2: 98,
+      skin_temperature: 36.8,
+      severity: "NORMAL",
+      observedAt: new Date().toISOString(),
+    });
     send(response, {}, 200, true);
     return;
   }
@@ -237,8 +394,11 @@ const server = createServer(async (request, response) => {
       Number(body.skin_temperature) > 39.5;
     if (critical)
       io.of("/ws/events")
-        .to(`athlete:${ids.athlete}`)
-        .to("role:ORGANIZER")
+        .to(
+          typeof body.tournament_id === "string"
+            ? `safety:tournament:${body.tournament_id}`
+            : `athlete:${ids.athlete}`,
+        )
         .emit("MATCH_PAUSE_ALERT", {
           event: "MATCH_PAUSE_ALERT",
           event_id: crypto.randomUUID(),
@@ -324,8 +484,239 @@ const server = createServer(async (request, response) => {
     ok({ data, next_cursor: has_more ? data.at(-1)!.id : null, has_more });
     return;
   }
+  const page = <T extends { id: string }>(rows: T[]) => {
+    const cursor = url.searchParams.get("cursor_id");
+    const limit = Number(url.searchParams.get("limit") ?? 20);
+    const start = cursor ? rows.findIndex((row) => row.id === cursor) + 1 : 0;
+    const data = rows.slice(start, start + limit);
+    const has_more = start + limit < rows.length;
+    return { data, next_cursor: has_more ? data.at(-1)!.id : null, has_more, count: data.length };
+  };
+  if (path === "tournaments/organizer/summary") {
+    ok({
+      activeTournamentsCount: tournaments.size,
+      totalRegisteredAthletes: matched ? 13 : 2,
+      totalPrizePoolInr: [...tournaments.values()].reduce(
+        (sum, event) => sum + Number(event.prizePool),
+        0,
+      ),
+      freeAgentTeamsFormed: matched ? 1 : 0,
+      activeSafetyAlertsCount: [...healthAlerts.values()].filter((alert) => !alert.acknowledgedAt)
+        .length,
+    });
+    return;
+  }
+  if (path === "tournaments/organizer/mine") {
+    ok(page([...tournaments.values()]));
+    return;
+  }
+  if (path.endsWith("/registrations")) {
+    const athletes = [
+      {
+        userId: ids.athlete,
+        name: "athlete@example.com",
+        gti: passport.currentGti,
+        identityStatus: "VERIFIED",
+        isActive: true,
+        role: "BATSMAN",
+      },
+      {
+        userId: opponentId,
+        name: "opponent@example.com",
+        gti: 50,
+        identityStatus: "VERIFIED",
+        isActive: true,
+        role: "BOWLER",
+      },
+    ];
+    ok(
+      page([
+        ...athletes.map((athlete, index) => ({
+          id: `51000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+          status: "CONFIRMED",
+          registeredAt: "2026-11-01T00:00:00.000Z",
+          teamId: null,
+          teamName: null,
+          athletes: [athlete],
+        })),
+        ...(matched
+          ? [
+              {
+                id: "51000000-0000-4000-8000-000000000003",
+                status: "CONFIRMED",
+                registeredAt: "2026-11-01T00:00:00.000Z",
+                teamId: ids.team,
+                teamName: "FA-Roster-TEST",
+                athletes: queuedAthletes(),
+              },
+            ]
+          : []),
+      ]),
+    );
+    return;
+  }
+  if (path.endsWith("/free-agents/pool")) {
+    ok(page(matched ? [] : queuedAthletes()));
+    return;
+  }
+  if (path.endsWith("/free-agents/process")) {
+    const formed = !matched;
+    matched = true;
+    ok({ formed });
+    return;
+  }
+  if (path.endsWith("/sandbagging-logs")) {
+    ok(
+      page([
+        {
+          id: "92000000-0000-4000-8000-000000000001",
+          userId: ids.athlete,
+          action: "SANDBAGGING_DETECTED",
+          metadata: { athleteGti: 72.5, bracketMaxGti: 60, bracketId: ids.bracket },
+          createdAt: "2026-11-01T00:00:00.000Z",
+        },
+      ]),
+    );
+    return;
+  }
+  if (path.endsWith("/matches/results")) {
+    matchesRecorded++;
+    const bracketId = path.split("/")[3]!;
+    const wins = Array.isArray(body.winnerAthleteIds) ? (body.winnerAthleteIds as string[]) : [];
+    const losses = Array.isArray(body.loserAthleteIds) ? (body.loserAthleteIds as string[]) : [];
+    if (wins.includes(ids.athlete)) {
+      passport.matchPerfScore = Number(brackets.get(bracketId)?.maxGti ?? 100) * 0.85;
+      passport.currentGti =
+        0.35 * passport.biomechanicalScore +
+        0.25 * passport.wearableScore +
+        0.4 * passport.matchPerfScore;
+    }
+    ok({
+      id: `93000000-0000-4000-8000-${String(matchesRecorded).padStart(12, "0")}`,
+      bracketId,
+      matchId: body.matchId ?? null,
+      matchName: body.matchName,
+      scoreSummary: body.scoreSummary,
+      participantAthleteIds: [...wins, ...losses],
+      winnerAthleteIds: wins,
+      createdAt: new Date().toISOString(),
+    });
+    return;
+  }
+  if (/^safety\/tournaments\/[^/]+\/vitals$/.test(path)) {
+    const players = [...vitals.values()].map((reading) => ({
+      ...reading,
+      matchStatus: matchState,
+    }));
+    const result = page(players.map((reading) => ({ ...reading, id: reading.athleteId })));
+    ok({
+      ...result,
+      activeAlerts: [...healthAlerts.values()].filter(
+        (alert) => alert.severity === "CRITICAL" && !alert.acknowledgedAt,
+      ),
+      matches: [
+        {
+          id: safetyMatchId,
+          bracketId: ids.bracket,
+          status: matchState,
+          pauseReason: matchState === "PAUSED_SAFETY" ? "CRITICAL BIOMETRIC EXTREME" : null,
+        },
+      ],
+    });
+    return;
+  }
+  if (/^safety\/tournaments\/[^/]+\/alerts$/.test(path)) {
+    ok(page([...healthAlerts.values()]));
+    return;
+  }
+  if (/^safety\/alerts\/[^/]+\/acknowledge$/.test(path)) {
+    const alertId = path.split("/")[2]!;
+    const alert = healthAlerts.get(alertId);
+    if (!alert) {
+      send(response, problem(404, "Incident not found"), 404);
+      return;
+    }
+    const saved = {
+      ...alert,
+      acknowledgedAt: new Date().toISOString(),
+      acknowledgedById: ids.organizer,
+      medicalCheckNote: String(body.medicalCheckNote),
+      medicalCheckDispatched: body.medicalCheckDispatched === true,
+    };
+    healthAlerts.set(alertId, saved);
+    ok(saved);
+    return;
+  }
+  if (/^safety\/matches\/[^/]+\/resume$/.test(path)) {
+    if (
+      body.medicalClearanceConfirmed !== true ||
+      [...healthAlerts.values()].some(
+        (alert) => alert.matchId === safetyMatchId && !alert.acknowledgedAt,
+      )
+    ) {
+      send(response, problem(409, "Medical clearance and acknowledgement are required"), 409);
+      return;
+    }
+    matchState = "LIVE";
+    ok({ id: safetyMatchId, status: matchState });
+    return;
+  }
   if (path === "tournaments" && method === "POST") {
-    ok(makeTournament());
+    const event = tournamentSchema.parse({
+      ...makeTournament(),
+      ...body,
+      minGti: String(body.minGti ?? 0),
+      maxGti: String(body.maxGti ?? 100),
+      prizePool: String(body.prizePool ?? 0),
+    });
+    tournaments.set(event.id, event);
+    ok(event);
+    return;
+  }
+  if (/^tournaments\/[^/]+\/brackets\/[^/]+$/.test(path) && ["PATCH", "DELETE"].includes(method)) {
+    const id = path.split("/")[3]!;
+    const existing = brackets.get(id);
+    if (!existing) {
+      send(response, problem(404, "Bracket not found"), 404);
+      return;
+    }
+    if (method === "DELETE") {
+      brackets.delete(id);
+      ok(existing);
+      return;
+    }
+    const saved = bracketSchema.parse({
+      ...existing,
+      ...body,
+      minGti: String(body.minGti ?? existing.minGti),
+      maxGti: String(body.maxGti ?? existing.maxGti),
+      entryFee: String(body.entryFee ?? existing.entryFee),
+    });
+    brackets.set(id, saved);
+    ok(saved);
+    return;
+  }
+  if (/^tournaments\/[^/]+$/.test(path) && ["PATCH", "DELETE"].includes(method)) {
+    const id = path.split("/")[1]!;
+    const existing = tournaments.get(id);
+    if (!existing) {
+      send(response, problem(404, "Tournament not found"), 404);
+      return;
+    }
+    if (method === "DELETE") {
+      tournaments.delete(id);
+      ok(existing);
+      return;
+    }
+    const saved = tournamentSchema.parse({
+      ...existing,
+      ...body,
+      minGti: String(body.minGti ?? existing.minGti),
+      maxGti: String(body.maxGti ?? existing.maxGti),
+      prizePool: String(body.prizePool ?? existing.prizePool),
+    });
+    tournaments.set(id, saved);
+    ok(saved);
     return;
   }
   if (path.includes("/register")) {
@@ -397,29 +788,32 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (path.endsWith("/brackets")) {
-    const brackets = [
-      makeBracket(),
-      {
+    if (method === "GET") ok(page([...brackets.values()]));
+    else {
+      const id = `40000000-0000-4000-8000-${String(brackets.size + 1).padStart(12, "0")}`;
+      const saved = bracketSchema.parse({
         ...makeBracket(),
-        id: ids.higher,
-        name: "Gold tier",
-        tierName: "GOLD",
-        minGti: "60",
-        maxGti: "100",
-      },
-    ];
-    ok(
-      method === "GET"
-        ? { data: brackets, next_cursor: null, has_more: false, count: 2 }
-        : makeBracket(),
-    );
+        ...body,
+        id,
+        minGti: String(body.minGti),
+        maxGti: String(body.maxGti),
+        entryFee: String(body.entryFee ?? 0),
+      });
+      brackets.set(id, saved);
+      ok(saved);
+    }
     return;
   }
   if (path.startsWith("tournaments/")) {
+    const event = tournaments.get(path.split("/")[1]!);
+    if (!event) {
+      send(response, problem(404, "Tournament not found"), 404);
+      return;
+    }
     ok({
-      ...makeTournament(),
+      ...event,
       ...(foreignOwner ? { organizerId: ids.athlete } : {}),
-      brackets: [makeBracket()],
+      brackets: [...brackets.values()],
     });
     return;
   }
@@ -598,6 +992,13 @@ io.of("/ws/events")
   .on("connection", (socket) => {
     socket.on("join:tournament", (data: { tournamentId: string }) => {
       void socket.join(`tournament:${data.tournamentId}`);
+      if (
+        ["ORGANIZER", "FEDERATION_ADMIN", "SUPER_ADMIN"].includes(
+          String(socket.handshake.auth.token).slice("fixture:".length),
+        ) &&
+        data.tournamentId === ids.tournament
+      )
+        void socket.join(`safety:tournament:${data.tournamentId}`);
     });
   });
 server.listen(4100, "localhost");

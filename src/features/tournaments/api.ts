@@ -60,3 +60,16 @@ export const registerBracket = (id: string, bracketId: string, operation: Mutati
     envelope(registrationSchema),
     operation,
   );
+export const updateTournament = (id: string, operation: MutationOperation) =>
+  mutateApi(`tournaments/${id}`, envelope(tournamentSchema), operation, "PATCH");
+export const deleteTournament = (id: string, operation: MutationOperation) =>
+  mutateApi(`tournaments/${id}`, envelope(tournamentSchema), operation, "DELETE");
+export const updateBracket = (id: string, bracketId: string, operation: MutationOperation) =>
+  mutateApi(`tournaments/${id}/brackets/${bracketId}`, envelope(bracketSchema), operation, "PATCH");
+export const deleteBracket = (id: string, bracketId: string, operation: MutationOperation) =>
+  mutateApi(
+    `tournaments/${id}/brackets/${bracketId}`,
+    envelope(bracketSchema),
+    operation,
+    "DELETE",
+  );

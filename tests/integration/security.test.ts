@@ -105,10 +105,13 @@ describe("relay security boundaries", () => {
       ),
     ).toThrow();
     expect(
-      routeRegistry.some(
+      routeRegistry.find(
         (entry) => entry.method === "PATCH" && entry.pattern.test(`tournaments/${ids.tournament}`),
       ),
-    ).toBe(false);
+    ).toMatchObject({
+      roles: ["ORGANIZER", "FEDERATION_ADMIN", "SUPER_ADMIN"],
+      ownsTournament: true,
+    });
     expect(routeRegistry.some((entry) => entry.pattern.test("gti/leaderboards"))).toBe(false);
   });
 });

@@ -140,3 +140,33 @@ describe("allowlisted relay", () => {
     });
   });
 });
+
+it.each([
+  "tournaments/organizer/summary",
+  `tournaments/${ids.tournament}/brackets/${ids.bracket}/registrations`,
+  `tournaments/${ids.tournament}/brackets/${ids.bracket}/free-agents/pool`,
+  `safety/tournaments/${ids.tournament}/vitals`,
+])("denies athlete access to organizer data: %s", async (path) => {
+  vi.stubEnv("SESSION_STORE", "memory");
+  vi.stubEnv("APP_ENV", "test");
+  vi.stubEnv("APP_ORIGIN", "http://localhost:3001");
+  try {
+    (globalThis as typeof globalThis & { kheleoStore?: MemoryStore }).kheleoStore =
+      new MemoryStore();
+    callNest.mockReset();
+    await saveSession({
+      id: cookie.value,
+      accessToken: "token",
+      refreshToken: "refresh",
+      accessExpiresAt: Date.now() + 900000,
+      expiresAt: Date.now() + 86400000,
+      refreshOperationId: operation,
+      user: makeUser(),
+    });
+    const response = await relay(request(path, "GET"), path.split("/"));
+    expect(response.status).toBe(403);
+    expect(callNest).not.toHaveBeenCalled();
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

@@ -239,6 +239,8 @@ export interface HealthAlertScalar {
   triggerReason: string;
   matchPaused: boolean;
   matchId: string | null;
+  medicalCheckNote: string | null;
+  medicalCheckDispatched: boolean;
   acknowledgedAt: ISODateString | null;
   acknowledgedById: string | null;
   baselineFields: string[];
@@ -318,6 +320,8 @@ export interface VerifiedMatchResultScalar {
   reportedById: string;
   requestKey: string;
   fingerprint: string;
+  matchName: string;
+  scoreSummary: JsonValue;
   participantAthleteIds: string[];
   winnerAthleteIds: string[];
   createdAt: ISODateString;
@@ -334,4 +338,20 @@ export interface OutboxEventScalar {
   deliveredAt: ISODateString | null;
   lastError: string | null;
   createdAt: ISODateString;
+}
+
+export interface TournamentVitalScalar {
+  id: string;
+  tournamentId: string;
+  athleteId: string;
+  bracketId: string | null;
+  matchId: string | null;
+  heartRate: number;
+  spo2: number;
+  skinTemperature: number;
+  severity: AlertSeverity;
+  source: TelemetrySource;
+  baselineFields: string[];
+  observedAt: ISODateString;
+  receivedAt: ISODateString;
 }

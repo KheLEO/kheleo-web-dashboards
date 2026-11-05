@@ -3,7 +3,11 @@ import { useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { createTournamentSchema, type CreateTournamentRequest } from "@/contracts/tournaments";
+import {
+  createTournamentSchema,
+  type CreateTournamentRequest,
+  type TournamentDetail,
+} from "@/contracts/tournaments";
 import { sameOperation, type MutationOperation } from "@/lib/api/operation";
 import { asApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
@@ -15,7 +19,12 @@ import {
   serializeEventDraft,
   validateEventStep,
 } from "@/features/organizer/event-draft";
-import { createTournament } from "./api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSession } from "@/features/auth/session-provider";
+import { CompetitionRulesEditor } from "@/features/organizer/competition-rules-editor";
+import { competitionConfigSchema } from "@/contracts/organizer";
+import { TournamentStatusValues } from "@/contracts/enums.generated";
+import { createTournament, updateTournament, deleteTournament } from "./api";
 import { tournamentFields } from "./schemas";
 const VenuePicker = dynamic(() => import("@/features/organizer/venue-picker.client"), {
   ssr: false,
@@ -26,7 +35,16 @@ const stepFields = [
   ["venueName", "venueLat", "venueLng"],
   ["maxTeams", "teamSize", "prizePool"],
 ];
-export function TournamentForm() {
+interface TournamentFormProps {
+  tournament?: TournamentDetail;
+}
+const localDate = (value: string): string => {
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+export function TournamentForm({ tournament }: TournamentFormProps) {
+  const client = useQueryClient();
+  const { user } = useSession();
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -34,21 +52,39 @@ export function TournamentForm() {
   const flight = useRef(false);
   const operation = useRef<MutationOperation | null>(null);
   const { register, control, getValues, setValue } = useForm<CreateTournamentRequest>({
-    defaultValues: {
-      name: "",
-      sport: "CRICKET",
-      minGti: 0,
-      maxGti: 100,
-      maxTeams: 16,
-      teamSize: 11,
-      prizePool: 0,
-      venueName: "",
-      venueLat: 28.6692,
-      venueLng: 77.4538,
-      registrationDeadline: "",
-      startDate: "",
-      endDate: "",
-    },
+    defaultValues: tournament
+      ? {
+          name: tournament.name || tournament.title,
+          sport: tournament.sport,
+          status: tournament.status,
+          minGti: Number(tournament.minGti),
+          maxGti: Number(tournament.maxGti),
+          maxTeams: tournament.maxTeams,
+          teamSize: tournament.teamSize,
+          prizePool: Number(tournament.prizePool),
+          venueName: tournament.venueName,
+          venueLat: tournament.venueLat,
+          venueLng: tournament.venueLng,
+          registrationDeadline: localDate(tournament.registrationDeadline),
+          startDate: localDate(tournament.startDate),
+          endDate: localDate(tournament.endDate),
+          rulesConfig: competitionConfigSchema.parse(tournament.rulesConfig),
+        }
+      : {
+          name: "",
+          sport: "CRICKET",
+          minGti: 0,
+          maxGti: 100,
+          maxTeams: 16,
+          teamSize: 11,
+          prizePool: 0,
+          venueName: "",
+          venueLat: 28.6692,
+          venueLng: 77.4538,
+          registrationDeadline: "",
+          startDate: "",
+          endDate: "",
+        },
   });
   const values = useWatch({ control });
   async function advance(): Promise<void> {
@@ -66,7 +102,12 @@ export function TournamentForm() {
     try {
       const payload = createTournamentSchema.parse(serializeEventDraft(draft));
       operation.current = sameOperation(operation.current, payload);
-      const result = await createTournament(operation.current);
+      const result = tournament
+        ? await updateTournament(tournament.id, operation.current)
+        : await createTournament(operation.current);
+      void client.invalidateQueries({ queryKey: ["owned-tournaments", user.id] });
+      void client.invalidateQueries({ queryKey: ["organizer-summary", user.id] });
+      void client.invalidateQueries({ queryKey: ["tournament", user.id, result.id] });
       router.push(`/organizer/tournaments/${result.id}`);
     } catch (failure: unknown) {
       setError(asApiError(failure).message);
@@ -133,10 +174,22 @@ export function TournamentForm() {
                 );
               })}
           </div>
+          {step === 0 && tournament && (
+            <label className="field">
+              Tournament status
+              <select aria-label="Tournament status" className="control" {...register("status")}>
+                {TournamentStatusValues.map((status) => (
+                  <option key={status} value={status}>
+                    {status.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {step === 0 && (
             <Alert>
-              Only the six platform sports are supported. Custom sports and editable rules/format
-              descriptions require a backend contract.
+              Choose one of the six platform sports. Role quotas and prize allocation are configured
+              in the capacity step.
             </Alert>
           )}
           {step === 1 && (
@@ -157,9 +210,14 @@ export function TournamentForm() {
                 onFloor={(value) => setValue("minGti", value)}
                 onCeiling={(value) => setValue("maxGti", value)}
               />
+              <CompetitionRulesEditor
+                value={values.rulesConfig as CreateTournamentRequest["rulesConfig"]}
+                onChange={(config) => setValue("rulesConfig", config, { shouldDirty: true })}
+                sport={values.sport ?? "CRICKET"}
+                teamSize={values.teamSize ?? 1}
+              />
               <p className="text-xs leading-5 text-muted-foreground">
-                Prize pool is event-level configuration in INR. Per-place prize allocation, custom
-                role quotas, and payments are not supported. Brackets are created after the event.
+                Prize allocation configures awards in INR. Payment handling is separate.
               </p>
             </>
           )}
@@ -178,8 +236,9 @@ export function TournamentForm() {
                 ))}
               </dl>
               <Alert>
-                Creation saves the event first. You can then add bracket tiers independently.
-                Existing events and saved brackets cannot yet be edited or deleted.
+                {tournament
+                  ? "Review your changes before saving."
+                  : "Creation saves the event first. You can then add and edit bracket tiers."}
               </Alert>
             </>
           )}
@@ -200,8 +259,46 @@ export function TournamentForm() {
             </Button>
           )}
           <Button type="submit" disabled={pending}>
-            {pending ? "Creating…" : step === 3 ? "Create tournament" : "Continue"}
+            {pending
+              ? "Saving…"
+              : step === 3
+                ? tournament
+                  ? "Save tournament changes"
+                  : "Create tournament"
+                : "Continue"}
           </Button>
+          {tournament && (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={pending}
+              onClick={async () => {
+                if (
+                  flight.current ||
+                  !window.confirm(
+                    `Delete ${tournament.name}? This removes its brackets and registrations.`,
+                  )
+                )
+                  return;
+                flight.current = true;
+                setPending(true);
+                try {
+                  operation.current = sameOperation(operation.current, {});
+                  await deleteTournament(tournament.id, operation.current);
+                  void client.invalidateQueries({ queryKey: ["owned-tournaments", user.id] });
+                  void client.invalidateQueries({ queryKey: ["organizer-summary", user.id] });
+                  router.push("/organizer/tournaments");
+                } catch (failure: unknown) {
+                  setError(asApiError(failure).message);
+                } finally {
+                  flight.current = false;
+                  setPending(false);
+                }
+              }}
+            >
+              Delete tournament
+            </Button>
+          )}
         </div>
       </form>
     </Card>
