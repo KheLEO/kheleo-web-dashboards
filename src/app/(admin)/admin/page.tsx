@@ -6,7 +6,7 @@ export default function Page() {
       <PageHeading
         eyebrow="platform owner"
         title="Platform administration"
-        description="Administrative tools activate when their authorized backend capabilities are available."
+        description="Live platform metrics, governance decisions, and immutable security evidence."
       />
       <AdminWorkspace />
     </>

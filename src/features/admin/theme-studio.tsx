@@ -145,7 +145,7 @@ export function ThemeStudio() {
               <li key={check.label}>
                 {check.label}:{" "}
                 {ratio === null
-                  ? "Unavailable"
+                  ? "Not measurable"
                   : `${ratio.toFixed(2)}:1 · ${ratio >= 4.5 ? "AA normal text threshold met" : "Below AA normal text threshold"}`}
               </li>
             );

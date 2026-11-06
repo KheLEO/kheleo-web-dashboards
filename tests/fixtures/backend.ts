@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { adminUserSchema, securityAuditSchema } from "../../src/contracts/admin";
 import {
   scoutDossierSchema,
   outreachSchema,
@@ -23,7 +24,7 @@ let scoutAlertAcknowledged = false;
 let nearbyPages = false;
 let passport = makePassport();
 const seenMutations: string[] = [];
-type FixtureTournament = z.infer<typeof tournamentSchema>;
+type FixtureTournament = z.infer<typeof tournamentSchema> & { isFeatured?: boolean };
 type FixtureBracket = z.infer<typeof bracketSchema>;
 const tournaments = new Map<string, FixtureTournament>();
 const brackets = new Map<string, FixtureBracket>();
@@ -34,6 +35,88 @@ const safetyMatchId = "91000000-0000-4000-8000-000000000001";
 let matchState = "LIVE";
 let matchesRecorded = 0;
 let scoutSearchable = true;
+const adminUsers = new Map<string, z.infer<typeof adminUserSchema>>();
+const adminAudits = new Map<string, z.infer<typeof securityAuditSchema>>();
+let auditCounter = 0;
+let healthDegraded = false;
+function recordAdminAudit(
+  category: z.infer<typeof securityAuditSchema>["category"],
+  severity: z.infer<typeof securityAuditSchema>["severity"],
+  summary: string,
+  targetId: string | null,
+  metadata: JsonValue,
+): void {
+  const id = `98000000-0000-4000-8000-${String(++auditCounter).padStart(12, "0")}`;
+  adminAudits.set(
+    id,
+    securityAuditSchema.parse({
+      id,
+      category,
+      severity,
+      summary,
+      actorUserId: ids.admin,
+      targetId,
+      metadata,
+      ipHash: null,
+      createdAt: new Date(Date.now() + auditCounter).toISOString(),
+    }),
+  );
+}
+function seedAdmin(): void {
+  adminUsers.clear();
+  adminAudits.clear();
+  auditCounter = 0;
+  healthDegraded = false;
+  for (const role of ["ATHLETE", "ORGANIZER", "SCOUT", "SUPER_ADMIN"] as const) {
+    const user = makeUser(role);
+    adminUsers.set(
+      user.id,
+      adminUserSchema.parse({
+        ...user,
+        isActive: true,
+        createdAt: "2026-10-01T00:00:00Z",
+        identityRecord: {
+          status: "VERIFIED",
+          reLinkedCount: 0,
+          verifiedAt: "2026-10-01T00:00:00Z",
+        },
+      }),
+    );
+  }
+  for (let index = 0; index < 24; index++) {
+    const id = `10000000-0000-4000-8000-${String(index + 20).padStart(12, "0")}`;
+    const role = index % 2 === 0 ? "ORGANIZER" : "SCOUT";
+    adminUsers.set(
+      id,
+      adminUserSchema.parse({
+        id,
+        email: `pending-${role.toLowerCase()}-${index}@example.com`,
+        phone: null,
+        role,
+        isActive: index % 3 !== 0,
+        createdAt: "2026-10-01T00:00:00Z",
+        identityRecord: {
+          status: "UNVERIFIED",
+          reLinkedCount: 0,
+          verifiedAt: "2026-10-01T00:00:00Z",
+        },
+      }),
+    );
+  }
+  for (const [category, severity, summary] of [
+    ["GOV_ID_RESET", "WARNING", "Duplicate identity binding blocked"],
+    ["DRILL_HMAC_TAMPER", "CRITICAL", "Invalid drill cryptographic signature"],
+    ["SANDBAGGING_BLOCKED", "WARNING", "Over-ceiling tournament entry blocked"],
+    ["SAFETY_MATCH_PAUSE", "CRITICAL", "Critical telemetry paused a match"],
+    ["ROLE_GOVERNANCE", "INFO", "Scout credentials approved"],
+    ["TOURNAMENT_MODERATION", "INFO", "Tournament placement reviewed"],
+  ] as const)
+    recordAdminAudit(category, severity, summary, ids.athlete, {
+      outcome: "RECORDED",
+      tournamentId: ids.tournament,
+    });
+}
+
 const scoutOutreach = new Map<string, z.infer<typeof outreachRecordSchema>>();
 function leaderboardEntries(): LeaderboardEntry[] {
   return Array.from({ length: 25 }, (_, index) => ({
@@ -155,6 +238,7 @@ function seedOrganizer(): void {
   matchState = "LIVE";
   matchesRecorded = 0;
   scoutSearchable = true;
+  seedAdmin();
   scoutOutreach.clear();
   tournaments.set(ids.tournament, tournamentSchema.parse(makeTournament()));
   brackets.set(ids.bracket, bracketSchema.parse(makeBracket()));
@@ -281,6 +365,11 @@ const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:4100");
   const path = url.pathname.replace(/^\/api\/v1\//, "");
   const method = request.method ?? "GET";
+  if (url.pathname === "/__control__/degraded-health") {
+    healthDegraded = true;
+    send(response, {}, 200, true);
+    return;
+  }
   if (url.pathname === "/ready") {
     send(response, { ready: true }, 200, true);
     return;
@@ -438,6 +527,189 @@ const server = createServer(async (request, response) => {
   if (!request.headers.authorization?.startsWith("Bearer fixture:")) {
     send(response, problem(401, "Missing token"), 401);
     return;
+  }
+  if (path.startsWith("admin/")) {
+    const role = request.headers.authorization?.split(":")[1];
+    if (role !== "SUPER_ADMIN" && role !== "FEDERATION_ADMIN") {
+      send(response, problem(403, "Administrator access required"), 403);
+      return;
+    }
+    const cursorPage = <T extends { id: string }>(entries: T[], descending = false) => {
+      const sorted = [...entries].sort((a, b) =>
+        descending ? b.id.localeCompare(a.id) : a.id.localeCompare(b.id),
+      );
+      const cursor = url.searchParams.get("cursor_id") ?? url.searchParams.get("cursor");
+      const start = cursor ? sorted.findIndex((row) => row.id === cursor) + 1 : 0;
+      const limit = Number(url.searchParams.get("limit") ?? 20);
+      const data = sorted.slice(start, start + limit);
+      const has_more = sorted.length > start + limit;
+      return { data, has_more, next_cursor: has_more ? data.at(-1)!.id : null, count: data.length };
+    };
+    if (path === "admin/dashboard") {
+      ok({
+        totalVerifiedAthletes: [...adminUsers.values()].filter(
+          (user) =>
+            user.role === "ATHLETE" && user.isActive && user.identityRecord?.status === "VERIFIED",
+        ).length,
+        activeTournaments: [...tournaments.values()].filter((event) =>
+          ["REGISTRATION_OPEN", "REGISTRATION_CLOSED", "IN_PROGRESS"].includes(event.status),
+        ).length,
+        totalOrganizersAndScouts: [...adminUsers.values()].filter((user) =>
+          ["ORGANIZER", "SCOUT"].includes(user.role),
+        ).length,
+        totalVerifiedDrills: 8,
+        totalSafetyMatchPauses: [...adminAudits.values()].filter(
+          (event) => event.category === "SAFETY_MATCH_PAUSE",
+        ).length,
+        totalSandbaggingBlocks: [...adminAudits.values()].filter(
+          (event) => event.category === "SANDBAGGING_BLOCKED",
+        ).length,
+        health: {
+          status: healthDegraded ? "degraded" : "ok",
+          db: "ok",
+          redis: healthDegraded ? "unavailable" : "ok",
+          uptime: 500,
+        },
+        dbLatencyMs: 2.5,
+        redisLatencyMs: healthDegraded ? null : 1.25,
+        postgisAvailable: true,
+        postgisLatencyMs: 3.5,
+        bullmqQueuesStatus: ["gti-calculation", "matchmaking", "scout-alerts"].map((name) => ({
+          name,
+          status: healthDegraded ? "unreachable" : "ok",
+          latencyMs: healthDegraded ? null : 2.75,
+          waiting: healthDegraded ? null : 2,
+          active: healthDegraded ? null : 1,
+          delayed: healthDegraded ? null : 0,
+          failed: healthDegraded ? null : 0,
+          completed: healthDegraded ? null : 12,
+        })),
+        observedAt: new Date().toISOString(),
+      });
+      return;
+    }
+    if (path === "admin/users") {
+      ok(
+        cursorPage(
+          [...adminUsers.values()].filter(
+            (user) =>
+              (!url.searchParams.get("role") || user.role === url.searchParams.get("role")) &&
+              (!url.searchParams.get("verificationStatus") ||
+                user.identityRecord?.status === url.searchParams.get("verificationStatus")) &&
+              (!url.searchParams.has("isActive") ||
+                user.isActive === (url.searchParams.get("isActive") === "true")),
+          ),
+        ),
+      );
+      return;
+    }
+    if (/^admin\/users\/[^/]+\/(governance|status)$/.test(path)) {
+      if (role !== "SUPER_ADMIN") {
+        send(response, problem(403, "Only super administrators can govern user accounts"), 403);
+        return;
+      }
+      const id = path.split("/")[2]!;
+      const target = adminUsers.get(id);
+      if (!target) {
+        send(response, problem(404, "User not found"), 404);
+        return;
+      }
+      if (
+        target.role === "SUPER_ADMIN" &&
+        (body.isActive === false || (body.role && body.role !== "SUPER_ADMIN"))
+      ) {
+        send(response, problem(409, "Cannot revoke the last active super administrator"), 409);
+        return;
+      }
+      const updated = adminUserSchema.parse({
+        ...target,
+        ...(body.role ? { role: body.role } : {}),
+        ...(typeof body.isActive === "boolean" ? { isActive: body.isActive } : {}),
+        identityRecord: body.verificationStatus
+          ? { ...target.identityRecord, status: body.verificationStatus }
+          : target.identityRecord,
+      });
+      adminUsers.set(id, updated);
+      recordAdminAudit(
+        "ROLE_GOVERNANCE",
+        body.isActive === false ? "WARNING" : "INFO",
+        "Account credentials or access changed",
+        id,
+        {
+          before: {
+            role: target.role,
+            isActive: target.isActive,
+            verificationStatus: target.identityRecord?.status ?? null,
+          },
+          after: {
+            role: updated.role,
+            isActive: updated.isActive,
+            verificationStatus: updated.identityRecord?.status ?? null,
+          },
+        },
+      );
+      ok(updated);
+      return;
+    }
+    if (path === "admin/tournaments") {
+      ok(
+        cursorPage(
+          [...tournaments.values()]
+            .filter(
+              (event) =>
+                !url.searchParams.get("status") || event.status === url.searchParams.get("status"),
+            )
+            .map((event) => ({ ...event, isFeatured: event.isFeatured ?? false })),
+        ),
+      );
+      return;
+    }
+    if (/^admin\/tournaments\/[^/]+\/(moderation|status)$/.test(path)) {
+      const id = path.split("/")[2]!;
+      const target = tournaments.get(id);
+      if (!target) {
+        send(response, problem(404, "Tournament not found"), 404);
+        return;
+      }
+      const status = body.suspended === true ? "SUSPENDED" : (body.status ?? target.status);
+      if (["COMPLETED", "CANCELLED"].includes(target.status) && status !== target.status) {
+        send(response, problem(409, "A closed tournament cannot be reopened"), 409);
+        return;
+      }
+      const updated = {
+        ...tournamentSchema.parse({ ...target, status }),
+        isFeatured: ["SUSPENDED", "CANCELLED", "COMPLETED"].includes(String(status))
+          ? false
+          : typeof body.featured === "boolean"
+            ? body.featured
+            : (target.isFeatured ?? false),
+      };
+      tournaments.set(id, updated);
+      recordAdminAudit(
+        "TOURNAMENT_MODERATION",
+        status === "SUSPENDED" ? "WARNING" : "INFO",
+        "Tournament moderated",
+        id,
+        { previousStatus: target.status, status: updated.status, isFeatured: updated.isFeatured },
+      );
+      ok(updated);
+      return;
+    }
+    if (path === "admin/audit-logs") {
+      ok(
+        cursorPage(
+          [...adminAudits.values()].filter(
+            (event) =>
+              (!url.searchParams.get("category") ||
+                event.category === url.searchParams.get("category")) &&
+              (!url.searchParams.get("severity") ||
+                event.severity === url.searchParams.get("severity")),
+          ),
+          true,
+        ),
+      );
+      return;
+    }
   }
   if (path === "auth/logout") {
     ok({ success: true });
@@ -618,8 +890,9 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (path.startsWith("users/")) {
+    const target = adminUsers.get(path.split("/")[1]!) ?? makeUser();
     ok({
-      ...makeUser(),
+      ...target,
       isActive: method !== "DELETE",
       createdAt: "2026-10-01T00:00:00.000Z",
       updatedAt: "2026-10-01T00:00:00.000Z",

@@ -72,7 +72,7 @@ Regional views display backend PostGIS aggregates as centroid circles plus a sor
 
 Organizers see five live scoped KPIs, a paginated owned-event directory, populated event editing, and saved bracket editing/deletion. Tournament and bracket JSON configuration stores validated role quotas and per-place prizes. The bracket workspace provides verified team rosters, queued free agents, a matchmaker trigger, persisted sandbagging rejection logs, and named verified match results. Results update sport counters and enqueue GTI recalculation. Prize totals represent configured INR pools rather than payouts.
 
-Super admins inspect known users through the authorized existing API, check frontend session connectivity, and customize the browser theme. Governance, moderation, identity/HMAC/sandbagging audit streams, and infrastructure-health views identify missing contracts. They do not fabricate audit records, operational metrics, or moderation actions.
+Super admins use live executive metrics, paginated user/organizer/scout verification queues, role and activity governance, global tournament moderation, and a categorized immutable security ledger. User decisions require bound identity evidence for approval, revoke refresh-token families, disconnect sockets, and record the administrator’s action. The system view measures PostgreSQL/PostGIS, Redis, BullMQ queue counts/latencies, and the Next.js session round trip. Failed probes are shown explicitly. Audit metadata opens in a read-only drawer; government identity proofs, full drill signatures, and raw IP addresses are excluded. Federation administrators can read admin APIs and moderate tournaments; user governance requires a super administrator.
 
 ## Swappable Golden-Crimson-Silver theme
 

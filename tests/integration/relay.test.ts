@@ -214,6 +214,43 @@ describe("allowlisted relay", () => {
       },
     });
   });
+  it("allows federation admin reads and tournament moderation but denies user governance", async () => {
+    await saveSession({
+      id: cookie.value,
+      accessToken: "token",
+      refreshToken: "refresh",
+      accessExpiresAt: Date.now() + 900000,
+      expiresAt: Date.now() + 86400000,
+      refreshOperationId: operation,
+      user: makeUser("FEDERATION_ADMIN"),
+    });
+    callNest.mockResolvedValue({ success: true, data: {} });
+    for (const path of ["admin/dashboard", "admin/users", "admin/tournaments", "admin/audit-logs"])
+      expect((await relay(request(path, "GET"), path.split("/"))).status).toBe(200);
+    const governance = `admin/users/${ids.organizer}/governance`;
+    expect(
+      (
+        await relay(
+          request(governance, "PATCH", { verificationStatus: "VERIFIED" }),
+          governance.split("/"),
+        )
+      ).status,
+    ).toBe(403);
+    const moderation = `admin/tournaments/${ids.tournament}/moderation`;
+    expect(
+      (await relay(request(moderation, "PATCH", { featured: true }), moderation.split("/"))).status,
+    ).toBe(200);
+  });
+  it("rejects athlete reads and audit mutations without contacting the backend", async () => {
+    expect((await relay(request("admin/dashboard", "GET"), ["admin", "dashboard"])).status).toBe(
+      403,
+    );
+    const path = `admin/audit-logs/${ids.alert}`;
+    expect(
+      (await relay(request(path, "PATCH", { summary: "Changed" }), path.split("/"))).status,
+    ).toBe(404);
+    expect(callNest).not.toHaveBeenCalled();
+  });
 });
 
 it.each([

@@ -1,16 +1,14 @@
 import { PageHeading } from "@/components/shared/page-heading";
-import { DependencyState } from "@/components/shared/dependency-state";
-import { adminRequirements } from "@/features/admin/capability-requirements";
+import { SystemHealth } from "@/features/admin/system-health";
 export default function Page() {
-  const requirement = adminRequirements["system"];
   return (
     <>
       <PageHeading
         eyebrow="platform administration"
-        title={requirement.title}
+        title="Platform health monitoring"
         description="Authorized platform oversight"
       />
-      <DependencyState {...requirement} />
+      <SystemHealth />
     </>
   );
 }

@@ -335,11 +335,11 @@ test("organizer can create an event through the validated relay", async ({ page 
   await expect(page).toHaveURL(`/organizer/tournaments/${ids.tournament}`);
   await expect(page.getByRole("heading", { name: "Varanasi Grassroots Cup" })).toBeVisible();
 });
-test("admin tools clearly display dependencies", async ({ page }) => {
+test("admin security tools display persisted rejection evidence", async ({ page }) => {
   await login(page, "admin");
   await expect(page.getByRole("heading", { name: "Platform administration" })).toBeVisible();
   await page.goto("/admin/security-audit");
-  await expect(page.getByText("Persistent HMAC rejection", { exact: false })).toBeVisible();
+  await expect(page.getByRole("table")).toContainText("Invalid drill cryptographic signature");
 });
 
 test("scout feed, authorized passport, and regional table use actual wire projections", async ({
@@ -1044,14 +1044,24 @@ test("policy accounts use the scout workspace and logout clears private passport
   expect(result.status()).toBe(403);
 });
 
-test("admin dashboard and governance expose only supported account inspection", async ({
+test("admin dashboard shows live executive totals, relay health and the UUID inspector", async ({
   page,
 }) => {
   const paths: string[] = [];
   page.on("request", (request) => paths.push(new URL(request.url()).pathname));
   await login(page, "admin");
   await page.goto("/admin/dashboard");
-  await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(6);
+  for (const [label, value] of [
+    ["Verified athletes", "1"],
+    ["Active tournaments", "1"],
+    ["Organizers and scouts", "26"],
+    ["Verified Edge-AI drills", "8"],
+    ["IoT safety pauses", "1"],
+    ["Sandbagging blocks", "1"],
+  ] as const) {
+    await expect(page.getByRole("group", { name: label, exact: true })).toContainText(value!);
+  }
+  await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Check web session", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Web session responded for SUPER_ADMIN" }),
@@ -1059,32 +1069,43 @@ test("admin dashboard and governance expose only supported account inspection", 
   await page.goto("/admin/users");
   await page.getByLabel("User UUID", { exact: true }).fill(ids.athlete);
   await page.getByRole("button", { name: "Inspect user", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Account details", exact: true })).toBeVisible();
-  await expect(page.getByText("ATHLETE · Active", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Verify organizer / scout", exact: true }),
-  ).toBeDisabled();
-  await expect(
-    page.getByRole("button", { name: "Revoke credentials", exact: true }),
-  ).toBeDisabled();
-  expect(paths.some((path) => path.startsWith("/api/backend/admin/"))).toBe(false);
+  await expect(page.getByRole("group", { name: "Inspected account details" })).toContainText(
+    "ATHLETE · Active",
+  );
+  expect(paths.some((path) => path === "/api/backend/admin/dashboard")).toBe(true);
+  expect(paths.some((path) => path === "/api/backend/admin/users")).toBe(true);
 });
 
-test("audit console separates missing ledgers without fabricating records", async ({ page }) => {
+test("audit console filters immutable records and opens structured metadata", async ({ page }) => {
   await login(page, "admin");
   await page.goto("/admin/audit-logs");
-  for (const [value, title] of [
-    ["identity", "Identity and anti-account-reset audit"],
-    ["drills", "Edge-AI HMAC and replay audit"],
-    ["sandbagging", "Anti-sandbagging enforcement audit"],
-    ["safety", "Autonomous safety incident registry"],
-  ]) {
-    if (!value || !title) throw new Error("Audit fixture missing");
-    await page.getByLabel("Audit stream", { exact: true }).selectOption(value);
-    await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+  const table = page.getByRole("table", { name: "Immutable platform security events" });
+  await expect(table.getByRole("row")).toHaveCount(7);
+  for (const [label, category] of [
+    ["Gov-ID Anti-Reset", "GOV_ID_RESET"],
+    ["Edge-AI HMAC Tamper", "DRILL_HMAC_TAMPER"],
+    ["Anti-Sandbagging Blocks", "SANDBAGGING_BLOCKED"],
+    ["IoT Safety Match Pauses", "SAFETY_MATCH_PAUSE"],
+    ["Governance", "ROLE_GOVERNANCE"],
+  ] as const) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect(table.getByRole("row")).toHaveCount(2);
+    await expect(table).toContainText(category!);
   }
-  await expect(page.getByRole("table")).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: "Athlete UUID" })).toBeDisabled();
+  await page
+    .getByLabel("Governance category", { exact: true })
+    .selectOption("TOURNAMENT_MODERATION");
+  await expect(table).toContainText("TOURNAMENT_MODERATION");
+  await table.getByRole("button", { name: /^View metadata for / }).click();
+  await expect(page.getByRole("dialog")).toContainText('"outcome": "RECORDED"');
+  await page.getByRole("button", { name: "Close audit metadata", exact: true }).click();
+  await page.getByLabel("Audit severity", { exact: true }).selectOption("CRITICAL");
+  await expect(
+    page.getByText("No security events match these filters.", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "All Events", exact: true }).click();
+  await expect(table.getByRole("row")).toHaveCount(3);
+  await expect(page.getByRole("button", { name: /Delete audit|Edit audit/ })).toHaveCount(0);
   await page.setViewportSize({ width: 360, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -1803,4 +1824,125 @@ test("an athlete opting out prevents dossier reads and hides outreach controls",
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Verified HMAC Drill Evidence" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Offer Academy Trial" })).toHaveCount(0);
+});
+
+test("admin verification queues approve and revoke organizer and scout credentials with durable audit records", async ({
+  page,
+}) => {
+  await login(page, "admin");
+  await page.goto("/admin/organizers");
+  const organizer = "pending-organizer-0@example.com";
+  const account = () => page.getByRole("group", { name: `Account ${organizer}`, exact: true });
+  await expect(account()).toContainText("UNVERIFIED");
+  const saved = page.waitForResponse(
+    (response) => response.request().method() === "PATCH" && response.url().endsWith("/governance"),
+  );
+  await account().getByRole("button", { name: "Approve credentials", exact: true }).click();
+  expect((await saved).status()).toBe(200);
+  await expect(account()).toHaveCount(0);
+  await page.getByLabel("Verification status", { exact: true }).selectOption("VERIFIED");
+  await expect(account()).toContainText("VERIFIED");
+  await expect(account()).toContainText("Active");
+  page.once("dialog", (dialog) => {
+    void dialog.accept();
+  });
+  await account().getByRole("button", { name: "Revoke credentials", exact: true }).click();
+  await expect(account()).toHaveCount(0);
+  await page.getByLabel("Verification status", { exact: true }).selectOption("REVOKED");
+  await expect(account()).toContainText("Inactive");
+  await page.getByLabel("Directory role", { exact: true }).selectOption("SCOUT");
+  await page.getByLabel("Verification status", { exact: true }).selectOption("UNVERIFIED");
+  const scout = page.getByRole("group", {
+    name: "Account pending-scout-1@example.com",
+    exact: true,
+  });
+  await scout.getByRole("button", { name: "Approve credentials", exact: true }).click();
+  await expect(scout).toHaveCount(0);
+  await page.goto("/admin/audit-logs");
+  await page.getByRole("button", { name: "Governance", exact: true }).click();
+  await expect(page.getByRole("table")).toContainText("Account credentials or access changed");
+  await page
+    .getByRole("table")
+    .getByRole("button", { name: /^View metadata for / })
+    .first()
+    .click();
+  await expect(page.getByRole("dialog")).toContainText('"verificationStatus": "VERIFIED"');
+});
+
+test("admin user directory paginates every account and preserves inactive filters", async ({
+  page,
+}) => {
+  await login(page, "admin");
+  await page.goto("/admin/users");
+  const accounts = page.getByRole("group", { name: /^Account / });
+  await expect(accounts).toHaveCount(20);
+  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await expect(accounts).toHaveCount(28);
+  await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(0);
+  const filtered = page.waitForRequest(
+    (request) =>
+      request.url().includes("/admin/users?") &&
+      new URL(request.url()).searchParams.get("isActive") === "false",
+  );
+  await page.getByLabel("Account state", { exact: true }).selectOption("false");
+  await filtered;
+  await expect(accounts).toHaveCount(8);
+  await page.getByLabel("Directory role", { exact: true }).selectOption("SCOUT");
+  await expect(accounts).toHaveCount(4);
+  await expect(accounts.first()).toContainText("Inactive");
+});
+
+test("global tournament moderation persists featured placement, suspension and final status", async ({
+  page,
+}) => {
+  await login(page, "admin");
+  await page.goto("/admin/tournaments");
+  const table = page.getByRole("table", { name: "Platform-wide tournament moderation" });
+  await table.getByRole("button", { name: "Feature tournament", exact: true }).click();
+  await expect(table).toContainText("Featured");
+  page.once("dialog", (dialog) => {
+    void dialog.accept();
+  });
+  await table.getByRole("button", { name: "Suspend tournament", exact: true }).click();
+  await expect(table.getByRole("combobox")).toHaveValue("SUSPENDED");
+  await page
+    .getByLabel("Set status for Varanasi Grassroots Cup", { exact: true })
+    .selectOption("IN_PROGRESS");
+  await expect(table.getByRole("combobox")).toHaveValue("IN_PROGRESS");
+  await page
+    .getByLabel("Set status for Varanasi Grassroots Cup", { exact: true })
+    .selectOption("COMPLETED");
+  await expect(table.getByRole("combobox")).toHaveValue("COMPLETED");
+  await expect(table).toContainText("Standard listing");
+  await page.getByLabel("Tournament status filter", { exact: true }).selectOption("COMPLETED");
+  await expect(table).toContainText("Varanasi Grassroots Cup");
+  await page.goto("/admin/audit-logs");
+  await page.getByRole("button", { name: "Governance", exact: true }).click();
+  await page
+    .getByLabel("Governance category", { exact: true })
+    .selectOption("TOURNAMENT_MODERATION");
+  await page
+    .getByRole("table")
+    .getByRole("button", { name: /^View metadata for / })
+    .first()
+    .click();
+  await expect(page.getByRole("dialog")).toContainText('"status": "COMPLETED"');
+});
+
+test("system monitoring distinguishes failed probes from measured latencies", async ({
+  page,
+  request,
+}) => {
+  await login(page, "admin");
+  await page.goto("/admin/system");
+  await expect(page.getByText("1.25 ms · ok", { exact: true })).toBeVisible();
+  await expect(page.getByRole("table")).toContainText("gti-calculation");
+  await request.post("http://localhost:4100/__control__/degraded-health");
+  await page.getByRole("button", { name: "Refresh subsystem health", exact: true }).click();
+  await expect(page.getByText("degraded", { exact: true })).toBeVisible();
+  await expect(page.getByText("Probe failed · unavailable", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("table").getByRole("cell", { name: "unreachable", exact: true }),
+  ).toHaveCount(3);
+  await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(0);
 });

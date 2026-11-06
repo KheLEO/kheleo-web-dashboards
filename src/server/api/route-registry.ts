@@ -1,5 +1,12 @@
 import { withGtiAliases } from "./gti-aliases";
 import "server-only";
+import {
+  adminUsersQuerySchema,
+  adminTournamentsQuerySchema,
+  auditQuerySchema,
+  governanceSchema,
+  moderationSchema,
+} from "@/contracts/admin";
 import { z } from "zod";
 import { cursorQuerySchema } from "@/contracts/common";
 import { governmentIdSchema } from "@/contracts/auth";
@@ -41,6 +48,45 @@ const scouts: readonly UserRole[] = ["SCOUT", "FEDERATION_ADMIN", "SUPER_ADMIN"]
 const organizers: readonly UserRole[] = ["ORGANIZER", "FEDERATION_ADMIN", "SUPER_ADMIN"];
 const athletes: readonly UserRole[] = ["ATHLETE", "SUPER_ADMIN"];
 export const routeRegistry: readonly RelayRoute[] = [
+  {
+    method: "GET",
+    pattern: path("admin/dashboard"),
+    query: noQuery,
+    roles: ["SUPER_ADMIN", "FEDERATION_ADMIN"],
+  },
+  {
+    method: "GET",
+    pattern: path("admin/users"),
+    query: adminUsersQuerySchema,
+    roles: ["SUPER_ADMIN", "FEDERATION_ADMIN"],
+  },
+  {
+    method: "GET",
+    pattern: path("admin/tournaments"),
+    query: adminTournamentsQuerySchema,
+    roles: ["SUPER_ADMIN", "FEDERATION_ADMIN"],
+  },
+  {
+    method: "GET",
+    pattern: path("admin/audit-logs"),
+    query: auditQuerySchema,
+    roles: ["SUPER_ADMIN", "FEDERATION_ADMIN"],
+  },
+  {
+    method: "PATCH",
+    pattern: path(`admin/users/${uuid}/(?:governance|status)`),
+    body: governanceSchema,
+    query: noQuery,
+    roles: ["SUPER_ADMIN"],
+  },
+  {
+    method: "PATCH",
+    pattern: path(`admin/tournaments/${uuid}/(?:moderation|status)`),
+    body: moderationSchema,
+    query: noQuery,
+    roles: ["SUPER_ADMIN", "FEDERATION_ADMIN"],
+  },
+
   {
     method: "GET",
     pattern: path("gti/leaderboards"),

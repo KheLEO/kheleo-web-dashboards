@@ -12,6 +12,8 @@ import type {
   FreeAgentStatus,
   AlertSeverity,
   RegistrationStatus,
+  AuditCategory,
+  AuditSeverity,
   DrillSignatureVersion,
   TelemetrySource,
 } from "./enums.generated";
@@ -295,6 +297,12 @@ export interface IdempotencyRecordScalar {
 }
 
 export interface SecurityAuditLogScalar {
+  category: AuditCategory;
+  severity: AuditSeverity;
+  actorUserId: string | null;
+  targetId: string | null;
+  summary: string;
+  ipHash: string | null;
   id: string;
   userId: string | null;
   action: string;

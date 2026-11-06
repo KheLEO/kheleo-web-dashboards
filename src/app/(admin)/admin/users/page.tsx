@@ -6,7 +6,7 @@ export default function Page() {
       <PageHeading
         eyebrow="platform owner"
         title="User and organizer governance"
-        description="Inspect known accounts and review moderation capability requirements."
+        description="Review verification evidence, manage roles and access, and inspect known accounts."
       />
       <GovernanceWorkspace />
     </>

@@ -98,6 +98,20 @@ export const RegistrationStatusValues = [
 ] as const;
 export type RegistrationStatus = (typeof RegistrationStatusValues)[number];
 
+export const AuditCategoryValues = [
+  "GOV_ID_RESET",
+  "DRILL_HMAC_TAMPER",
+  "SANDBAGGING_BLOCKED",
+  "SAFETY_MATCH_PAUSE",
+  "ROLE_GOVERNANCE",
+  "TOURNAMENT_MODERATION",
+  "SYSTEM_EVENT",
+] as const;
+export type AuditCategory = (typeof AuditCategoryValues)[number];
+
+export const AuditSeverityValues = ["INFO", "WARNING", "CRITICAL"] as const;
+export type AuditSeverity = (typeof AuditSeverityValues)[number];
+
 export const DrillSignatureVersionValues = ["LEGACY", "FULL", "FULL_V2"] as const;
 export type DrillSignatureVersion = (typeof DrillSignatureVersionValues)[number];
 

@@ -1,5 +1,26 @@
 # Verification evidence
 
+## Prompt 4 verification — 6 November 2026
+
+Prompt 3's scoped leaderboard API calls, dossier/outreach actions, and state-qualified regional UI/exports were verified before admin implementation. Baseline contracts, types, and all 146 frontend tests passed.
+
+| Check                                                                       | Result                                     |
+| --------------------------------------------------------------------------- | ------------------------------------------ |
+| `pnpm contracts:sync` / `pnpm contracts:check`                              | Passed against the adjacent backend schema |
+| Frontend `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, `pnpm build`   | Passed                                     |
+| Frontend `pnpm test`                                                        | 28 files, 151 tests passed                 |
+| `pnpm test:e2e`                                                             | 61 Chromium tests passed                   |
+| Backend `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm exec prisma validate` | Passed                                     |
+| Backend `pnpm test`                                                         | 196 tests passed                           |
+
+New coverage checks authenticated admin reads, super-admin-only governance on both route aliases, federation tournament moderation, false-valued directory filters, approval with bound identity evidence, refresh-family revocation, authoritative audit actors, terminal tournament state, durable tampered/stale HMAC rejection records, hashed IPs, and measured/failed health probes. Migrated embedded PostgreSQL verifies audit categorization, actual safety-pause capture, actor retention after deletion, and UPDATE/DELETE/TRUNCATE rejection. Browser tests verify six live KPIs, all-account pagination, organizer/scout approval and revocation, feature/suspension/status moderation, category/severity filters, metadata drawers, and degraded subsystem reporting.
+
+A full regression run exposed locale-aware numeric UUID sorting in the database test double. The fixture now uses PostgreSQL-compatible UUID ordering; the production scout query remains currentGti descending and UUID ascending.
+
+Deploy migration `20261106030000_admin_security_ledger` before the updated backend. It adds categorized audit fields and an index, classifies historical rows transactionally, and retains the append-only protections. Successful historical events remain SYSTEM_EVENT rather than being mislabeled as tampering. Historical identity actors without reliable provenance remain unattributed.
+
+Browser E2E uses deterministic backend fixtures; queue probes use doubles in unit tests. Embedded PostgreSQL exercises real migration/trigger behavior. These checks do not establish hosted database/Redis/BullMQ reliability, worker throughput, native deployment concurrency, or production deployment.
+
 ## Prompt 3 verification — 6 November 2026
 
 Prompt 2's organizer routes were checked for dependency placeholders before implementation. Baseline `pnpm test` passed all 140 tests and `pnpm test:e2e` passed all 54 tests.

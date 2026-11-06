@@ -43,7 +43,7 @@ export function UserInspector() {
             }}
           />
         ) : (
-          <Card>
+          <Card role="group" aria-label="Inspected account details">
             <h2 className="mb-4 text-lg font-semibold">Account details</h2>
             <dl className="space-y-3 text-sm">
               <div>
@@ -53,7 +53,7 @@ export function UserInspector() {
               <div>
                 <dt className="text-muted-foreground">Contact</dt>
                 <dd className="break-words">
-                  {query.data.email ?? query.data.phone ?? "Unavailable"}
+                  {query.data.email ?? query.data.phone ?? "No contact recorded"}
                 </dd>
               </div>
               <div>
@@ -68,8 +68,8 @@ export function UserInspector() {
               </div>
             </dl>
             <p className="mt-4 text-xs text-muted-foreground">
-              This projection does not include organizer/scout approval or government verification
-              status. Account activity is not proof of credential approval.
+              Use the verification queue above to review identity status and record governance
+              decisions.
             </p>
           </Card>
         ))}

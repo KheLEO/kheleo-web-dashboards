@@ -1,16 +1,14 @@
 import { PageHeading } from "@/components/shared/page-heading";
-import { DependencyState } from "@/components/shared/dependency-state";
-import { adminRequirements } from "@/features/admin/capability-requirements";
+import { TournamentModeration } from "@/features/admin/tournament-moderation";
 export default function Page() {
-  const requirement = adminRequirements["tournaments"];
   return (
     <>
       <PageHeading
         eyebrow="platform administration"
-        title={requirement.title}
+        title="Tournament moderation"
         description="Authorized platform oversight"
       />
-      <DependencyState {...requirement} />
+      <TournamentModeration />
     </>
   );
 }

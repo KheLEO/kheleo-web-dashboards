@@ -76,6 +76,20 @@ Outreach accepts `{ actionType: OFFER_TRIAL | SPONSORSHIP_INQUIRY | SHORTLIST_BO
 
 Regional aggregation groups `(state, district)` and uses `COALESCE(NULLIF(gti, 0), current_gti, 0)` on both PostGIS and Prisma paths. `is_complete=false` means more than 500 groups exist. State is carried through map labels and exports; incomplete results are labeled partial.
 
+## Administration and immutable security ledger
+
+Admin APIs require JWT authentication and SUPER_ADMIN or FEDERATION_ADMIN. User governance, including the legacy status alias, requires SUPER_ADMIN. Tournament moderation accepts both administrator roles. `GET admin/dashboard` returns six executive counters plus measured DB/Redis latencies, PostGIS availability/latency, queue status/counts/latencies, and observation time. Safety-pause and sandbagging totals use the immutable ledger; staff totals include pending/inactive accounts, while the athlete count requires active verified identities. Legacy dashboard field aliases remain supported.
+
+`GET admin/users` filters by role, isActive (true/false), and verificationStatus. `PATCH admin/users/:id/governance` accepts role, isActive, and verificationStatus. Verification cannot invent an identity record. All decisions revoke active refresh families and disconnect sockets; the last active super administrator is protected. `GET admin/tournaments` filters status; `PATCH admin/tournaments/:id/moderation` accepts status, featured, or suspended. Suspended/closed events lose featured placement, and terminal results cannot be reopened. Legacy `/status` aliases remain available.
+
+`GET admin/audit-logs` filters category and severity and returns stable IDs, original timestamps, actor/target IDs, summaries, safe metadata, and optional IP hash. All admin lists support UUID `cursor_id` (plus legacy cursor), bounded limits, and `{ data, next_cursor, has_more, count }` with nextCursor retained for compatibility.
+
+Requested categories are GOV_ID_RESET, DRILL_HMAC_TAMPER, SANDBAGGING_BLOCKED, SAFETY_MATCH_PAUSE, ROLE_GOVERNANCE, and TOURNAMENT_MODERATION. SYSTEM_EVENT preserves successful historical events without labeling them as tampering. Insert-time database normalization classifies older writer paths. HMAC rejection auditing is awaited before returning the error; stale requests and invalid signatures persist reason codes without raw payloads/signatures. Identity duplicate registration attempts have no attributed actor; known binding callers are recorded explicitly. Safety audits reflect actual critical match pauses, with no raw vital readings in the ledger.
+
+Audit UPDATE, DELETE, and TRUNCATE remain prohibited by database triggers. Categorization backfill executes transactionally during migration, restoring protection before commit. Actor IDs remain after account deletion. The admin projection excludes legacy raw IP/user-agent columns; new drill-rejection IPs are HMAC hashed.
+
+Queue diagnostics measure Redis-backed queue access and counts; they do not certify worker throughput. Public `/health` retains its existing contract. The private dashboard reports explicit failed/unreachable probes and does not substitute zero latency for an outage.
+
 ## Signing and idempotency
 
 Protected mutations require Idempotency-Key, minimum 16 characters; this frontend uses UUIDs. Backend cache scope includes authenticated identity, method, route, and key, body-fingerprinted, retained for 24 hours, with a 300-second processing lock. Use globally random operation IDs and never share operation objects between accounts.
