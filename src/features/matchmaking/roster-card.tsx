@@ -10,7 +10,7 @@ export function RosterCard({ name, roster }: { name: string; roster: RosterMembe
           Complementary roster formed · Team average GTI:{" "}
           {roster.length
             ? (roster.reduce((sum, member) => sum + member.gti, 0) / roster.length).toFixed(1)
-            : "Unavailable"}
+            : "No roster members recorded"}
         </p>
       </div>
       <Table>

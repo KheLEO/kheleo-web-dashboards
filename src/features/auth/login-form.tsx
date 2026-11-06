@@ -6,9 +6,13 @@ import { SchemaForm } from "@/components/ui/form";
 import { loginSchema } from "@/contracts/auth";
 import { homeForRole } from "@/server/auth/permissions";
 import { authenticate } from "./api";
+import { useContactProof } from "./use-contact-proof";
+import { sameOperation, type MutationOperation } from "@/lib/api-client";
 import { authFields } from "./schemas";
 export function LoginForm() {
   const router = useRouter();
+  const proof = useContactProof();
+  const authenticatedOperation = useRef<MutationOperation | null>(null);
   const client = useQueryClient();
   const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -18,22 +22,29 @@ export function LoginForm() {
     [],
   );
   return (
-    <SchemaForm
-      fields={authFields}
-      schema={loginSchema}
-      submitLabel="Sign in securely"
-      submit={async (_value, operation) => {
-        const session = await authenticate("login", operation);
-        window.dispatchEvent(new Event("kheleo:session-ended"));
-        client.clear();
-        const destination = homeForRole(session.user.role);
-        if (fallback.current) clearTimeout(fallback.current);
-        fallback.current = setTimeout(() => {
-          if (window.location.pathname === "/login")
-            window.location.replace(new URL(destination, window.location.origin).href);
-        }, 10000);
-        router.replace(destination);
-      }}
-    />
+    <>
+      {proof.dialog}
+      <SchemaForm
+        fields={authFields}
+        schema={loginSchema}
+        submitLabel="Sign in securely"
+        submit={async (value, operation) => {
+          const identityAccessToken = await proof.verify(value, false);
+          authenticatedOperation.current = identityAccessToken
+            ? sameOperation(authenticatedOperation.current, { ...value, identityAccessToken })
+            : operation;
+          const session = await authenticate("login", authenticatedOperation.current);
+          window.dispatchEvent(new Event("kheleo:session-ended"));
+          client.clear();
+          const destination = homeForRole(session.user.role);
+          if (fallback.current) clearTimeout(fallback.current);
+          fallback.current = setTimeout(() => {
+            if (window.location.pathname === "/login")
+              window.location.replace(new URL(destination, window.location.origin).href);
+          }, 10000);
+          router.replace(destination);
+        }}
+      />
+    </>
   );
 }

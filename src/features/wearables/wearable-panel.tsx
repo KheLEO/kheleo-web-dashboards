@@ -146,7 +146,7 @@ export function WearablePanel() {
         <MetricCard
           icon={HeartPulse}
           label="Heart rate"
-          value={reading ? `${reading.heartRate} bpm` : "Unavailable"}
+          value={reading ? `${reading.heartRate} bpm` : "Awaiting reading"}
           detail={
             reading
               ? `${reading.source === "simulator" ? "Simulated" : "Hardware"} reading`
@@ -156,25 +156,31 @@ export function WearablePanel() {
         <MetricCard
           icon={Droplets}
           label="SpO₂"
-          value={reading?.spo2 != null ? `${reading.spo2}%` : "Unavailable"}
+          value={reading?.spo2 != null ? `${reading.spo2}%` : "Awaiting reading"}
           detail={
             reading?.source === "simulator"
               ? "Simulated oxygen saturation"
               : reading?.baselineFields?.includes("spo2")
                 ? "Baseline default · not measured"
-                : "Oximeter measurement"
+                : reading
+                  ? "Oximeter measurement"
+                  : "Connect an oximeter or a labeled baseline source"
           }
         />
         <MetricCard
           icon={Thermometer}
           label="Skin temperature"
-          value={reading?.skinTemperature != null ? `${reading.skinTemperature}°C` : "Unavailable"}
+          value={
+            reading?.skinTemperature != null ? `${reading.skinTemperature}°C` : "Awaiting reading"
+          }
           detail={
             reading?.source === "simulator"
               ? "Simulated skin temperature"
               : reading?.baselineFields?.includes("skin_temperature")
                 ? "Baseline default · not measured"
-                : "Thermometer measurement"
+                : reading
+                  ? "Thermometer measurement"
+                  : "Connect a thermometer or a labeled baseline source"
           }
         />
       </div>

@@ -5,6 +5,10 @@ const socketOrigin = resolveSocketOrigin(
   process.env.NEXT_PUBLIC_SOCKET_ORIGIN ?? process.env.NEXT_PUBLIC_WS_URL,
 );
 
+const identityOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+  : "";
+
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -30,6 +34,8 @@ const config: NextConfig = {
               socketOrigin +
               " " +
               socketOrigin.replace(/^http/, "ws") +
+              " " +
+              identityOrigin +
               "; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
           },
         ],

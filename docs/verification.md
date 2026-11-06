@@ -1,125 +1,52 @@
-# Verification evidence
+# Final full-stack acceptance — 6 November 2026
 
-## Prompt 4 verification — 6 November 2026
+**READY FOR PRODUCTION DEPLOYMENT** for the verified release artifacts. All requested local gates pass. The fresh [backend native verification](https://github.com/KheLEO/kheleo-core-backend/actions/runs/42140215984) covers Node 22 and 24, PostgreSQL 16/PostGIS, Redis 7, real production HTTP/Socket.IO/BullMQ and non-root containers. Owner deployment acceptance remains required; this is not a claim that a live customer environment, physical sensors or clinical outcomes were certified.
 
-Prompt 3's scoped leaderboard API calls, dossier/outreach actions, and state-qualified regional UI/exports were verified before admin implementation. Baseline contracts, types, and all 146 frontend tests passed.
+## Measured gates
 
-| Check                                                                       | Result                                     |
-| --------------------------------------------------------------------------- | ------------------------------------------ |
-| `pnpm contracts:sync` / `pnpm contracts:check`                              | Passed against the adjacent backend schema |
-| Frontend `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, `pnpm build`   | Passed                                     |
-| Frontend `pnpm test`                                                        | 28 files, 151 tests passed                 |
-| `pnpm test:e2e`                                                             | 61 Chromium tests passed                   |
-| Backend `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm exec prisma validate` | Passed                                     |
-| Backend `pnpm test`                                                         | 196 tests passed                           |
+| Frontend command                               | Result                                                                      |
+| ---------------------------------------------- | --------------------------------------------------------------------------- |
+| `pnpm contracts:sync` / `pnpm contracts:check` | Pass; adjacent Prisma snapshot and generated strict types agree             |
+| `pnpm lint`                                    | Pass, zero warnings                                                         |
+| `pnpm format:check`                            | Pass                                                                        |
+| `pnpm typecheck`                               | Pass, installed Next.js route types and strict TypeScript                   |
+| `pnpm test`                                    | **213 tests, 30 files, all pass**                                           |
+| `pnpm build`                                   | Pass, Next.js production build and MediaPipe/model asset preparation        |
+| `pnpm test:e2e`                                | **61 Chromium tests, all pass**, including 360px/1920px portal route matrix |
 
-New coverage checks authenticated admin reads, super-admin-only governance on both route aliases, federation tournament moderation, false-valued directory filters, approval with bound identity evidence, refresh-family revocation, authoritative audit actors, terminal tournament state, durable tampered/stale HMAC rejection records, hashed IPs, and measured/failed health probes. Migrated embedded PostgreSQL verifies audit categorization, actual safety-pause capture, actor retention after deletion, and UPDATE/DELETE/TRUNCATE rejection. Browser tests verify six live KPIs, all-account pagination, organizer/scout approval and revocation, feature/suspension/status moderation, category/severity filters, metadata drawers, and degraded subsystem reporting.
+| Backend command                                      | Result                                                                                                                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm prisma:generate` / `pnpm exec prisma validate` | Pass                                                                                                                                                         |
+| `pnpm exec tsc --noEmit` / `pnpm build`              | Pass                                                                                                                                                         |
+| `pnpm test`                                          | **196 tests, all pass**, including real migrated embedded PostGIS                                                                                            |
+| `pnpm audit:probes`                                  | **5 pass, 0 fail**; no reproduced vulnerabilities in the active probe set                                                                                    |
+| `node scripts/verify-entrypoints.cjs`                | Both `dist/main.js` and `dist/src/main.js` resolve and initialize modules; unavailable local infrastructure is explicitly distinguished from boot acceptance |
+| Hosted native migration/start/smoke/image gates      | Pass on Node 22/24; real PostgreSQL/PostGIS and Redis, production start, HTTP, Socket.IO, queue GTI and non-root container health                            |
 
-A full regression run exposed locale-aware numeric UUID sorting in the database test double. The fixture now uses PostgreSQL-compatible UUID ordering; the production scout query remains currentGti descending and UUID ascending.
+Local runtime: Node 24.19.0, frontend pnpm 11.24.0, backend pnpm 10.32.0. The embedded PostGIS WASM full suite runs on Node 24 in CI; Node 22 independently compiles and runs native service/exploit/production/container gates. Local Docker/PostgreSQL/Redis were unavailable, so fresh hosted results supply the native-service evidence.
 
-Deploy migration `20261106030000_admin_security_ledger` before the updated backend. It adds categorized audit fields and an index, classifies historical rows transactionally, and retains the append-only protections. Successful historical events remain SYSTEM_EVENT rather than being mislabeled as tampering. Historical identity actors without reliable provenance remain unattributed.
+## Scope and reproducibility
 
-Browser E2E uses deterministic backend fixtures; queue probes use doubles in unit tests. Embedded PostgreSQL exercises real migration/trigger behavior. These checks do not establish hosted database/Redis/BullMQ reliability, worker throughput, native deployment concurrency, or production deployment.
+The entire frontend/backend `src` inventory was scanned, including all four portal route trees and their handlers. [Source manifest](contracts/source-audit.json) records content hashes. No `DependencyState` usages, quoted `Unavailable` metric placeholders, TODO/FIXME, `SCORING_NOT_APPROVED` or `HARDWARE_CONTRACT_PENDING` markers remain in either source tree. Missing measurements display an explicit awaiting-reading state; error paths expose retry controls instead of invented values.
 
-## Prompt 3 verification — 6 November 2026
+[Controller inventory](contracts/backend-routes.json) contains **65 HTTP operations across 53 paths**, generated from compiled controllers. `tests/contracts/route-coverage.test.ts` checks every one of the **54 relay rules** against actual backend methods/paths, plus register/login/refresh/logout session operations. Prisma generation alone does not prove HTTP alignment; operation schemas, integration tests and native smoke complement it.
 
-Prompt 2's organizer routes were checked for dependency placeholders before implementation. Baseline `pnpm test` passed all 140 tests and `pnpm test:e2e` passed all 54 tests.
+Prompt 5 closes the production login gap with real Supabase OTP acquisition and an accessible verification dialog. Provider contact calls exclude government ID, provider failures surface, cancellation never supplies an unverified proof, and pending organizer/scout registration shows an approval notice. Backend production contact verification remains fail-closed. Tests use the actual provider SDK against controlled HTTP responses; actual SMTP/SMS delivery is an owner acceptance step.
 
-| Check                                                                       | Result                                     |
-| --------------------------------------------------------------------------- | ------------------------------------------ |
-| `pnpm contracts:sync` / `pnpm contracts:check`                              | Passed against the adjacent backend schema |
-| Frontend `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, `pnpm build`   | Passed                                     |
-| Frontend `pnpm test`                                                        | 27 files, 146 tests passed                 |
-| `pnpm test:e2e`                                                             | 57 Chromium tests passed                   |
-| Backend `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm exec prisma validate` | Passed                                     |
-| Backend `pnpm test`                                                         | 188 tests passed                           |
+The active exploit harness now awaits the asynchronous signed-drill guard. The native smoke harness follows current confidential staff rooms and explicit medical acknowledgement/resume contracts, decodes raw cursor pages correctly, and uses a tournament-join acknowledgement barrier. Recovered safety outbox events retain incident IDs, source tags and physiological baseline tags through an additive migration.
 
-Coverage includes ALL/sport-specific Redis memberships and stale-member cleanup, tied-score UUID cursors, deterministic scout feed order, production SQL demographic/state filtering, complete chronological dossier history, verified drill signature prefixes, private per-scout outreach, idempotent retries after a lost response, opt-out checks before replay, telemetry sample aggregates, and state-qualified maps/exports. Browser journeys cover the responsive podium/table, ranking-row dossier opening, all three outreach actions across reloads, opt-out errors, mobile accessibility, and separate same-named districts. The existing socket-cleanup check now polls for the steady connection count instead of assuming server disconnect processing is synchronous.
+## Security and capability acceptance
 
-Apply migration `20261106020000_scout_intelligence` before deploying the updated backend. It stores outreach history and telemetry aggregates. Legacy outreach is backfilled from the latest available record; earlier overwritten outreach cannot be reconstructed. Existing wearable sessions have unknown averages until sample aggregates are recorded. Simulator and physiological-default sample counts remain visible in the dossier.
+| Area                  | Verified behavior                                                                                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sessions and identity | Provider contact proof, permanent identity binding, pending staff approval, user-scoped idempotency, refresh-family logout/revocation, inactive/revoked/duplicate rejection                                     |
+| WebSockets            | JWT handshakes on both namespaces, own athlete rooms and authorized tournament/bracket/match membership, private staff medical rooms, anonymous rejection, no global medical broadcast                          |
+| Athlete               | Live 35/25/40 GTI components, calibrated four-preset practice scoring with pose digest/full HMAC, signed multi-sensor BLE and labeled simulator packets, stable nearby cursors, passport evidence authorization |
+| Organizer             | Ownership on event/bracket operations, real queues/rosters/wall/summary, protected result scoring and medical pause lifecycle                                                                                   |
+| Scout                 | Scoped National/State/District leaderboards, opt-in full dossier/shortlist/outreach/history and state-qualified regional heatmaps                                                                               |
+| Administration        | Super Admin user governance, federation-limited moderation, audit pagination/filtering, immutable security records, operational health                                                                          |
+| Recovery              | Transactional SQL outbox triggers, rollback and competing leases, retry/restart recovery, stable job identifiers and recovered alert provenance                                                                 |
 
-Browser E2E uses deterministic backend fixtures. Embedded PostgreSQL executes the migration and production SQL; Redis indexing tests use a cache double. Hosted Redis/BullMQ behavior, physical devices, clinical recovery, athlete notification delivery, and production deployment are not established by these checks.
+Frontend browser E2E starts the real Next.js app with an isolated contract fixture. It validates all portals, mutations and camera/model lifecycle, not the native backend. Backend CI separately exercises real native services, measured GTI **98.6**, owner safety delivery with zero athlete/scout medical leakage, organizer/scout/admin reads and durable outbox drain. The active five probes use synthetic dependencies plus loopback Socket.IO. Files named `*.original.*` preserve historical failing exploit baselines and are not current acceptance gates.
 
-## Prompt 2 verification — 6 November 2026
-
-Prompt 1 entrypoint aliases, relay PUT handling, all three numeric GTI components, authenticated socket handshakes, and room membership checks were verified before organizer implementation. The audit found broad staff-role medical broadcasts; these now use private authorized safety scopes, excluding participant rooms and unrelated organizers.
-
-| Check                                                                       | Result                                             |
-| --------------------------------------------------------------------------- | -------------------------------------------------- |
-| `pnpm contracts:sync` / `pnpm contracts:check`                              | Passed against the updated adjacent backend schema |
-| Frontend `pnpm lint`, `pnpm typecheck`, `pnpm build`                        | Passed                                             |
-| Frontend `pnpm test`                                                        | 26 files, 140 tests passed                         |
-| `pnpm test:e2e`                                                             | 54 Chromium tests passed                           |
-| Backend `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm exec prisma validate` | Passed                                             |
-| Backend `pnpm test`                                                         | 182 tests passed                                   |
-
-New checks cover scoped KPIs and owned cursors, roster/pool access, custom quota team formation using the actual matcher, durable rejection logs after rollback, named match results and retry deduplication, medical endpoint authorization, latest snapshots and incident coalescing, and real Socket.IO privacy. Embedded PostgreSQL applies the new migration and stores snapshots and medical-check fields. Browser tests verify populated event/bracket editing, deletion, queue-to-roster refresh, result-driven passport changes, and full-screen incident acknowledgement/resume across reloads.
-
-Deploy migration `20261106010000_organizer_operations` before enabling the updated backend. Browser E2E uses deterministic backend fixtures; it does not exercise hosted PostgreSQL, Redis/BullMQ workers, physical wearables, clinical care, or production deployment. Medical dispatch and clearance are explicit staff confirmations stored with audit provenance.
-
-## Prompt 1 verification — 6 November 2026
-
-Both repositories were accessible on `main`. The existing contract check passed; the preflight type check exposed an existing nearby-pagination optional-property error, which this change fixes. Existing partial Prompt 1 edits were retained and completed.
-
-| Check                                                                       | Result                                                                                    |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `pnpm contracts:sync` / `pnpm contracts:check`                              | Passed against the adjacent backend and generated schema snapshot                         |
-| `pnpm lint`, `pnpm typecheck`, `pnpm format:check`                          | Passed                                                                                    |
-| Frontend `pnpm test`                                                        | 25 files, 132 tests passed                                                                |
-| Frontend `pnpm build`                                                       | Passed                                                                                    |
-| `pnpm test:e2e`                                                             | 48 Chromium tests passed, including mobile/accessibility journeys                         |
-| Backend `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm exec prisma validate` | Passed                                                                                    |
-| Backend `pnpm test`                                                         | 172 tests passed, including real Socket.IO transports and migrated PGlite/PostGIS queries |
-
-New coverage checks unauthorized socket handshakes and room membership, self-authored evidence rejection, pending staff verification, logout/token-family revocation, canonical drill signatures, pose digest replay rejection, valid visibility/cadence, legacy nearby-array decoding, 45-tournament cursor traversal, GATT packet parsing and cleanup, labeled physiological baselines, simulator ingestion, and automatic passport refresh after `GTI_UPDATED`. The browser drill test sends synthetic landmark frames through the real frontend signing relay; the fixture verifies its HMAC and returns the backend's actual bare drill-result shape.
-
-Before backend deployment, apply `20261106000000_telemetry_provenance` with `pnpm prisma:deploy`. Configure matching private drill and telemetry HMAC secrets in both services. The old staging/scoring/privacy flags no longer gate these capabilities.
-
-These checks validate software contracts and authorization with deterministic fixtures and embedded PostgreSQL. They do not certify physical BLE devices, camera provenance, clinical safety, sports-science calibration, hosted Redis/BullMQ throughput, or a production deployment. Scoring policy 1.0.0 defines engineering reference windows; browser-reported landmarks and BLE provenance are not device attestation.
-
-## Historical verification before Prompt 1
-
-Verified locally on **31 October 2026**, against unchanged backend source revision `0067d9445048370c700f7b4bad8fa006cea43651`. Runtime: Node.js **24.19.0**, pnpm **11.24.0**, Next.js **16.4.3**. Node 22 remains the CI configuration; hosted CI has not been executed in this session.
-
-| Check                                     | Result                                                                                                                                        |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Frozen pnpm installation                  | Passed after removing five unused runtime dependencies                                                                                        |
-| Schema snapshot and generated contracts   | Passed, including adjacent backend schema comparison                                                                                          |
-| ESLint                                    | Passed with zero warnings                                                                                                                     |
-| Prettier                                  | Passed                                                                                                                                        |
-| Next.js route types and strict TypeScript | Passed, including `pnpm exec tsc --noEmit`                                                                                                    |
-| Unit/integration tests                    | **105 passed across 19 files**                                                                                                                |
-| Chromium browser journeys                 | **42 passed**, no retries; complete suite finished in 1.4 minutes                                                                             |
-| Requested route matrix                    | **24/24 routes at 360px and 1920px**, expected headings/data, navigation reachability, no observed page/hydration errors or document overflow |
-| Android browser emulation                 | Touch-enabled Galaxy S9+ profile, 360px viewport, 4× CPU throttling; navigation and critical simulator flow passed                            |
-| Production build                          | Passed; all app routes compiled/generated                                                                                                     |
-| Production dependency audit               | `pnpm audit --prod`: no known vulnerabilities reported                                                                                        |
-| Backend source worktree                   | Unchanged                                                                                                                                     |
-
-Production HTTP smoke checks passed for all 24 requested paths. All 20 protected portal paths required login; the identity alias rendered its redirect, public pages returned 200, anonymous `/api/session/me` returned 401 with `Cache-Control: private, no-store`, and the unsupported leaderboard relay path returned 404. Socket CSP origins matched the configured HTTP/WebSocket origins. These were anonymous production checks; authenticated production service flows require Redis and the live backend.
-
-Mobile landing, critical wearable simulation, and theme-studio screenshots were visually inspected for text wrapping, control placement, and readable content. Landing feature copy was corrected to describe actual local joint-angle feedback and filtered prospect discovery.
-
-The command equivalents follow repository package-manager rules: `pnpm exec tsc --noEmit` and `pnpm build`, with separate `pnpm lint` and `pnpm typecheck` gates. Browser tests start an isolated fixture backend on port 4100 and the real frontend on 3001. Fixtures establish frontend behavior against known contracts, not live NestJS/PostGIS/Redis/BullMQ operation.
-
-## Coverage and fixes
-
-Browser journeys cover public/auth entry points, permanent-profile onboarding states, bad credentials, forbidden direct navigation, role shells, policy-role access, passport editing and QR targets, GTI weighting, anti-sandbagging bracket upgrades, capacity conflicts, personal-room Socket.IO roster delivery/teardown, organizer event/bracket creation and ownership, lazy scout passport inspection, real alert acknowledgement, regional map/table/export behavior, missing capability gates, theme persistence/CSS export, keyboard/accessibility checks, mobile dialogs, simulator isolation, and recovery navigation.
-
-The pose journey loads actual self-hosted MediaPipe WASM/model assets with Chromium's fake camera. It repeats start/stop three times and verifies ended tracks and terminated workers. This validates inference initialization and lifecycle, not technique scoring accuracy. Unit regressions additionally reject late camera callbacks after Stop/restart/unmount and prevent stale wearable connections from replacing a newer source.
-
-Server tests cover eight-way refresh coordination including a simulated seven-second upstream refresh, metadata/token preservation, original expiry, logout during refresh, same-byte/UUID retries, self-deactivation session deletion, role/route/ownership enforcement, verified-evidence write rejection, environment validation, HMAC compatibility and signing gates, rate-limit rejection, and response shape validation. Local memory-adapter tests do not establish distributed Redis throughput.
-
-Telemetry tests cover exact critical thresholds, little-endian HR formats, malformed packets, simulator timer cleanup, bounded dispatch, critical-sample priority over normal retries, identical retry operation/payloads, and ignored callbacks after Stop. A personal-room regression ensures the frontend does not join the backend's unrestricted bracket rooms; the E2E fixture emits only into the authenticated personal room.
-
-See [frontend-audit.md](frontend-audit.md) for the route matrix, disclosure/contract findings, file inventory, and residual release gates. See [backend-contracts.md](backend-contracts.md) for wire formats and disclosure page/section mapping.
-
-## Limits and external acceptance
-
-- Production service integration with NestJS, PostgreSQL/PostGIS, Redis, BullMQ, and a real identity authority was not available for this run.
-- No physical Android handset or Bluetooth wearable was tested. Chromium touch/CPU emulation does not establish real-device thermal, memory, battery, radio, or GATT behavior.
-- Production scoring requires approved reference models/calibration. The relay keeps score ingestion disabled outside explicitly isolated staging practice.
-- Event sockets remain gated because the backend globally broadcasts sensitive safety data and lacks sufficient room authorization. Durable history and authorized pause/resume/acknowledgement remain absent.
-- Complete leaderboard lists, historical/outreach dossiers, organizer management projections, admin moderation/audit APIs, full wearable context, backend evidence-write protection, and token revocation remain dependencies.
-- No production concurrency capacity, clinical safety, universal crash freedom, full patent implementation, or legal patent status is certified.
-- This release is a frontend commit/push only; it does not deploy the application or change backend code.
+Follow [the deployment runbook](production-deployment.md) for secrets, migrations, contact-provider configuration, first administrator, TLS, assets and the owner acceptance checklist. Load/capacity targets, physical camera/BLE authenticity, sports-science calibration and clinical escalation need deployment-specific validation. Software reference windows and signed browser claims are not hardware attestation.

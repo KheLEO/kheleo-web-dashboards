@@ -103,6 +103,9 @@ Copy [`.env.example`](.env.example) to `.env.local`; never commit credentials. P
 | `NEXT_PUBLIC_SUPABASE_URL`      | Optional project URL; no current route uses the optional Supabase factory.                                                                                                                |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional public anon key, never a service-role key. Supabase does not own platform authentication.                                                                                        |
 | `NEXT_PUBLIC_DRILL_HMAC_SECRET` | **Unsupported: do not set.** Browser-visible keys allow forged submissions. Use server-only `DRILL_HMAC_SECRET`.                                                                          |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Required production Supabase Auth URL for contact OTP verification.                                                                                                                       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public publishable/legacy anon key; never a service-role key.                                                                                                                             |
+| `SAFE_EVENTS_VERIFIED`          | Operator verification marker; backend authorization is always enforced.                                                                                                                   |
 | `NEXT_PUBLIC_TILE_URL`          | OSM-compatible raster tile template.                                                                                                                                                      |
 | `APP_ENV`                       | `development`, `test`, `staging`, or `production`.                                                                                                                                        |
 | `SESSION_STORE`                 | `redis` by default; `memory` only for local development/tests.                                                                                                                            |
@@ -151,6 +154,8 @@ Fixture tests do not establish live NestJS/PostGIS/Redis/BullMQ, production capa
 
 ## Production operation
 
+**READY FOR PRODUCTION DEPLOYMENT** — release acceptance: 213 Vitest tests, 61 Chromium journeys, 196 backend tests and five active exploit probes pass. Native PostgreSQL 16/PostGIS, Redis 7, Node 22/24 and container checks are recorded in [verification](docs/verification.md). Complete the [production deployment runbook](docs/production-deployment.md), including real contact delivery and owner environment acceptance.
+
 ```sh
 set -eu
 pnpm build
@@ -159,7 +164,7 @@ pnpm start
 
 The server listens on port 3001. Configure HTTPS, exact `APP_ORIGIN`, private Redis, backend access, CORS, and WebSocket proxy/origin allowances. Share the Redis namespace across frontend replicas for refresh coordination and operation/rate-limit state. Session cookies are HttpOnly/SameSite and secure over HTTPS; refresh tokens remain server-side, and socket tokens stay in browser memory.
 
-Queries use bounded caches/backoff; mutation retries retain UUIDs and exact serialized bytes. Device loops, alerts, charts, and lists are bounded. These controls do not certify thousands of concurrent users: measure actual services in isolated staging. Logout/self-deactivation clear the web session and resources; immediate backend token revocation still requires a backend API.
+Queries use bounded caches/backoff; mutation retries retain UUIDs and exact serialized bytes. Device loops, alerts, charts, and lists are bounded. These controls do not certify thousands of concurrent users: measure actual services in isolated staging. Logout and self-deactivation revoke upstream refresh-token families and clear the web session and resources. Deactivated or revoked identities are rejected by JWT and refresh validation.
 
 ## Repository guide
 
