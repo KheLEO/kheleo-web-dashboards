@@ -33,7 +33,7 @@ export async function relay(request: Request, parts: string[]): Promise<Response
     const targetId = route.pattern.exec(path)?.[1];
     if (route.identity && targetId !== session.user.id && session.user.role !== "SUPER_ADMIN") {
       const passportReader =
-        route.identity === "passport-read" &&
+        ["passport-read", "dossier-read"].includes(route.identity) &&
         ["SCOUT", "FEDERATION_ADMIN"].includes(session.user.role);
       const gtiAdmin =
         path.startsWith("gti/recalculate/") && session.user.role === "FEDERATION_ADMIN";

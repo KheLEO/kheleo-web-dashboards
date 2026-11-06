@@ -9,8 +9,8 @@ export default async function Page({ params }: { params: Promise<{ userId: strin
     <>
       <PageHeading
         eyebrow="athlete intelligence"
-        title="Athlete passport preview"
-        description="Authorized sports passport data. Full dossiers await platform support."
+        title="Athlete scout dossier"
+        description="Verified performance history, evidence, and your scouting outreach."
       />
       <AthletePassportPreview userId={userId} />
     </>

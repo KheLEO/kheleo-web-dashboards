@@ -3,7 +3,7 @@ import type { MapPoint } from "@/lib/maps/leaflet-map.client";
 import { parseCentroid } from "./centroid-parser";
 export type RegionalMetric = "gti" | "participation" | "equity";
 export type RegionalSort =
-  "district" | "total_athletes" | "average_gti" | "female_participation_pct";
+  "district" | "state" | "total_athletes" | "average_gti" | "female_participation_pct";
 export const regionalRenderLimit = 500;
 export function sortDistricts(
   rows: readonly DistrictHeatmapRecord[],
@@ -12,8 +12,14 @@ export function sortDistricts(
 ): DistrictHeatmapRecord[] {
   return [...rows].sort((a, b) => {
     const difference =
-      sort === "district" ? a.district.localeCompare(b.district, "en") : a[sort] - b[sort];
-    return (difference || a.district.localeCompare(b.district, "en")) * (ascending ? 1 : -1);
+      sort === "district" || sort === "state"
+        ? a[sort].localeCompare(b[sort], "en")
+        : a[sort] - b[sort];
+    return (
+      (difference ||
+        a.state.localeCompare(b.state, "en") ||
+        a.district.localeCompare(b.district, "en")) * (ascending ? 1 : -1)
+    );
   });
 }
 export function regionalPoints(
@@ -21,7 +27,7 @@ export function regionalPoints(
   metric: RegionalMetric,
   target: number,
 ): MapPoint[] {
-  return rows.flatMap((district, index) => {
+  return rows.flatMap((district) => {
     const center = parseCentroid(district.centroid);
     if (!center) return [];
     const value =
@@ -32,10 +38,10 @@ export function regionalPoints(
           : district.total_athletes;
     return [
       {
-        id: `${district.district}:${index}`,
+        id: JSON.stringify([district.state, district.district]),
         lat: center[0],
         lng: center[1],
-        label: district.district,
+        label: `${district.district}, ${district.state}`,
         value,
         radiusValue: district.total_athletes,
         colorToken:
@@ -65,13 +71,16 @@ export function createPolicyReport(
       exported_districts: selected.length,
       render_limit: regionalRenderLimit,
       female_participation_planning_target: target,
-      completeness: "unknown",
+      is_complete: response.is_complete && selected.length === response.data.length,
+      completeness:
+        response.is_complete && selected.length === response.data.length ? "complete" : "partial",
       notes:
-        "Returned aggregates only; backend completeness, state disambiguation, rural classification and academy infrastructure are unavailable. Planning targets do not establish a funding decision.",
+        "State-qualified returned aggregates; completeness describes the configured dataset limit. Rural classification and academy infrastructure are not inferred. Planning targets do not establish a funding decision.",
     },
     districts: selected.map((district) => {
       const center = parseCentroid(district.centroid);
       return {
+        state: district.state,
         district: district.district,
         total_athletes: district.total_athletes,
         average_gti: district.average_gti,
@@ -91,6 +100,7 @@ function csvCell(value: string | number | boolean | null): string {
 }
 export function policyCsv(report: PolicyReport): string {
   const header = [
+    "state",
     "district",
     "total_athletes",
     "average_gti",
@@ -106,6 +116,7 @@ export function policyCsv(report: PolicyReport): string {
     header.map(csvCell).join(","),
     ...report.districts.map((row) =>
       [
+        row.state,
         row.district,
         row.total_athletes,
         row.average_gti,

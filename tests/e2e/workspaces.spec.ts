@@ -782,13 +782,14 @@ test("local emergency preview records seen time and releases opted-in audio with
     await request.get("http://localhost:4100/__control__/mutations")
   ).json()) as string[];
   expect(mutations.some((entry) => entry.includes("safety/telemetry"))).toBe(false);
-  expect(
-    (
-      (await (await request.get("http://localhost:4100/__control__/sockets")).json()) as {
-        events: number;
-      }
-    ).events,
-  ).toBe(1);
+  await expect
+    .poll(async () => {
+      const sockets = (await (
+        await request.get("http://localhost:4100/__control__/sockets")
+      ).json()) as { events: number };
+      return sockets.events;
+    })
+    .toBe(1);
   await page.getByRole("button", { name: "Open navigation", exact: true }).click();
   await page.getByRole("link", { name: "Overview", exact: true }).click();
   await expect
@@ -842,9 +843,9 @@ test("scout feed labels underrepresentation and lazily opens an authorized passp
   await expect(
     inspector.getByRole("heading", { name: "Full scout dossier", exact: true }),
   ).toBeVisible();
-  await expect(inspector.getByRole("button", { name: "Offer academy trial" })).toBeDisabled();
-  await expect(inspector.getByRole("button", { name: "Bookmark to shortlist" })).toBeDisabled();
-  expect(paths.some((path) => path.endsWith("/dossier"))).toBe(false);
+  await expect(inspector.getByRole("button", { name: "Offer Academy Trial" })).toBeEnabled();
+  await expect(inspector.getByRole("button", { name: "Bookmark to Shortlist" })).toBeEnabled();
+  expect(paths.some((path) => path.endsWith("/dossier"))).toBe(true);
   await page.setViewportSize({ width: 360, height: 800 });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -893,7 +894,9 @@ test("policy heatmap layers, sortable table and exports use the same bounded agg
   );
   const map = page.getByLabel("Geospatial results map");
   await expect(map.locator('path[stroke="rgb(var(--chart-critical))"]')).toHaveCount(1);
-  await expect(page.getByRole("row").filter({ hasText: "Lucknow" })).toContainText("Unavailable");
+  await expect(page.getByRole("row").filter({ hasText: "Lucknow" })).toContainText(
+    "No centroid recorded",
+  );
   await page.getByLabel("Sort districts", { exact: true }).selectOption("female_participation_pct");
   await page.getByLabel("Sort direction", { exact: true }).selectOption("ascending");
   await expect(page.getByRole("row").nth(1)).toContainText("Meerut");
@@ -904,9 +907,10 @@ test("policy heatmap layers, sortable table and exports use the same bounded agg
   if (!jsonPath) throw new Error("JSON report was not downloaded.");
   const report = JSON.parse(await readFile(jsonPath, "utf8")) as PolicyReport;
   expect(report.metadata).toMatchObject({
-    completeness: "unknown",
-    backend_count: 4,
-    exported_districts: 4,
+    completeness: "complete",
+    is_complete: true,
+    backend_count: 5,
+    exported_districts: 5,
     female_participation_planning_target: 25,
   });
   expect(report.districts[0]?.district).toBe("Meerut");
@@ -918,7 +922,15 @@ test("policy heatmap layers, sortable table and exports use the same bounded agg
   if (!csvPath) throw new Error("CSV report was not downloaded.");
   const csvText = await readFile(csvPath, "utf8");
   expect(csvText).toContain('"female_participation_pct"');
-  expect(csvText).toContain('"unknown"');
+  expect(csvText).toContain('"complete"');
+  expect(csvText).toContain('"state"');
+  expect(csvText).toContain('"Karnataka"');
+  expect(
+    report.districts
+      .filter((row) => row.district === "Varanasi")
+      .map((row) => row.state)
+      .sort(),
+  ).toEqual(["Karnataka", "Uttar Pradesh"]);
   expect(csvText).toContain('"Ghaziabad"');
   await page.getByLabel("Female participation planning target (%)", { exact: true }).fill("50");
   await expect(map.locator('path[stroke="rgb(var(--chart-critical))"]')).toHaveCount(2);
@@ -928,17 +940,19 @@ test("policy heatmap layers, sortable table and exports use the same bounded agg
   await page.screenshot({ path: "test-results/scout-policy-mobile.png", fullPage: true });
 });
 
-test("leaderboard lists stay unavailable while known-athlete rank lookup uses the real contract", async ({
+test("leaderboard lists are active while individual rank lookup remains available", async ({
   page,
 }) => {
   const paths: string[] = [];
   page.on("request", (request) => paths.push(new URL(request.url()).pathname));
   await login(page, "scout");
   await page.goto("/scout/leaderboards");
-  await expect(
-    page.getByRole("heading", { name: "Leaderboard lists and top-three podium" }),
-  ).toBeVisible();
-  await expect(page.getByRole("combobox", { name: /Geographic scope/ })).toBeDisabled();
+  await expect(page.getByRole("heading", { name: "Top-three podium" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "NATIONAL", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("table")).toContainText("Prospect 01");
   await page.getByLabel("Athlete UUID", { exact: true }).fill(ids.athlete);
   await page.getByLabel("Rank sport", { exact: true }).selectOption("CRICKET");
   await page.getByLabel("Rank district (optional)", { exact: true }).fill("Varanasi");
@@ -949,7 +963,7 @@ test("leaderboard lists stay unavailable while known-athlete rank lookup uses th
   expect(new URL((await rank).url()).searchParams.get("district")).toBe("Varanasi");
   await expect(page.getByText("#12", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "District individual rank" })).toBeVisible();
-  expect(paths.some((path) => path.endsWith("gti/leaderboards"))).toBe(false);
+  expect(paths.some((path) => path.endsWith("gti/leaderboards"))).toBe(true);
 });
 
 test("scout failures remain errors and empty regional data remains an empty state", async ({
@@ -978,7 +992,7 @@ test("scout failures remain errors and empty regional data remains an empty stat
   await page.route("**/api/backend/heatmaps/regional", (route) =>
     route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ success: true, count: 0, data: [] }),
+      body: JSON.stringify({ success: true, count: 0, is_complete: true, data: [] }),
     }),
   );
   await page.goto("/scout/heatmaps");
@@ -988,8 +1002,8 @@ test("scout failures remain errors and empty regional data remains an empty stat
   await expect(page.getByRole("button", { name: "Export policy report (CSV)" })).toHaveCount(0);
 });
 
-test("a forbidden passport shows no fabricated dossier content", async ({ page }) => {
-  await page.route("**/api/backend/passport/**", (route) =>
+test("a forbidden dossier shows no fabricated evidence or outreach controls", async ({ page }) => {
+  await page.route("**/api/backend/users/*/dossier", (route) =>
     route.fulfill({
       status: 403,
       contentType: "application/problem+json",
@@ -997,7 +1011,7 @@ test("a forbidden passport shows no fabricated dossier content", async ({ page }
         type: "about:blank",
         title: "Forbidden",
         status: 403,
-        detail: "Passport access denied",
+        detail: "Dossier access denied",
         instance: "",
         timestamp: new Date().toISOString(),
       }),
@@ -1006,12 +1020,12 @@ test("a forbidden passport shows no fabricated dossier content", async ({ page }
   await login(page, "scout");
   await page.getByRole("button", { name: "Inspect athlete passport", exact: true }).first().click();
   await expect(
-    page.getByRole("dialog").getByRole("alert").filter({ hasText: "Passport access denied" }),
+    page.getByRole("dialog").getByRole("alert").filter({ hasText: "Dossier access denied" }),
   ).toBeVisible();
   await expect(page.getByRole("dialog").getByText("VERIFIED", { exact: true })).toHaveCount(0);
   await expect(
-    page.getByRole("dialog").getByRole("button", { name: "Offer academy trial" }),
-  ).toBeDisabled();
+    page.getByRole("dialog").getByRole("button", { name: "Offer Academy Trial" }),
+  ).toHaveCount(0);
 });
 
 test("policy accounts use the scout workspace and logout clears private passport state", async ({
@@ -1672,4 +1686,121 @@ test("tournament deletion removes the owned directory entry after confirmation",
   await expect(
     page.getByText("No tournaments yet. Create your first event.", { exact: true }),
   ).toBeVisible();
+});
+
+test("scoped leaderboards traverse ties and open a dossier from a ranking row", async ({
+  page,
+}) => {
+  await login(page, "scout");
+  await page.goto("/scout/leaderboards");
+  const table = page.getByRole("table", { name: "Scoped GTI leaderboard" });
+  await expect(table.getByRole("row")).toHaveCount(21);
+  for (const rank of [1, 2, 3])
+    await expect(page.getByRole("region", { name: `Podium rank ${rank}` })).toContainText(
+      "GTI 95.0",
+    );
+  const next = page.waitForResponse(
+    (response) =>
+      response.url().includes("gti/leaderboards?") &&
+      new URL(response.url()).searchParams.has("cursor_id"),
+  );
+  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  expect((await next).status()).toBe(200);
+  await expect(table.getByRole("row")).toHaveCount(26);
+  await expect(table.getByText("Prospect 25", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(0);
+  await table.getByRole("row").filter({ hasText: "Prospect 02" }).getByRole("cell").nth(2).click();
+  await expect(
+    page.getByRole("dialog").getByRole("heading", { name: "Verified HMAC Drill Evidence" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "STATE", exact: true }).click();
+  await page.getByLabel("Leaderboard state", { exact: true }).fill("Uttar Pradesh");
+  await page.getByLabel("Listing sport", { exact: true }).selectOption("CRICKET");
+  await page.getByLabel("Demographic", { exact: true }).selectOption("RURAL");
+  await expect(table).toContainText("Prospect 03");
+  await expect(table.getByText("Prospect 01", { exact: true })).toHaveCount(0);
+  await expect(table.getByRole("row").filter({ hasText: "FOOTBALL" })).toHaveCount(0);
+  await page.getByLabel("Demographic", { exact: true }).selectOption("FEMALE");
+  await expect(table).toContainText("Prospect 01");
+  await page.getByRole("button", { name: "DISTRICT", exact: true }).click();
+  await page.getByLabel("Leaderboard state", { exact: true }).fill("Karnataka");
+  await page.getByLabel("Leaderboard district", { exact: true }).fill("Varanasi");
+  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table).toContainText("Prospect 25");
+  await expect(table).toContainText("Karnataka");
+  await page.setViewportSize({ width: 360, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("dossier outreach retries preserve the operation and persist trial, sponsorship and shortlist history", async ({
+  page,
+}) => {
+  await login(page, "scout");
+  await page.goto(`/scout/athletes/${ids.athlete}`);
+  await expect(
+    page.getByRole("heading", { name: "Season-over-Season GTI Progression", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("abcdef012345", { exact: true })).toBeVisible();
+  await expect(page.getByText("126.5 bpm", { exact: true })).toBeVisible();
+  await page.getByLabel("Organization name (optional)", { exact: true }).fill("Campus Academy");
+  await page
+    .getByLabel("Outreach notes (optional)", { exact: true })
+    .fill("Invite for a supervised assessment");
+  let interrupted = false;
+  const operationKeys: string[] = [];
+  await page.route(`**/api/backend/scouts/dossiers/${ids.athlete}/outreach`, async (route) => {
+    operationKeys.push(route.request().headers()["idempotency-key"]!);
+    if (!interrupted) {
+      interrupted = true;
+      await route.fetch();
+      await route.fulfill({
+        status: 503,
+        contentType: "application/problem+json",
+        body: JSON.stringify({
+          type: "about:blank",
+          title: "Service Unavailable",
+          status: 503,
+          detail: "Response interrupted after persistence",
+          instance: "",
+          timestamp: new Date().toISOString(),
+        }),
+      });
+    } else await route.continue();
+  });
+  await page.getByRole("button", { name: "Offer Academy Trial", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Response interrupted after persistence" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Offer Academy Trial", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Outreach saved" })).toBeVisible();
+  expect(operationKeys).toHaveLength(2);
+  expect(operationKeys[0]).toBe(operationKeys[1]);
+  await expect(page.getByText(/OFFER_TRIAL ·/)).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Issue Scholarship / Sponsorship Inquiry", exact: true })
+    .click();
+  await expect(page.getByText(/SPONSORSHIP_INQUIRY ·/)).toHaveCount(1);
+  await page.getByRole("button", { name: "Bookmark to Shortlist", exact: true }).click();
+  await expect(page.getByText(/SHORTLIST_BOOKMARK ·/)).toHaveCount(1);
+  await expect(page.getByText(/Bookmarked to your shortlist/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/Bookmarked to your shortlist/)).toBeVisible();
+  for (const action of ["OFFER_TRIAL", "SPONSORSHIP_INQUIRY", "SHORTLIST_BOOKMARK"])
+    await expect(page.getByText(new RegExp(`${action} ·`))).toHaveCount(1);
+});
+
+test("an athlete opting out prevents dossier reads and hides outreach controls", async ({
+  page,
+  request,
+}) => {
+  await login(page, "scout");
+  await request.post("http://localhost:4100/__control__/scout-opt-out");
+  await page.goto(`/scout/athletes/${ids.athlete}`);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "not opted into scout discovery" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Verified HMAC Drill Evidence" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Offer Academy Trial" })).toHaveCount(0);
 });

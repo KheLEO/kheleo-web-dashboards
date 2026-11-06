@@ -131,8 +131,11 @@ export function RegionalInsights() {
           District centroid circles do not show district boundaries. {rows.length} displayed of{" "}
           {query.data.data.length} received rows; backend count {query.data.count}. Up to 500 rows
           are rendered and exported. {rows.length - points.length} displayed districts have no
-          usable centroid and remain in the table and report. Aggregate completeness and state
-          disambiguation are not supplied.
+          usable centroid and remain in the table and report. Data completeness:{" "}
+          {query.data.is_complete
+            ? "complete within the current dataset"
+            : "partial (backend limit reached)"}
+          . Districts are qualified by state.
         </p>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">
           The planning target is illustrative and adjustable. These aggregates do not report rural

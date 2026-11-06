@@ -80,9 +80,9 @@ export function ProspectDiscovery() {
         is labeled individually.
       </p>
       <p className="text-xs text-muted-foreground">
-        {prospects.length} shown from {loaded.length} loaded profiles · up to five 20-row pages. The
-        local underrepresentation filter covers loaded pages only. Backend score ordering lacks a
-        unique tie-breaker, so pagination completeness is not guaranteed.
+        {prospects.length} shown from {loaded.length} loaded profiles · 20 profiles per page. The
+        local underrepresentation filter covers loaded pages only. Results use current GTI and a
+        unique profile tie-breaker.
       </p>
       {query.isPending ? (
         <Skeleton />

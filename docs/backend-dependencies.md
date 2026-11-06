@@ -1,8 +1,8 @@
 # Deployment prerequisites and validation limits
 
-Prompt 1 and Prompt 2 implement the core athlete and organizer contracts in the adjacent backend. The former dependency list is superseded by [current contracts](backend-contracts.md) and [verification evidence](verification.md).
+Prompts 1–3 implement the core athlete, organizer, scout, and policy contracts in the adjacent backend. The former dependency list is superseded by [current contracts](backend-contracts.md) and [verification evidence](verification.md).
 
-Before deployment, apply backend migrations with `pnpm prisma:deploy`, including `20261106000000_telemetry_provenance` and `20261106010000_organizer_operations`. The latter adds latest tournament telemetry snapshots, durable medical-check notes, and named match score summaries. Configure PostgreSQL/PostGIS, Redis/BullMQ, and matching private drill/telemetry HMAC secrets in both services. New organizer/scout accounts require administrator approval of bound identity evidence.
+Before deployment, apply backend migrations with `pnpm prisma:deploy`, including `20261106000000_telemetry_provenance` and `20261106010000_organizer_operations`. The organizer migration adds latest tournament telemetry snapshots, durable medical-check notes, and named match score summaries. Apply `20261106020000_scout_intelligence` for private outreach history and daily telemetry sample aggregates. Legacy outreach state is backfilled as a snapshot; historical telemetry without aggregates has no reconstructed average. Configure PostgreSQL/PostGIS, Redis/BullMQ, and matching private drill/telemetry HMAC secrets in both services. New organizer/scout accounts require administrator approval of bound identity evidence.
 
 Safe event subscriptions are enabled by default because handshake authentication and private staff safety rooms are enforced server-side. Legacy `SAFE_EVENTS_VERIFIED`, staging-only drill, and simulator activation flags do not gate these contracts. Athletes may submit authenticated signed BLE or labeled simulator readings with verified competition membership; baseline physiological fields remain explicitly labeled.
 

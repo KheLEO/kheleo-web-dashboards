@@ -43,8 +43,8 @@ export function ProspectCard({ prospect }: { prospect: ProspectSummary }) {
         </div>
       </div>
       <p className="mb-4 text-xs leading-5 text-muted-foreground">
-        {prospect.alert_count} unacknowledged platform alerts. Verification, alert timestamps and
-        GTI breakthrough delta are unavailable in this profile projection.
+        {prospect.alert_count} unacknowledged platform alerts. Open the dossier to review identity
+        verification, recorded progression, and signed performance evidence.
       </p>
       <div className="mb-4">
         <ScoutDossierModal userId={prospect.athlete_id} />

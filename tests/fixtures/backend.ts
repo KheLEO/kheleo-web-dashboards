@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  scoutDossierSchema,
+  outreachSchema,
+  outreachRecordSchema,
+} from "../../src/contracts/scouting";
+import type { LeaderboardEntry } from "../../src/contracts/gti";
 import { tournamentSchema, bracketSchema } from "../../src/contracts/tournaments";
 import type { HealthAlert, AthleteVitals } from "../../src/contracts/safety";
 import { createHmac } from "node:crypto";
@@ -27,6 +33,103 @@ const opponentId = "10000000-0000-4000-8000-000000000005";
 const safetyMatchId = "91000000-0000-4000-8000-000000000001";
 let matchState = "LIVE";
 let matchesRecorded = 0;
+let scoutSearchable = true;
+const scoutOutreach = new Map<string, z.infer<typeof outreachRecordSchema>>();
+function leaderboardEntries(): LeaderboardEntry[] {
+  return Array.from({ length: 25 }, (_, index) => ({
+    rank: index + 1,
+    athlete_id:
+      index === 0
+        ? ids.athlete
+        : `10000000-0000-4000-8000-${String(index + 100).padStart(12, "0")}`,
+    profile_id:
+      index === 0
+        ? ids.profile
+        : `20000000-0000-4000-8000-${String(index + 100).padStart(12, "0")}`,
+    display_name: `Prospect ${String(index + 1).padStart(2, "0")}`,
+    district: index === 24 ? "Varanasi" : index === 23 ? "Pune" : "Varanasi",
+    state: index === 24 ? "Karnataka" : index === 23 ? "Maharashtra" : "Uttar Pradesh",
+    tier_classification: index % 3 === 0 ? "METRO" : "RURAL",
+    gender: index % 2 === 0 ? "FEMALE" : "MALE",
+    primary_sport: index % 2 === 0 ? "CRICKET" : "FOOTBALL",
+    primary_role: index % 2 === 0 ? "BOWLER" : "FORWARD",
+    gti: index < 3 ? 95 : 90 - index / 10,
+    biomechanical_score: 90,
+    wearable_consistency_score: 85,
+    match_performance_score: 92,
+    win_rate: 75,
+    total_matches: 12,
+  }));
+}
+function fixtureDossier(athleteId: string, scoutId: string) {
+  const saved = scoutOutreach.get(`${scoutId}:${athleteId}`);
+  return scoutDossierSchema.parse({
+    athlete_id: athleteId,
+    profile_id: ids.profile,
+    display_name: "Campus Prospect",
+    district: "Varanasi",
+    state: "Uttar Pradesh",
+    tier_classification: "RURAL",
+    primary_sport: "CRICKET",
+    secondary_sports: [],
+    is_verified: true,
+    verification_status: "VERIFIED",
+    physical_stats: { gender: "FEMALE", height_cm: 172, weight_kg: 65, dominant_side: "RIGHT" },
+    gti_breakdown: {
+      gti: passport.currentGti,
+      biomechanical_score: passport.biomechanicalScore,
+      wearable_consistency_score: passport.wearableScore,
+      match_performance_score: passport.matchPerfScore,
+      posture_points: passport.posturePoints,
+    },
+    gti_history: [
+      { recorded_at: "2025-01-01T00:00:00Z", gti: 55, trigger_type: "DRILL_SUBMISSION" },
+      { recorded_at: "2026-01-01T00:00:00Z", gti: 65, trigger_type: "WEARABLE_SYNC" },
+      { recorded_at: "2026-11-01T00:00:00Z", gti: 88.5, trigger_type: "MATCH_COMPLETED" },
+    ],
+    recent_drills: [
+      {
+        id: "30000000-0000-4000-8000-000000000099",
+        sport: "CRICKET",
+        drill_type: "CRICKET_BOWLING",
+        form_score: 92,
+        frames_analyzed: 90,
+        flaw_flags: [],
+        signature_hash_prefix: "abcdef012345",
+        created_at: "2026-11-01T00:00:00Z",
+      },
+    ],
+    wearable_summary: {
+      sessions_monitored: 12,
+      readings_count: 80,
+      avg_heart_rate: 126.5,
+      avg_spo2: 97.8,
+      safety_pauses_count: 1,
+      consistency_score: 85,
+      simulator_readings: 2,
+      baseline_spo2_readings: 20,
+    },
+    sport_records: [
+      {
+        sport: "CRICKET",
+        primary_role: "BOWLER",
+        secondary_roles: ["BATSMAN"],
+        total_matches: 12,
+        win_count: 9,
+        win_streak: 3,
+      },
+    ],
+    scout_outreach: saved
+      ? {
+          is_shortlisted: saved.isShortlisted,
+          pipeline_status: saved.pipelineStatus,
+          notes: saved.scoutNotes,
+          organization_name: saved.organizationName,
+          history: saved.outreachHistory,
+        }
+      : null,
+  });
+}
 function queuedAthletes() {
   return Array.from({ length: 11 }, (_, index) => ({
     id: `13000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
@@ -51,6 +154,8 @@ function seedOrganizer(): void {
   vitals.clear();
   matchState = "LIVE";
   matchesRecorded = 0;
+  scoutSearchable = true;
+  scoutOutreach.clear();
   tournaments.set(ids.tournament, tournamentSchema.parse(makeTournament()));
   brackets.set(ids.bracket, bracketSchema.parse(makeBracket()));
   brackets.set(
@@ -279,9 +384,14 @@ const server = createServer(async (request, response) => {
     send(response, {}, 200, true);
     return;
   }
+  if (url.pathname === "/__control__/scout-opt-out") {
+    scoutSearchable = false;
+    send(response, {}, 200, true);
+    return;
+  }
   const raw = await readBody(request);
   const body: Record<string, unknown> = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-  const key = `${method}:${path}:${request.headers["idempotency-key"] ?? ""}`;
+  const key = `${request.headers.authorization ?? "public"}:${method}:${path}:${request.headers["idempotency-key"] ?? ""}`;
   const cached = cache.get(key);
   if (method !== "GET" && !request.headers["idempotency-key"]) {
     send(response, problem(400, "Idempotency-Key required"), 400);
@@ -423,6 +533,88 @@ const server = createServer(async (request, response) => {
       alert_triggered: critical,
       status: critical ? (body.match_id ? "MATCH_PAUSED" : "CRITICAL_ALERT") : "NORMAL",
     });
+    return;
+  }
+  const viewerRole = request.headers.authorization?.split(":")[1] as UserRole;
+  const viewer = makeUser(viewerRole);
+  if (path.endsWith("/dossier")) {
+    if (!scoutSearchable && viewerRole === "SCOUT") {
+      send(response, problem(403, "Athlete profile is not opted into scout discovery"), 403);
+      return;
+    }
+    ok(fixtureDossier(path.split("/")[1]!, viewer.id));
+    return;
+  }
+  if (/^scouts\/dossiers\/[^/]+\/outreach$/.test(path)) {
+    if (!scoutSearchable && viewerRole === "SCOUT") {
+      send(response, problem(403, "Athlete profile is not opted into scout discovery"), 403);
+      return;
+    }
+    const input = outreachSchema.parse(body);
+    const athleteId = path.split("/")[2]!;
+    const recordKey = `${viewer.id}:${athleteId}`;
+    const previous = scoutOutreach.get(recordKey);
+    const saved = outreachRecordSchema.parse({
+      id: previous?.id ?? "99000000-0000-4000-8000-000000000001",
+      athleteId: ids.profile,
+      scoutId: viewer.id,
+      scoutNotes: input.notes ?? previous?.scoutNotes ?? "",
+      organizationName: input.organizationName ?? null,
+      isShortlisted: input.actionType === "SHORTLIST_BOOKMARK" || previous?.isShortlisted === true,
+      pipelineStatus:
+        input.actionType === "SHORTLIST_BOOKMARK"
+          ? (previous?.pipelineStatus ?? "DISCOVERED")
+          : input.actionType === "OFFER_TRIAL"
+            ? "TRIAL_OUTREACH"
+            : "SCHOLARSHIP_OUTREACH",
+      outreachHistory: [
+        ...(previous?.outreachHistory ?? []),
+        {
+          ...input,
+          notes: input.notes ?? "",
+          organizationName: input.organizationName ?? null,
+          recordedAt: new Date().toISOString(),
+        },
+      ],
+      createdAt: previous?.createdAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    scoutOutreach.set(recordKey, saved);
+    ok(saved);
+    return;
+  }
+  if (path === "gti/leaderboards") {
+    const scope = url.searchParams.get("scope") ?? "NATIONAL";
+    const entries = leaderboardEntries()
+      .filter(
+        (entry) =>
+          (scoutSearchable || entry.athlete_id !== ids.athlete) &&
+          (!url.searchParams.get("sport") ||
+            url.searchParams.get("sport") === "ALL" ||
+            entry.primary_sport === url.searchParams.get("sport")) &&
+          (scope === "NATIONAL" || entry.state === url.searchParams.get("state")) &&
+          (scope !== "DISTRICT" || entry.district === url.searchParams.get("district")) &&
+          (!url.searchParams.get("gender") || entry.gender === url.searchParams.get("gender")) &&
+          (url.searchParams.get("tier") !== "RURAL_AND_TIER_2_3" ||
+            entry.tier_classification !== "METRO"),
+      )
+      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+    const cursor = url.searchParams.get("cursor_id");
+    const offset = cursor ? entries.findIndex((entry) => entry.profile_id === cursor) + 1 : 0;
+    const limit = Number(url.searchParams.get("limit") ?? 20);
+    const data = entries.slice(offset, offset + limit);
+    const more = entries.length > offset + limit;
+    ok(
+      {
+        success: true,
+        scope,
+        total: entries.length,
+        data,
+        next_cursor: more ? data.at(-1)!.profile_id : null,
+        has_more: more,
+      },
+      true,
+    );
     return;
   }
   if (path.startsWith("users/")) {
@@ -930,9 +1122,19 @@ const server = createServer(async (request, response) => {
     ok(
       {
         success: true,
-        count: 4,
+        count: 5,
+        is_complete: true,
         data: [
           {
+            state: "Karnataka",
+            district: "Varanasi",
+            total_athletes: 7,
+            average_gti: 60,
+            female_participation_pct: 55,
+            centroid: { type: "Point", coordinates: [76, 15] },
+          },
+          {
+            state: "Uttar Pradesh",
             district: "Varanasi",
             total_athletes: 100,
             average_gti: 65,
@@ -940,6 +1142,7 @@ const server = createServer(async (request, response) => {
             centroid: { type: "Point", coordinates: [82.9739, 25.3176] },
           },
           {
+            state: "Uttar Pradesh",
             district: "Ghaziabad",
             total_athletes: 50,
             average_gti: 90,
@@ -947,6 +1150,7 @@ const server = createServer(async (request, response) => {
             centroid: { type: "Point", coordinates: [77.4538, 28.6692] },
           },
           {
+            state: "Uttar Pradesh",
             district: "Meerut",
             total_athletes: 0,
             average_gti: 0,
@@ -954,6 +1158,7 @@ const server = createServer(async (request, response) => {
             centroid: null,
           },
           {
+            state: "Uttar Pradesh",
             district: "Lucknow",
             total_athletes: 10,
             average_gti: 70,

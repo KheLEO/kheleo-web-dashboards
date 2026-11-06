@@ -44,7 +44,7 @@ describe("allowlisted relay", () => {
   });
   afterEach(() => vi.unstubAllEnvs());
   it("blocks unsupported routes without contacting NestJS", async () => {
-    const response = await relay(request("gti/leaderboards", "GET"), ["gti", "leaderboards"]);
+    const response = await relay(request("gti/unsupported", "GET"), ["gti", "unsupported"]);
     expect(response.status).toBe(404);
     expect(callNest).not.toHaveBeenCalled();
   });
@@ -137,6 +137,81 @@ describe("allowlisted relay", () => {
     expect(callNest.mock.calls[1]?.[0]).toMatchObject({
       method: "DELETE",
       path: `users/${ids.athlete}`,
+    });
+  });
+  it("allows a scout dossier read and validates optional outreach notes before forwarding", async () => {
+    await saveSession({
+      id: cookie.value,
+      accessToken: "token",
+      refreshToken: "refresh",
+      accessExpiresAt: Date.now() + 900000,
+      expiresAt: Date.now() + 86400000,
+      refreshOperationId: operation,
+      user: makeUser("SCOUT"),
+    });
+    callNest.mockResolvedValue({ success: true, data: {} });
+    const path = `users/${ids.athlete}/dossier`;
+    expect((await relay(request(path, "GET"), path.split("/"))).status).toBe(200);
+    expect(callNest.mock.calls[0]?.[0]).toMatchObject({ method: "GET", path });
+    const outreach = `scouts/dossiers/${ids.athlete}/outreach`;
+    expect(
+      (
+        await relay(
+          request(outreach, "POST", { actionType: "SHORTLIST_BOOKMARK" }),
+          outreach.split("/"),
+        )
+      ).status,
+    ).toBe(200);
+    expect(callNest.mock.calls[1]?.[0]).toMatchObject({
+      method: "POST",
+      path: outreach,
+      body: '{"actionType":"SHORTLIST_BOOKMARK"}',
+    });
+  });
+  it("denies foreign dossier reads and outreach for athletes without contacting the backend", async () => {
+    const path = `users/${ids.organizer}/dossier`;
+    expect((await relay(request(path, "GET"), path.split("/"))).status).toBe(403);
+    const outreach = `scouts/dossiers/${ids.organizer}/outreach`;
+    expect(
+      (await relay(request(outreach, "POST", { actionType: "OFFER_TRIAL" }), outreach.split("/")))
+        .status,
+    ).toBe(403);
+    expect(callNest).not.toHaveBeenCalled();
+  });
+  it("forwards scoped leaderboard filters only after scout authorization and geographic validation", async () => {
+    await saveSession({
+      id: cookie.value,
+      accessToken: "token",
+      refreshToken: "refresh",
+      accessExpiresAt: Date.now() + 900000,
+      expiresAt: Date.now() + 86400000,
+      refreshOperationId: operation,
+      user: makeUser("SCOUT"),
+    });
+    expect(
+      (await relay(request("gti/leaderboards?scope=STATE", "GET"), ["gti", "leaderboards"])).status,
+    ).toBe(400);
+    expect(callNest).not.toHaveBeenCalled();
+    callNest.mockResolvedValue({ success: true, data: [] });
+    const response = await relay(
+      request(
+        "gti/leaderboards?scope=DISTRICT&state=Maharashtra&district=Shared&gender=FEMALE&sport=ALL",
+        "GET",
+      ),
+      ["gti", "leaderboards"],
+    );
+    expect(response.status).toBe(200);
+    expect(callNest.mock.calls[0]?.[0]).toMatchObject({
+      method: "GET",
+      path: "gti/leaderboards",
+      query: {
+        scope: "DISTRICT",
+        state: "Maharashtra",
+        district: "Shared",
+        gender: "FEMALE",
+        sport: "ALL",
+        limit: 20,
+      },
     });
   });
 });

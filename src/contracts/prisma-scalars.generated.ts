@@ -274,6 +274,8 @@ export interface ScoutDossierScalar {
   athleteId: string;
   scoutId: string;
   scoutNotes: string;
+  organizationName: string | null;
+  outreachHistory: JsonValue;
   federationTag: string | null;
   isShortlisted: boolean;
   pipelineStatus: string;
@@ -305,6 +307,11 @@ export interface SecurityAuditLogScalar {
 }
 
 export interface WearableSessionScalar {
+  readingsCount: number;
+  heartRateSum: number;
+  spo2Sum: number;
+  simulatorReadings: number;
+  baselineSpo2Readings: number;
   id: string;
   athleteId: string;
   sessionDate: ISODateString;

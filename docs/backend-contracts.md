@@ -2,33 +2,36 @@
 
 Source revision and schema checksum: [contracts/source.json](contracts/source.json). Schema snapshot: [contracts/schema.prisma](contracts/schema.prisma). Base path: `/api/v1`.
 
-| Paths                                                     | Wire response                                                              |
-| --------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `POST auth/register`, `auth/login`, `auth/refresh`        | Envelope of AuthResponse; server-only token handling                       |
-| `POST auth/verify-government-id`, `auth/verify-gov-id`    | Envelope of message/verified/idHashPrefix                                  |
-| `POST auth/logout`                                        | Revokes all user refresh families                                          |
-| `GET/POST/PATCH users/profile`                            | Authenticated passport alias                                               |
-| `GET auth/me`                                             | Envelope of JWT identity, not an athlete profile                           |
-| `GET/PATCH/DELETE users/:id`                              | Envelope of selected user/contact fields                                   |
-| `GET/POST/PATCH passport/:userId`                         | Envelope of mapped athlete passport; numeric mapped Decimals               |
-| `GET passport/:userId/sports`                             | Envelope of cursor page of raw sport records                               |
-| `POST passport/:userId/sports`                            | Envelope of raw SportPassportRecord                                        |
-| `GET tournaments/nearby`                                  | Envelope of `{ data, next_cursor, has_more }`; distance/UUID keyset cursor |
-| `GET tournaments/:id`                                     | Envelope of raw Tournament plus at most 100 brackets                       |
-| `POST tournaments`                                        | Envelope of raw Tournament                                                 |
-| `GET tournaments/:id/brackets`                            | Envelope of cursor page of raw Bracket                                     |
-| `POST tournaments/:id/brackets`                           | Envelope of raw Bracket                                                    |
-| `POST tournaments/:id/brackets/:bracketId/register`       | Envelope of mapped registration                                            |
-| `POST .../free-agents/join`, `GET .../free-agents/status` | Envelope of queue status/optional matched roster                           |
-| `DELETE .../free-agents/leave`                            | Envelope of message/cancelled                                              |
-| `POST drills/submit`                                      | Bare success/posture_points_awarded/current_biomechanical_score            |
-| `POST safety/telemetry-webhook`                           | Envelope of alert_triggered/status/optional message                        |
-| `GET gti/rank/:sport/:athleteId`                          | Envelope of sport/athleteId/rank; optional district                        |
-| `POST gti/recalculate/:athleteId`                         | Envelope of computation result                                             |
-| `GET scouts/feed`                                         | Bare success/total/limit/next_cursor/data                                  |
-| `GET scouts/alerts`                                       | Envelope of latest 50 alerts plus selected athlete relation                |
-| `PATCH scouts/alerts/:id/acknowledge`                     | Envelope of raw ScoutAlert                                                 |
-| `GET heatmaps/regional`                                   | Bare success/count/data                                                    |
+| Paths                                                     | Wire response                                                                   |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `POST auth/register`, `auth/login`, `auth/refresh`        | Envelope of AuthResponse; server-only token handling                            |
+| `POST auth/verify-government-id`, `auth/verify-gov-id`    | Envelope of message/verified/idHashPrefix                                       |
+| `POST auth/logout`                                        | Revokes all user refresh families                                               |
+| `GET/POST/PATCH users/profile`                            | Authenticated passport alias                                                    |
+| `GET auth/me`                                             | Envelope of JWT identity, not an athlete profile                                |
+| `GET/PATCH/DELETE users/:id`                              | Envelope of selected user/contact fields                                        |
+| `GET/POST/PATCH passport/:userId`                         | Envelope of mapped athlete passport; numeric mapped Decimals                    |
+| `GET passport/:userId/sports`                             | Envelope of cursor page of raw sport records                                    |
+| `POST passport/:userId/sports`                            | Envelope of raw SportPassportRecord                                             |
+| `GET tournaments/nearby`                                  | Envelope of `{ data, next_cursor, has_more }`; distance/UUID keyset cursor      |
+| `GET tournaments/:id`                                     | Envelope of raw Tournament plus at most 100 brackets                            |
+| `POST tournaments`                                        | Envelope of raw Tournament                                                      |
+| `GET tournaments/:id/brackets`                            | Envelope of cursor page of raw Bracket                                          |
+| `POST tournaments/:id/brackets`                           | Envelope of raw Bracket                                                         |
+| `POST tournaments/:id/brackets/:bracketId/register`       | Envelope of mapped registration                                                 |
+| `POST .../free-agents/join`, `GET .../free-agents/status` | Envelope of queue status/optional matched roster                                |
+| `DELETE .../free-agents/leave`                            | Envelope of message/cancelled                                                   |
+| `POST drills/submit`                                      | Bare success/posture_points_awarded/current_biomechanical_score                 |
+| `POST safety/telemetry-webhook`                           | Envelope of alert_triggered/status/optional message                             |
+| `GET gti/leaderboards`                                    | Bare success/scope/total/next_cursor/has_more/data; snake_case detailed entries |
+| `GET users/:id/dossier`                                   | Envelope of historical scout dossier projection                                 |
+| `POST scouts/dossiers/:athleteId/outreach`                | Envelope of requesting scout's updated ScoutDossier                             |
+| `GET gti/rank/:sport/:athleteId`                          | Envelope of sport/athleteId/rank; optional district                             |
+| `POST gti/recalculate/:athleteId`                         | Envelope of computation result                                                  |
+| `GET scouts/feed`                                         | Bare success/total/limit/next_cursor/data                                       |
+| `GET scouts/alerts`                                       | Envelope of latest 50 alerts plus selected athlete relation                     |
+| `PATCH scouts/alerts/:id/acknowledge`                     | Envelope of raw ScoutAlert                                                      |
+| `GET heatmaps/regional`                                   | Bare success/count/data                                                         |
 
 The global response interceptor skips objects already containing `success`. Never globally unwrap `data` recursively. Errors use RFC 7807 with optional validation and business-code extensions.
 
@@ -60,6 +63,18 @@ Tournament and bracket `PATCH` / `DELETE` mutations require an idempotency key. 
 | `POST brackets/:bracketId/matches/results`     | `{ matchName, winnerAthleteIds, loserAthleteIds, scoreSummary, matchId? }`; updates counters, stores verified result, enqueues GTI |
 
 `GET safety/tournaments/:tournamentId/vitals` returns paginated active registered athletes, latest readings or `AWAITING_READING`, active critical incidents, and actual match states. `GET .../alerts` provides durable history. `PATCH safety/alerts/:id/acknowledge` requires `{ medicalCheckNote, medicalCheckDispatched: true }`; `POST safety/matches/:matchId/resume` requires `{ medicalClearanceConfirmed: true, medicalClearanceNote }`. Acknowledgement and clearance are field-staff assertions stored with actor/audit provenance. The service does not dispatch or certify medical care.
+
+## Scout and policy operations
+
+`gti/leaderboards` supports NATIONAL (default), STATE, and DISTRICT scopes. Sport is optional or ALL; STATE requires state, DISTRICT requires state and district. Filters include `tier=RURAL_AND_TIER_2_3` and gender. `cursor_id` identifies the last profile; default limit 20, maximum 100. Leaderboards order by effective GTI descending and athlete UUID descending, matching Redis ZSET tie ordering. Existing `cursor` / `nextCursor` opaque cursors and camelCase entry aliases remain supported. Scout-feed pages use currentGti descending and profile UUID ascending.
+
+Redis stores primary-sport and ALL national/state/state-qualified district indexes. Profile, account, and GTI writes resync membership and remove old geography/sport keys. Cache reads validate eligibility and score against the database; absent/stale caches and demographic ranking use the same scoped SQL projection. No Redis availability is required for a correct database result.
+
+Dossiers allow self, SCOUT, FEDERATION_ADMIN, and SUPER_ADMIN. Scouts require active verified targets with `isScoutSearchable`. The response includes physical statistics, chronological GTI history with recorded trigger (or LEGACY_UNSPECIFIED), the latest ten metadata-verified FULL/FULL_V2 drills with 12-character signature prefixes, wearable summary, sport records, and the requesting scout's outreach state/history. Other scouts' notes are excluded. Historical wearable sessions without sample aggregates retain null averages rather than synthesized readings. Averages expose simulator and baseline-default sample counts.
+
+Outreach accepts `{ actionType: OFFER_TRIAL | SPONSORSHIP_INQUIRY | SHORTLIST_BOOKMARK, notes?, organizationName? }`, appending history transactionally while preserving shortlist state. Legacy `outreachType: TRIAL | SCHOLARSHIP` and note aliases remain accepted. Visibility is checked before idempotent replay. Actions are durable scouting records, not delivered communications or confirmed awards.
+
+Regional aggregation groups `(state, district)` and uses `COALESCE(NULLIF(gti, 0), current_gti, 0)` on both PostGIS and Prisma paths. `is_complete=false` means more than 500 groups exist. State is carried through map labels and exports; incomplete results are labeled partial.
 
 ## Signing and idempotency
 

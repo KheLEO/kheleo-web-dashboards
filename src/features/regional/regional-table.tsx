@@ -30,6 +30,7 @@ export function RegionalTable({
             value={sort}
             onChange={(event) => onSort(event.target.value as RegionalSort)}
           >
+            <option value="state">State name</option>
             <option value="district">District name</option>
             <option value="total_athletes">Participation</option>
             <option value="average_gti">Average GTI</option>
@@ -53,6 +54,7 @@ export function RegionalTable({
         <caption className="sr-only">Regional participation and gender-equity summary</caption>
         <thead>
           <tr>
+            <th scope="col">State</th>
             <th scope="col">District</th>
             <th scope="col">Athletes</th>
             <th scope="col">Average GTI</th>
@@ -62,8 +64,9 @@ export function RegionalTable({
           </tr>
         </thead>
         <tbody>
-          {districts.map((district, index) => (
-            <tr key={`${district.district}:${index}`}>
+          {districts.map((district) => (
+            <tr key={JSON.stringify([district.state, district.district])}>
+              <td>{district.state}</td>
               <td>{district.district}</td>
               <td className="tabular-nums">{district.total_athletes}</td>
               <td className="tabular-nums text-primary">{district.average_gti.toFixed(1)}</td>
@@ -77,7 +80,9 @@ export function RegionalTable({
                   "At or above target"
                 )}
               </td>
-              <td>{parseCentroid(district.centroid) ? "Centroid available" : "Unavailable"}</td>
+              <td>
+                {parseCentroid(district.centroid) ? "Centroid available" : "No centroid recorded"}
+              </td>
             </tr>
           ))}
         </tbody>

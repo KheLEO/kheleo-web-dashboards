@@ -1,6 +1,8 @@
 "use client";
 import { z } from "zod";
 import {
+  scoutDossierSchema,
+  outreachRecordSchema,
   scoutAlertProjectionSchema,
   scoutAlertSchema,
   scoutFeedSchema,
@@ -15,3 +17,7 @@ export const getAlerts = (filters: { sport?: string; district?: string }, signal
   getApi("scouts/alerts", envelope(z.array(scoutAlertProjectionSchema)), filters, signal);
 export const acknowledgeAlert = (id: string, operation: MutationOperation) =>
   mutateApi(`scouts/alerts/${id}/acknowledge`, envelope(scoutAlertSchema), operation, "PATCH");
+export const getDossier = (id: string, signal?: AbortSignal) =>
+  getApi(`users/${id}/dossier`, envelope(scoutDossierSchema), undefined, signal);
+export const submitOutreach = (id: string, operation: MutationOperation) =>
+  mutateApi(`scouts/dossiers/${id}/outreach`, envelope(outreachRecordSchema), operation);

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, ScanSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,16 +7,18 @@ import { AthletePassportPreview } from "@/features/scouting/athlete-passport-pre
 export interface ScoutDossierModalProps {
   userId: string;
   label?: string;
+  triggerRef?: Ref<HTMLButtonElement>;
 }
 export function ScoutDossierModal({
   userId,
   label = "Inspect athlete passport",
+  triggerRef,
 }: ScoutDossierModalProps) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <Button variant="secondary">
+        <Button ref={triggerRef} variant="secondary">
           <ScanSearch size={16} />
           {label}
         </Button>
@@ -24,11 +26,10 @@ export function ScoutDossierModal({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-background/80" />
         <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl overflow-y-auto border-l bg-background p-5 shadow-xl sm:p-8">
-          <Dialog.Title className="pr-10 text-xl font-semibold">
-            Athlete passport inspector
-          </Dialog.Title>
+          <Dialog.Title className="pr-10 text-xl font-semibold">Athlete scout dossier</Dialog.Title>
           <Dialog.Description className="mb-6 mt-3 pr-6 text-sm leading-6 text-muted-foreground">
-            Authorized passport preview. Full dossier history and outreach await platform support.
+            Verified scores, signed drill evidence, season progression, and your private outreach
+            history.
           </Dialog.Description>
           {open && <AthletePassportPreview userId={userId} />}
           <Dialog.Close

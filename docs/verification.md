@@ -1,5 +1,24 @@
 # Verification evidence
 
+## Prompt 3 verification — 6 November 2026
+
+Prompt 2's organizer routes were checked for dependency placeholders before implementation. Baseline `pnpm test` passed all 140 tests and `pnpm test:e2e` passed all 54 tests.
+
+| Check                                                                       | Result                                     |
+| --------------------------------------------------------------------------- | ------------------------------------------ |
+| `pnpm contracts:sync` / `pnpm contracts:check`                              | Passed against the adjacent backend schema |
+| Frontend `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, `pnpm build`   | Passed                                     |
+| Frontend `pnpm test`                                                        | 27 files, 146 tests passed                 |
+| `pnpm test:e2e`                                                             | 57 Chromium tests passed                   |
+| Backend `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm exec prisma validate` | Passed                                     |
+| Backend `pnpm test`                                                         | 188 tests passed                           |
+
+Coverage includes ALL/sport-specific Redis memberships and stale-member cleanup, tied-score UUID cursors, deterministic scout feed order, production SQL demographic/state filtering, complete chronological dossier history, verified drill signature prefixes, private per-scout outreach, idempotent retries after a lost response, opt-out checks before replay, telemetry sample aggregates, and state-qualified maps/exports. Browser journeys cover the responsive podium/table, ranking-row dossier opening, all three outreach actions across reloads, opt-out errors, mobile accessibility, and separate same-named districts. The existing socket-cleanup check now polls for the steady connection count instead of assuming server disconnect processing is synchronous.
+
+Apply migration `20261106020000_scout_intelligence` before deploying the updated backend. It stores outreach history and telemetry aggregates. Legacy outreach is backfilled from the latest available record; earlier overwritten outreach cannot be reconstructed. Existing wearable sessions have unknown averages until sample aggregates are recorded. Simulator and physiological-default sample counts remain visible in the dossier.
+
+Browser E2E uses deterministic backend fixtures. Embedded PostgreSQL executes the migration and production SQL; Redis indexing tests use a cache double. Hosted Redis/BullMQ behavior, physical devices, clinical recovery, athlete notification delivery, and production deployment are not established by these checks.
+
 ## Prompt 2 verification — 6 November 2026
 
 Prompt 1 entrypoint aliases, relay PUT handling, all three numeric GTI components, authenticated socket handshakes, and room membership checks were verified before organizer implementation. The audit found broad staff-role medical broadcasts; these now use private authorized safety scopes, excluding participant rooms and unrelated organizers.

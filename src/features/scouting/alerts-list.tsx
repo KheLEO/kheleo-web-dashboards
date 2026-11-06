@@ -74,8 +74,7 @@ export function AlertsList() {
       </Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          Latest 50 alerts · HTTP refresh every 30 seconds while visible. Scout-room realtime awaits
-          backend support.
+          Latest 50 alerts · HTTP refresh every 30 seconds while visible.
         </p>
         <Button
           variant="secondary"

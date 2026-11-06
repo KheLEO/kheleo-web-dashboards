@@ -6,7 +6,7 @@ export default function Page() {
       <PageHeading
         eyebrow="workspace"
         title="National, state, and district leaderboards"
-        description="Capability availability"
+        description="Explore verified rankings by geography, sport, and demographic, then inspect athlete evidence."
       />
       <LeaderboardWorkspace />
     </>

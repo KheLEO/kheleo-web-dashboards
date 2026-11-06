@@ -2,7 +2,7 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { ScoutFeedQuery } from "@/contracts/scouting";
 import { useSession } from "@/features/auth/session-provider";
-import { getProspects, getAlerts } from "./api";
+import { getProspects, getAlerts, getDossier } from "./api";
 export function useProspects(filters: ScoutFeedQuery) {
   const { user } = useSession();
   return useInfiniteQuery({
@@ -15,7 +15,6 @@ export function useProspects(filters: ScoutFeedQuery) {
       ),
     getNextPageParam: (page, _pages, _previous, cursors) =>
       page.next_cursor && !cursors.includes(page.next_cursor) ? page.next_cursor : undefined,
-    maxPages: 5,
   });
 }
 export function useScoutAlerts(filters: { sport?: string; district?: string }) {
@@ -25,5 +24,13 @@ export function useScoutAlerts(filters: { sport?: string; district?: string }) {
     queryFn: ({ signal }) => getAlerts(filters, signal),
     refetchInterval: 30000,
     refetchIntervalInBackground: false,
+  });
+}
+
+export function useDossier(userId: string) {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ["scout-dossier", user.id, userId],
+    queryFn: ({ signal }) => getDossier(userId, signal),
   });
 }

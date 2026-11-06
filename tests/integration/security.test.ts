@@ -112,7 +112,11 @@ describe("relay security boundaries", () => {
       roles: ["ORGANIZER", "FEDERATION_ADMIN", "SUPER_ADMIN"],
       ownsTournament: true,
     });
-    expect(routeRegistry.some((entry) => entry.pattern.test("gti/leaderboards"))).toBe(false);
+    expect(routeRegistry.find((entry) => entry.pattern.test("gti/leaderboards"))?.roles).toEqual([
+      "SCOUT",
+      "FEDERATION_ADMIN",
+      "SUPER_ADMIN",
+    ]);
   });
 });
 it.each([false, true])(

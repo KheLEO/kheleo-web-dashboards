@@ -13,7 +13,8 @@ import {
   registerBracketSchema,
 } from "@/contracts/tournaments";
 import { joinPoolSchema } from "@/contracts/matchmaking";
-import { scoutFeedQuerySchema } from "@/contracts/scouting";
+import { leaderboardQuerySchema } from "@/contracts/gti";
+import { outreachSchema, scoutFeedQuerySchema } from "@/contracts/scouting";
 import { poseSubmissionSchema } from "@/contracts/drills";
 import { recordMatchResultSchema } from "@/contracts/organizer";
 import { acknowledgeSafetySchema, resumeSafetySchema, telemetrySchema } from "@/contracts/safety";
@@ -26,7 +27,7 @@ export interface RelayRoute {
   body?: z.ZodType;
   query: z.ZodType;
   roles?: readonly UserRole[];
-  identity?: "self" | "passport-read";
+  identity?: "self" | "passport-read" | "dossier-read";
   ownsTournament?: boolean;
   signed?: "drill" | "telemetry";
 }
@@ -40,6 +41,26 @@ const scouts: readonly UserRole[] = ["SCOUT", "FEDERATION_ADMIN", "SUPER_ADMIN"]
 const organizers: readonly UserRole[] = ["ORGANIZER", "FEDERATION_ADMIN", "SUPER_ADMIN"];
 const athletes: readonly UserRole[] = ["ATHLETE", "SUPER_ADMIN"];
 export const routeRegistry: readonly RelayRoute[] = [
+  {
+    method: "GET",
+    pattern: path("gti/leaderboards"),
+    query: leaderboardQuerySchema,
+    roles: scouts,
+  },
+  {
+    method: "GET",
+    pattern: path(`users/${uuid}/dossier`),
+    query: noQuery,
+    identity: "dossier-read",
+  },
+  {
+    method: "POST",
+    pattern: path(`scouts/dossiers/${uuid}/outreach`),
+    body: outreachSchema,
+    query: noQuery,
+    roles: scouts,
+  },
+
   {
     method: "POST",
     pattern: path("auth/verify-government-id"),

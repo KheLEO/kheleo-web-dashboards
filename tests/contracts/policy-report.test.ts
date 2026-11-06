@@ -7,6 +7,7 @@ import {
   sortDistricts,
 } from "@/features/regional/policy-report";
 const district: DistrictHeatmapRecord = {
+  state: "Uttar Pradesh",
   district: "Ghaziabad",
   total_athletes: 100,
   average_gti: 85,
@@ -41,14 +42,14 @@ describe("policy aggregate reports", () => {
     ];
     expect(regionalPoints(rows, "participation", 25)).toHaveLength(1);
     const report = createPolicyReport(
-      { success: true, count: 3, data: rows },
+      { success: true, is_complete: true, count: 3, data: rows },
       rows,
       25,
       "2026-10-31T12:00:00.000Z",
     );
     expect(report.districts).toHaveLength(3);
     expect(report.districts[1]?.latitude).toBeNull();
-    expect(report.metadata.completeness).toBe("unknown");
+    expect(report.metadata.completeness).toBe("complete");
     expect(report.districts[0]?.below_planning_target).toBe(true);
   });
   it("bounds exported rows and preserves the backend count independently", () => {
@@ -56,7 +57,12 @@ describe("policy aggregate reports", () => {
       ...district,
       district: String(index),
     }));
-    const report = createPolicyReport({ success: true, count: 999, data: rows }, rows, 25, "now");
+    const report = createPolicyReport(
+      { success: true, is_complete: true, count: 999, data: rows },
+      rows,
+      25,
+      "now",
+    );
     expect(report.districts).toHaveLength(500);
     expect(report.metadata).toMatchObject({
       backend_count: 999,
@@ -75,10 +81,15 @@ describe("policy aggregate reports", () => {
   });
   it("escapes CSV quotes, delimiters and spreadsheet formula prefixes", () => {
     const rows = [district, { ...district, district: ' =HYPERLINK("bad"),\nrow' }];
-    const report = createPolicyReport({ success: true, count: 2, data: rows }, rows, 25, "now");
+    const report = createPolicyReport(
+      { success: true, is_complete: true, count: 2, data: rows },
+      rows,
+      25,
+      "now",
+    );
     const csv = policyCsv(report);
     expect(csv).toContain('"\' =HYPERLINK(""bad""),\nrow"');
-    expect(csv).toContain('"unknown"');
+    expect(csv).toContain('"complete"');
     expect(csv.split("\r\n")).toHaveLength(3);
   });
   it("rejects impossible counts, percentages and GTI without misclassifying zero", () => {
