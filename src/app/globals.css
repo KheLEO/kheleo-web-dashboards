@@ -223,6 +223,20 @@
   .control {
     @apply w-full min-w-0 rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-ring;
   }
+  select.control {
+    @apply cursor-pointer transition-colors;
+    background-color: rgb(var(--card));
+    color: rgb(var(--foreground));
+    border-color: rgb(var(--border));
+  }
+  select.control:hover {
+    border-color: rgb(var(--primary) / 0.6);
+  }
+  select.control:focus {
+    border-color: rgb(var(--primary));
+    box-shadow: 0 0 0 2px rgb(var(--primary) / 0.25);
+    outline: none;
+  }
   .panel {
     @apply min-w-0 max-w-full rounded-xl border bg-card p-5 sm:p-6;
   }
@@ -282,6 +296,43 @@
 }
 .leaflet-control-attribution a {
   color: rgb(var(--primary)) !important;
+}
+
+/* Customizable Select API styling with dynamic theme variables */
+select.control,
+select.control::picker(select) {
+  appearance: base-select;
+}
+
+select.control::picker(select) {
+  background-color: rgb(var(--popover));
+  color: rgb(var(--popover-foreground));
+  border: 1px solid rgb(var(--border));
+  border-radius: var(--radius);
+  padding: 0.375rem;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.5),
+    0 8px 10px -6px rgba(0, 0, 0, 0.5);
+}
+
+select.control option {
+  padding: 0.5rem 0.75rem;
+  border-radius: calc(var(--radius) - 0.25rem);
+  color: rgb(var(--popover-foreground));
+  background-color: rgb(var(--popover));
+  cursor: pointer;
+}
+
+select.control option:hover,
+select.control option:focus {
+  background-color: rgb(var(--primary) / 0.15);
+  color: rgb(var(--primary));
+}
+
+select.control option:checked {
+  background-color: rgb(var(--primary) / 0.25);
+  color: rgb(var(--primary));
+  font-weight: 600;
 }
 @media (prefers-reduced-motion: reduce) {
   *,
