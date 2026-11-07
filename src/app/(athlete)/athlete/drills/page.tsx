@@ -16,10 +16,10 @@ export default function Page() {
         Sport-specific scoring is awaiting calibration. Tracking and angle feedback do not affect
         GTI.
       </Alert>
-      <div className="mt-6 grid gap-5 sm:grid-cols-2">
+      <div className="mt-6 grid auto-rows-fr gap-5 sm:grid-cols-2">
         {drillCatalog.map((drill) => (
-          <Link key={drill.id} href={`/athlete/drills/${drill.id}`}>
-            <Card className="hover:border-primary/50">
+          <Link key={drill.id} href={`/athlete/drills/${drill.id}`} className="flex h-full">
+            <Card className="flex h-full w-full flex-col hover:border-primary/50">
               <div className="flex justify-between text-primary">
                 <ScanLine size={26} />
                 <ArrowUpRight size={18} />
