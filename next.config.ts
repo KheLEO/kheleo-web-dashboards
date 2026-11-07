@@ -10,6 +10,7 @@ const identityOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
   : "";
 
 const config: NextConfig = {
+  devIndicators: false,
   reactStrictMode: true,
   poweredByHeader: false,
   turbopack: { root: process.cwd() },
