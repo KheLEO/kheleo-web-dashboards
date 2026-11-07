@@ -34,8 +34,8 @@ export const navigation: Record<Workspace, readonly NavigationItem[]> = {
     { title: "Sports passport", href: "/athlete/passport", icon: IdCard },
     {
       title: "Identity",
-      href: "/verify-identity",
-      aliases: ["/athlete/identity"],
+      href: "/athlete/identity",
+      aliases: ["/verify-identity"],
       icon: ShieldCheck,
     },
     { title: "Tournaments", href: "/athlete/tournaments", icon: Trophy },
