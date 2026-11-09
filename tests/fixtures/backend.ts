@@ -500,21 +500,34 @@ const server = createServer(async (request, response) => {
   };
   if (["auth/login", "auth/register", "auth/refresh"].includes(path)) {
     const gov = body.governmentId as Record<string, unknown> | undefined;
-    if (path !== "auth/refresh" && gov?.idNumber !== "12345678") {
-      send(response, problem(401, "Invalid login credentials."), 401);
-      return;
+    const idNumber = typeof gov?.idNumber === "string" ? gov.idNumber.trim() : "";
+    if (path !== "auth/refresh") {
+      if (idNumber === "wrong-proof" || (path === "auth/login" && !idNumber)) {
+        send(response, problem(401, "Invalid login credentials."), 401);
+        return;
+      }
     }
-    const email = typeof body.email === "string" ? body.email : "athlete@example.com";
-    const role: UserRole = email.startsWith("organizer")
-      ? "ORGANIZER"
-      : email.startsWith("scout")
-        ? "SCOUT"
-        : email.startsWith("policy")
-          ? "FEDERATION_ADMIN"
-          : email.startsWith("admin")
-            ? "SUPER_ADMIN"
-            : "ATHLETE";
-    const user = makeUser(role);
+    const email = typeof body.email === "string" && body.email.trim() ? body.email.trim() : "athlete@example.com";
+    const requestedRole = (typeof body.role === "string" ? body.role : null) as UserRole | null;
+    const role: UserRole =
+      (requestedRole && ["ATHLETE", "ORGANIZER", "SCOUT", "SUPER_ADMIN", "FEDERATION_ADMIN"].includes(requestedRole)
+        ? requestedRole
+        : null) ??
+      (email.startsWith("organizer")
+        ? "ORGANIZER"
+        : email.startsWith("scout")
+          ? "SCOUT"
+          : email.startsWith("policy")
+            ? "FEDERATION_ADMIN"
+            : email.startsWith("admin")
+              ? "SUPER_ADMIN"
+              : "ATHLETE");
+    const baseUser = makeUser(role);
+    const user = {
+      ...baseUser,
+      email: typeof body.email === "string" && body.email.trim() ? body.email.trim() : baseUser.email,
+      phone: typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : baseUser.phone,
+    };
     ok({
       accessToken: `fixture:${role}`,
       refreshToken: `refresh:${role}`,
