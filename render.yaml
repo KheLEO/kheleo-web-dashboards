@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: kheleo-web-dashboards
+    runtime: node
+    plan: standard
+    region: singapore
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/session/me
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: APP_ENV
+        value: production
+      - key: APP_ORIGIN
+        sync: false
+      - key: NEST_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_SOCKET_ORIGIN
+        sync: false
+      - key: NEXT_PUBLIC_WS_URL
+        sync: false
+      - key: SESSION_STORE
+        value: redis
+      - key: REDIS_URL
+        sync: false
+      - key: DRILL_HMAC_SECRET
+        sync: false
+      - key: TELEMETRY_SERVICE_HMAC_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_TILE_URL
+        value: https://tile.openstreetmap.org/{z}/{x}/{y}.png
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SAFE_EVENTS_VERIFIED
+        value: "true"
