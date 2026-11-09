@@ -230,6 +230,216 @@ function queuedAthletes() {
     joinedAt: "2026-11-01T00:00:00.000Z",
   }));
 }
+
+function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
+}
+
+const federationOrgId = "10000000-0000-4000-8000-000000000099";
+
+interface GeneratedTournament {
+  id: string;
+  name: string;
+  sport: "CRICKET" | "FOOTBALL" | "BADMINTON" | "ATHLETICS" | "KABADDI" | "BASKETBALL";
+  venueName: string;
+  venueLat: number;
+  venueLng: number;
+  prizePool: string;
+  maxTeams: number;
+  teamSize: number;
+  startDate: string;
+  endDate: string;
+  registrationDeadline: string;
+  minGti: string;
+  maxGti: string;
+}
+
+const NCR_VENUES = [
+  { name: "Mahamaya Sports Stadium, Ghaziabad", lat: 28.672, lng: 77.442 },
+  { name: "ABES Sports Complex, Ghaziabad", lat: 28.681, lng: 77.461 },
+  { name: "Yamuna Sports Complex, East Delhi", lat: 28.664, lng: 77.31 },
+  { name: "Noida Stadium Sector 21A, Noida", lat: 28.588, lng: 77.34 },
+  { name: "Major Dhyan Chand National Stadium, Central Delhi", lat: 28.612, lng: 77.237 },
+  { name: "Thyagaraj Sports Complex, South Delhi", lat: 28.577, lng: 77.218 },
+  { name: "Indira Gandhi Arena, New Delhi", lat: 28.629, lng: 77.248 },
+  { name: "Siri Fort Sports Complex, South Delhi", lat: 28.552, lng: 77.22 },
+  { name: "Chhatrasal Stadium, Model Town Delhi", lat: 28.705, lng: 77.193 },
+  { name: "Talkatora Indoor Stadium, New Delhi", lat: 28.624, lng: 77.194 },
+  { name: "Shaheed Vijay Singh Pathik Sports Complex, Greater Noida", lat: 28.472, lng: 77.498 },
+  { name: "Netaji Subhash Sports Complex, Jasola, South Delhi", lat: 28.535, lng: 77.291 },
+  { name: "Commonwealth Games Village Sports Complex, Akshardham", lat: 28.615, lng: 77.278 },
+  { name: "Dr. Karni Singh Sports Ground, Surajkund", lat: 28.49, lng: 77.275 },
+];
+
+const SPORT_POPULARITY_DATA: Array<{
+  sport: "FOOTBALL" | "CRICKET" | "BADMINTON" | "KABADDI" | "BASKETBALL" | "ATHLETICS";
+  sportCode: string;
+  fameRank: number; // 1 = highest, 6 = lowest
+  teamSize: number;
+  maxTeamsPool: number[];
+  titles: string[];
+}> = [
+  {
+    sport: "FOOTBALL",
+    sportCode: "0000000002",
+    fameRank: 1, // Most famous: user specified "Sports like football have 6 tournaments"
+    teamSize: 11,
+    maxTeamsPool: [16, 24, 32],
+    titles: [
+      "Delhi-NCR Premier Football Derby",
+      "National Capital Football Championship",
+      "Ghaziabad Inter-District Football Trophy",
+      "Yamuna Grassroots Youth Football Cup",
+      "Noida Super Strikers League",
+      "Capital City Community Football Open",
+      "Shaheed Bhagat Singh Memorial Football Cup",
+      "NCR Champions Football League",
+    ],
+  },
+  {
+    sport: "CRICKET",
+    sportCode: "0000000001",
+    fameRank: 2,
+    teamSize: 11,
+    maxTeamsPool: [16, 20, 24],
+    titles: [
+      "Delhi-NCR Premier Cricket Trophy",
+      "Inter-Campus T20 Cricket Challenge",
+      "Yamuna Grassroots Cricket Cup",
+      "Noida District Super League",
+      "National Capital Cricket Championship",
+      "Greater Noida Youth Cricket Carnival",
+    ],
+  },
+  {
+    sport: "BADMINTON",
+    sportCode: "0000000003",
+    fameRank: 3,
+    teamSize: 2,
+    maxTeamsPool: [32, 48, 64],
+    titles: [
+      "Ghaziabad Youth Badminton Classic",
+      "Yamuna Shuttle Badminton Trophy",
+      "Noida District Badminton Carnival",
+      "Indira Gandhi National Badminton Open",
+      "Thyagaraj Indoor Shuttle Cup",
+      "Siri Fort Smash Masters Championship",
+    ],
+  },
+  {
+    sport: "KABADDI",
+    sportCode: "0000000005",
+    fameRank: 4,
+    teamSize: 7,
+    maxTeamsPool: [12, 16, 20],
+    titles: [
+      "NCR Pro-Style Kabaddi Mahotsav",
+      "Noida Sector Gold Kabaddi Trophy",
+      "Ghaziabad District Kabaddi Mahotsav",
+      "Thyagaraj State Kabaddi Challenge",
+      "Chhatrasal Traditional Kabaddi Open",
+    ],
+  },
+  {
+    sport: "BASKETBALL",
+    sportCode: "0000000006",
+    fameRank: 5,
+    teamSize: 5,
+    maxTeamsPool: [12, 16],
+    titles: [
+      "Indira Gandhi Hoops Showdown",
+      "Siri Fort 3x3 & Full-Court Open",
+      "Yamuna Youth Basketball Trophy",
+      "Noida Cagers Invitational",
+      "Thyagaraj Basketball Premier League",
+    ],
+  },
+  {
+    sport: "ATHLETICS",
+    sportCode: "0000000004",
+    fameRank: 6, // Least famous: user specified "to the other one, the least famous, you need to give 3"
+    teamSize: 1,
+    maxTeamsPool: [30, 50, 64],
+    titles: [
+      "National Capital Track & Field Invitational",
+      "Delhi State Grassroots Athletics Meet",
+      "Yamuna Sprint & Middle Distance Challenge",
+      "Chhatrasal Memorial Athletics Open",
+    ],
+  },
+];
+
+function getDynamicTournamentCount(fameRank: number, totalSports: number): number {
+  // Linear scaling from 6 (fameRank = 1) down to 3 (fameRank = totalSports)
+  // Ensures:
+  // - Top famous sport (Football) gets exactly 6
+  // - Least famous sport (Athletics) gets exactly 3
+  // - Intermediate sports get dynamically stepped counts (5, 5, 4, 4)
+  const minTournaments = 3;
+  const maxTournaments = 6;
+  const ratio = (fameRank - 1) / (totalSports - 1);
+  const count = Math.round(maxTournaments - ratio * (maxTournaments - minTournaments));
+  return Math.min(maxTournaments, Math.max(minTournaments, count));
+}
+
+function generateDynamicTournaments(): GeneratedTournament[] {
+  const prizePools = ["25000", "35000", "40000", "50000", "60000", "75000", "100000"];
+  const list: GeneratedTournament[] = [];
+  const totalSports = SPORT_POPULARITY_DATA.length;
+
+  for (const entry of SPORT_POPULARITY_DATA) {
+    const count = getDynamicTournamentCount(entry.fameRank, totalSports);
+    const shuffledTitles = [...entry.titles].sort(() => Math.random() - 0.5);
+    const shuffledVenues = [...NCR_VENUES].sort(() => Math.random() - 0.5);
+
+    for (let i = 0; i < count; i++) {
+      const venue = shuffledVenues[i % shuffledVenues.length]!;
+      // Subtle randomized GPS coordinate jitter within venue premises (±0.002 to ±0.004 degrees, ~200-400m)
+      const latJitter = Math.round((Math.random() - 0.5) * 0.006 * 1000) / 1000;
+      const lngJitter = Math.round((Math.random() - 0.5) * 0.006 * 1000) / 1000;
+      const venueLat = Math.round((venue.lat + latJitter) * 1000) / 1000;
+      const venueLng = Math.round((venue.lng + lngJitter) * 1000) / 1000;
+
+      const title = shuffledTitles[i] ?? `${entry.sport} Cup ${i + 1}`;
+      const prizePool = prizePools[Math.floor(Math.random() * prizePools.length)]!;
+      const maxTeams = entry.maxTeamsPool[Math.floor(Math.random() * entry.maxTeamsPool.length)]!;
+
+      // Randomized dates: between Feb 18, 2027 and Apr 25, 2027
+      const dayOffset = 18 + Math.floor(Math.random() * 55);
+      const startDay = new Date(Date.UTC(2027, 1, dayOffset, 12, 0, 0));
+      const endDay = new Date(startDay.getTime() + (3 + Math.floor(Math.random() * 3)) * 86400000);
+      const regDeadline = new Date(startDay.getTime() - 5 * 86400000);
+
+      const id = `30000000-0000-4000-8000-${entry.sportCode}${String(i + 1).padStart(2, "0")}`;
+
+      list.push({
+        id,
+        name: title,
+        sport: entry.sport,
+        venueName: venue.name,
+        venueLat,
+        venueLng,
+        prizePool,
+        maxTeams,
+        teamSize: entry.teamSize,
+        startDate: startDay.toISOString(),
+        endDate: endDay.toISOString(),
+        registrationDeadline: regDeadline.toISOString(),
+        minGti: "0",
+        maxGti: "100",
+      });
+    }
+  }
+
+  return list;
+}
+
 function seedOrganizer(): void {
   tournaments.clear();
   brackets.clear();
@@ -253,6 +463,52 @@ function seedOrganizer(): void {
       maxGti: "100",
     }),
   );
+
+  const dynamicTournaments = generateDynamicTournaments();
+  for (const t of dynamicTournaments) {
+    const tournament = tournamentSchema.parse({
+      id: t.id,
+      organizerId: federationOrgId,
+      name: t.name,
+      title: t.name,
+      sport: t.sport,
+      status: "REGISTRATION_OPEN",
+      minGti: t.minGti,
+      maxGti: t.maxGti,
+      maxTeams: t.maxTeams,
+      teamSize: t.teamSize,
+      prizePool: t.prizePool,
+      currency: "INR",
+      venueName: t.venueName,
+      venueLat: t.venueLat,
+      venueLng: t.venueLng,
+      registrationDeadline: t.registrationDeadline,
+      startDate: t.startDate,
+      endDate: t.endDate,
+      rulesConfig: {},
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-01T00:00:00.000Z",
+    });
+    tournaments.set(t.id, tournament);
+
+    const bId = t.id.replace(/^3/, "4");
+    brackets.set(
+      bId,
+      bracketSchema.parse({
+        id: bId,
+        tournamentId: t.id,
+        name: "Open Community Bracket",
+        tierName: "OPEN",
+        minGti: t.minGti,
+        maxGti: t.maxGti,
+        entryFee: "500",
+        maxTeams: t.maxTeams,
+        bracketType: "SINGLE_ELIMINATION",
+        roundOrder: 1,
+        config: {},
+      }),
+    );
+  }
   for (const [id, name] of [
     [ids.athlete, "athlete@example.com"],
     [opponentId, "opponent@example.com"],
@@ -670,7 +926,8 @@ const server = createServer(async (request, response) => {
           [...tournaments.values()]
             .filter(
               (event) =>
-                !url.searchParams.get("status") || event.status === url.searchParams.get("status"),
+                (!url.searchParams.get("status") || event.status === url.searchParams.get("status")) &&
+                event.organizerId === ids.organizer,
             )
             .map((event) => ({ ...event, isFeatured: event.isFeatured ?? false })),
         ),
@@ -943,22 +1200,76 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (path === "tournaments/nearby") {
-    const rows = nearbyPages
-      ? Array.from({ length: 45 }, (_, index) => ({
-          ...makeTournament(),
-          id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
-          name: `Nearby Tournament ${String(index + 1).padStart(2, "0")}`,
-          prizePool: 25000,
-          minGti: 0,
-          maxGti: 100,
-          distanceKm: Math.floor(index / 2),
-        }))
-      : [{ ...makeTournament(), minGti: 0, maxGti: 100, prizePool: 25000, distanceKm: 4.2 }];
+    if (nearbyPages) {
+      const rows = Array.from({ length: 45 }, (_, index) => ({
+        ...makeTournament(),
+        id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+        name: `Nearby Tournament ${String(index + 1).padStart(2, "0")}`,
+        prizePool: 25000,
+        minGti: 0,
+        maxGti: 100,
+        distanceKm: Math.floor(index / 2),
+      }));
+      const cursor = url.searchParams.get("cursor");
+      const start = cursor ? rows.findIndex((row) => row.id === cursor) + 1 : 0;
+      const limit = Number(url.searchParams.get("limit") ?? 20);
+      const data = rows.slice(start, start + limit);
+      const has_more = start + limit < rows.length;
+      ok({ data, next_cursor: has_more ? data.at(-1)!.id : null, has_more });
+      return;
+    }
+
+    const reqLat = Number(url.searchParams.get("lat") ?? 28.6692);
+    const reqLng = Number(url.searchParams.get("lng") ?? 77.4538);
+    const reqRadius = Number(url.searchParams.get("radius_km") ?? 50);
+    const reqSport = url.searchParams.get("sport");
+
+    const all = [...tournaments.values()].map((t) => {
+      const dist = haversineDistanceKm(reqLat, reqLng, t.venueLat, t.venueLng);
+      return {
+        id: t.id,
+        name: t.name,
+        sport: t.sport,
+        status: t.status,
+        minGti: Number(t.minGti),
+        maxGti: Number(t.maxGti),
+        venueName: t.venueName,
+        venueLat: t.venueLat,
+        venueLng: t.venueLng,
+        distanceKm: dist,
+        startDate: t.startDate,
+        registrationDeadline: t.registrationDeadline,
+        prizePool: Number(t.prizePool),
+        maxTeams: t.maxTeams,
+        teamSize: t.teamSize,
+      };
+    });
+
+    let filtered = all.filter((t) => t.distanceKm <= reqRadius);
+    if (reqSport && reqSport.trim()) {
+      filtered = filtered.filter((t) => t.sport === reqSport.trim().toUpperCase());
+    }
+
+    if (filtered.length < 3) {
+      const sportPool = reqSport
+        ? all.filter((t) => t.sport === reqSport.trim().toUpperCase())
+        : all;
+      sportPool.sort((a, b) => a.distanceKm - b.distanceKm);
+      for (const t of sportPool) {
+        if (!filtered.some((f) => f.id === t.id)) {
+          filtered.push(t);
+        }
+        if (filtered.length >= (reqSport ? sportPool.length : 6)) break;
+      }
+    }
+
+    filtered.sort((a, b) => a.distanceKm - b.distanceKm || a.id.localeCompare(b.id));
+
     const cursor = url.searchParams.get("cursor");
-    const start = cursor ? rows.findIndex((row) => row.id === cursor) + 1 : 0;
+    const start = cursor ? filtered.findIndex((row) => row.id === cursor) + 1 : 0;
     const limit = Number(url.searchParams.get("limit") ?? 20);
-    const data = rows.slice(start, start + limit);
-    const has_more = start + limit < rows.length;
+    const data = filtered.slice(start, start + limit);
+    const has_more = start + limit < filtered.length;
     ok({ data, next_cursor: has_more ? data.at(-1)!.id : null, has_more });
     return;
   }
@@ -971,10 +1282,11 @@ const server = createServer(async (request, response) => {
     return { data, next_cursor: has_more ? data.at(-1)!.id : null, has_more, count: data.length };
   };
   if (path === "tournaments/organizer/summary") {
+    const mine = [...tournaments.values()].filter((t) => t.organizerId === ids.organizer);
     ok({
-      activeTournamentsCount: tournaments.size,
+      activeTournamentsCount: mine.length,
       totalRegisteredAthletes: matched ? 13 : 2,
-      totalPrizePoolInr: [...tournaments.values()].reduce(
+      totalPrizePoolInr: mine.reduce(
         (sum, event) => sum + Number(event.prizePool),
         0,
       ),
@@ -985,7 +1297,7 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (path === "tournaments/organizer/mine") {
-    ok(page([...tournaments.values()]));
+    ok(page([...tournaments.values()].filter((t) => t.organizerId === ids.organizer)));
     return;
   }
   if (path.endsWith("/registrations")) {
