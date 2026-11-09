@@ -34,13 +34,35 @@ export function TournamentDiscovery() {
       (query.data?.pages ?? []).flatMap((page) => page.data).map((entry) => [entry.id, entry]),
     ).values(),
   );
+
+  // Filter tournaments strictly by the sport selected in the Sport column
+  const filteredRows = sport
+    ? rows.filter(
+        (tournament) =>
+          tournament.sport.trim().toUpperCase() === sport.trim().toUpperCase(),
+      )
+    : rows;
+
+  // Sorting algorithm: strictly sort by distance ascending (nearest first), breaking ties by name
+  const sortedRows = [...filteredRows].sort((a, b) => {
+    const distA = typeof a.distanceKm === "number" ? a.distanceKm : Infinity;
+    const distB = typeof b.distanceKm === "number" ? b.distanceKm : Infinity;
+    if (distA !== distB) {
+      return distA - distB;
+    }
+    return a.name.localeCompare(b.name);
+  });
+
   function search(): void {
+    const validSport = sport
+      ? SportTypeValues.find((entry) => entry === sport)
+      : undefined;
     const result = nearbyQuerySchema.safeParse({
       lat: Number(lat),
       lng: Number(lng),
       radius_km: radius,
       limit: 20,
-      ...(sport ? { sport } : {}),
+      ...(validSport ? { sport: validSport } : {}),
     });
     if (!lat.trim() || !lng.trim() || !result.success) {
       setLocationError("Enter valid latitude and longitude coordinates.");
@@ -66,12 +88,15 @@ export function TournamentDiscovery() {
                   setLat(String(position.coords.latitude));
                   setLng(String(position.coords.longitude));
                   setLocationError(null);
+                  const validSport = sport
+                    ? SportTypeValues.find((entry) => entry === sport)
+                    : undefined;
                   setFilters({
                     lat: position.coords.latitude,
                     lng: position.coords.longitude,
                     radius_km: radius,
                     limit: 20,
-                    ...(sport ? { sport: SportTypeValues.find((entry) => entry === sport) } : {}),
+                    ...(validSport ? { sport: validSport } : {}),
                   });
                 },
                 () =>
@@ -103,6 +128,12 @@ export function TournamentDiscovery() {
                   if (campus) {
                     setLat(String(campus.lat));
                     setLng(String(campus.lng));
+                    setLocationError(null);
+                    setFilters((prev) => ({
+                      ...prev,
+                      lat: campus.lat,
+                      lng: campus.lng,
+                    }));
                   }
                 }}
               >
@@ -117,11 +148,28 @@ export function TournamentDiscovery() {
               <select
                 className="control"
                 value={sport}
-                onChange={(event) => setSport(event.target.value)}
+                onChange={(event) => {
+                  const selectedSport = event.target.value;
+                  setSport(selectedSport);
+                  const validSport = selectedSport
+                    ? SportTypeValues.find((entry) => entry === selectedSport)
+                    : undefined;
+                  setFilters((prev) => {
+                    const next: NearbyTournamentsQuery = { ...prev };
+                    if (validSport) {
+                      next.sport = validSport;
+                    } else {
+                      delete next.sport;
+                    }
+                    return next;
+                  });
+                }}
               >
                 <option value="">All sports</option>
                 {SportTypeValues.map((entry) => (
-                  <option key={entry}>{entry}</option>
+                  <option key={entry} value={entry}>
+                    {entry}
+                  </option>
                 ))}
               </select>
             </label>
@@ -161,7 +209,14 @@ export function TournamentDiscovery() {
               max={500}
               step={5}
               value={radius}
-              onChange={(event) => setRadius(Number(event.target.value))}
+              onChange={(event) => {
+                const nextRadius = Number(event.target.value);
+                setRadius(nextRadius);
+                setFilters((prev) => ({
+                  ...prev,
+                  radius_km: nextRadius,
+                }));
+              }}
               className="w-full accent-primary"
             />
           </label>
@@ -188,12 +243,12 @@ export function TournamentDiscovery() {
         />
       ) : (
         <>
-          <TournamentMap tournaments={rows} center={[settledFilters.lat, settledFilters.lng]} />
-          {rows.length === 0 ? (
+          <TournamentMap tournaments={sortedRows} center={[settledFilters.lat, settledFilters.lng]} />
+          {sortedRows.length === 0 ? (
             <EmptyState>No open tournaments found in this area. Try a wider radius.</EmptyState>
           ) : (
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {rows.map((tournament) => (
+              {sortedRows.map((tournament) => (
                 <TournamentCard key={tournament.id} tournament={tournament} />
               ))}
             </div>
