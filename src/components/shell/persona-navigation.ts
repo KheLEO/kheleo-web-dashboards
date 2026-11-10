@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  ShieldCheck,
   IdCard,
   Trophy,
   ScanLine,
@@ -31,12 +30,11 @@ export function isNavigationActive(pathname: string, item: NavigationItem): bool
 export const navigation: Record<Workspace, readonly NavigationItem[]> = {
   athlete: [
     { title: "Overview", href: "/athlete/dashboard", aliases: ["/athlete"], icon: LayoutDashboard },
-    { title: "Sports passport", href: "/athlete/passport", icon: IdCard },
     {
-      title: "Identity",
-      href: "/athlete/identity",
-      aliases: ["/verify-identity"],
-      icon: ShieldCheck,
+      title: "Sports passport",
+      href: "/athlete/passport",
+      aliases: ["/athlete/identity", "/verify-identity"],
+      icon: IdCard,
     },
     { title: "Tournaments", href: "/athlete/tournaments", icon: Trophy },
     { title: "Pose drills", href: "/athlete/drills", icon: ScanLine },

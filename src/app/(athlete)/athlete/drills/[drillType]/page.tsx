@@ -1,24 +1,34 @@
-import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/shared/page-heading";
-import { DrillCamera } from "@/features/drills/drill-camera";
-import { drillCatalog, practicePresets } from "@/features/drills/drill-catalog";
-export default async function Page({ params }: { params: Promise<{ drillType: string }> }) {
-  const { drillType } = await params;
-  const drill = drillCatalog.find((entry) => entry.id === drillType);
-  if (!drill) notFound();
+import { ScanLine, ShieldCheck, Award } from "lucide-react";
+import { UpcomingFeatureView } from "@/components/shared/upcoming-feature-view";
+
+export default function DrillTypePage() {
   return (
-    <>
-      <PageHeading
-        eyebrow="on-device pose tracking"
-        title={drill.name}
-        description={drill.description}
-      />
-      <DrillCamera
-        key={drill.id}
-        {...(practicePresets.find((preset) => preset.id === drill.id)
-          ? { preset: practicePresets.find((preset) => preset.id === drill.id)! }
-          : {})}
-      />
-    </>
+    <UpcomingFeatureView
+      badge="UNDER PRODUCTION • LAUNCHING SOON"
+      title="Edge-AI Pose Drills — Under Production"
+      subtitle="Our on-device computer vision engine for cricket bowling, badminton smash, football strike, and sprint biomechanics is currently undergoing final model calibration and will be live soon."
+      highlights={[
+        {
+          title: "100% On-Device Camera Tracking",
+          description:
+            "Zero raw video uploaded; complete privacy on your phone or laptop. All computer vision processing runs strictly inside your local browser sandbox.",
+          icon: ShieldCheck,
+        },
+        {
+          title: "Real-Time Joint Angle Correction",
+          description:
+            "Instant biomechanical feedback on elbow extension, knee flexion, and follow-through to refine your technique and prevent injuries.",
+          icon: ScanLine,
+        },
+        {
+          title: "Verified GTI Posture Points",
+          description:
+            "Earn verified practice points that directly boost your Grassroots Talent Index and catch the eyes of registered scouts.",
+          icon: Award,
+        },
+      ]}
+      primaryAction={{ label: "Go to Sports Passport", href: "/athlete/passport" }}
+      secondaryAction={{ label: "Explore Tournaments", href: "/athlete/tournaments" }}
+    />
   );
 }

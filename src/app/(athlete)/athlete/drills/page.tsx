@@ -1,35 +1,34 @@
-import Link from "next/link";
-import { ScanLine, ArrowUpRight } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Alert } from "@/components/ui/alert";
-import { PageHeading } from "@/components/shared/page-heading";
-import { drillCatalog } from "@/features/drills/drill-catalog";
-export default function Page() {
+import { ScanLine, ShieldCheck, Award } from "lucide-react";
+import { UpcomingFeatureView } from "@/components/shared/upcoming-feature-view";
+
+export default function DrillsPage() {
   return (
-    <>
-      <PageHeading
-        eyebrow="movement intelligence"
-        title="Understand your movement"
-        description="Private, on-device pose tracking. Your camera frames stay in your browser."
-      />
-      <Alert>
-        Sport-specific scoring is awaiting calibration. Tracking and angle feedback do not affect
-        GTI.
-      </Alert>
-      <div className="mt-6 grid auto-rows-fr gap-5 sm:grid-cols-2">
-        {drillCatalog.map((drill) => (
-          <Link key={drill.id} href={`/athlete/drills/${drill.id}`} className="flex h-full">
-            <Card className="flex h-full w-full flex-col hover:border-primary/50">
-              <div className="flex justify-between text-primary">
-                <ScanLine size={26} />
-                <ArrowUpRight size={18} />
-              </div>
-              <h2 className="mt-7 text-xl font-semibold">{drill.name}</h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{drill.description}</p>
-            </Card>
-          </Link>
-        ))}
-      </div>
-    </>
+    <UpcomingFeatureView
+      badge="UNDER PRODUCTION • LAUNCHING SOON"
+      title="Edge-AI Pose Drills — Under Production"
+      subtitle="Our on-device computer vision engine for cricket bowling, badminton smash, football strike, and sprint biomechanics is currently undergoing final model calibration and will be live soon."
+      highlights={[
+        {
+          title: "100% On-Device Camera Tracking",
+          description:
+            "Zero raw video uploaded; complete privacy on your phone or laptop. All computer vision processing runs strictly inside your local browser sandbox.",
+          icon: ShieldCheck,
+        },
+        {
+          title: "Real-Time Joint Angle Correction",
+          description:
+            "Instant biomechanical feedback on elbow extension, knee flexion, and follow-through to refine your technique and prevent injuries.",
+          icon: ScanLine,
+        },
+        {
+          title: "Verified GTI Posture Points",
+          description:
+            "Earn verified practice points that directly boost your Grassroots Talent Index and catch the eyes of registered scouts.",
+          icon: Award,
+        },
+      ]}
+      primaryAction={{ label: "Go to Sports Passport", href: "/athlete/passport" }}
+      secondaryAction={{ label: "Explore Tournaments", href: "/athlete/tournaments" }}
+    />
   );
 }

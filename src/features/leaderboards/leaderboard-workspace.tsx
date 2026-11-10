@@ -22,6 +22,7 @@ import {
 } from "@/contracts/gti";
 import { useLeaderboards } from "./queries";
 import { useRegional } from "@/features/regional/queries";
+import { INDIA_STATES, getDistrictsForState } from "@/lib/india-locations";
 const lookupSchema = z.object({
   athleteId: z.uuid(),
   sport: z.enum(SportTypeValues),
@@ -88,12 +89,13 @@ export function LeaderboardWorkspace() {
   const query = useLeaderboards(selected.success ? selected.data : null);
   const rows = query.data?.pages.flatMap((page) => page.data) ?? [];
   const podium = query.data?.pages[0]?.data.slice(0, 3) ?? [];
-  const states = [...new Set(regions.data?.data.map((row) => row.state) ?? [])].sort();
-  const districts = [
-    ...new Set(
-      regions.data?.data.filter((row) => row.state === state).map((row) => row.district) ?? [],
-    ),
+  const states = [
+    ...new Set([...INDIA_STATES, ...(regions.data?.data.map((row) => row.state) ?? [])]),
   ].sort();
+  const stateDistricts = getDistrictsForState(state);
+  const regionDistricts =
+    regions.data?.data.filter((row) => row.state === state).map((row) => row.district) ?? [];
+  const districts = [...new Set([...stateDistricts, ...regionDistricts])].sort();
 
   const [draftLookup, setLookup] = useState<RankLookup | null>(null);
   const lookup = useDebouncedValue(draftLookup, 300);
@@ -180,6 +182,8 @@ export function LeaderboardWorkspace() {
                 aria-label="Leaderboard district"
                 list="leaderboard-districts"
                 value={district}
+                disabled={!state}
+                placeholder={!state ? "Select a state first..." : undefined}
                 onChange={(event) => setDistrict(event.target.value)}
               />
               <datalist id="leaderboard-districts">

@@ -43,6 +43,8 @@ export default defineConfig({
         DRILL_HMAC_SECRET: "e2e-drill-signing-secret",
         TELEMETRY_SERVICE_HMAC_SECRET: "e2e-telemetry-signing-secret",
         NEXT_PUBLIC_SOCKET_ORIGIN: "http://localhost:4100",
+        NEXT_PUBLIC_SUPABASE_URL: "",
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
       },
     },
   ],

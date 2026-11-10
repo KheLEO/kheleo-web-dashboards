@@ -19,10 +19,17 @@ export function PassportCard({
           <IdCard size={17} />
           Digital sports passport
         </span>
-        <Badge>
-          <ShieldCheck size={12} />
-          {profile.identityStatus.replaceAll("_", " ")}
-        </Badge>
+        {profile.identityStatus === "VERIFIED" ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+            <ShieldCheck size={12} className="text-emerald-400" />
+            Aadhaar Verified — Permanent Sports Identity Bound
+          </span>
+        ) : (
+          <Badge>
+            <ShieldCheck size={12} />
+            {profile.identityStatus.replaceAll("_", " ")}
+          </Badge>
+        )}
       </div>
       <div className="grid gap-8 p-6 sm:grid-cols-[1fr_auto]">
         <div>

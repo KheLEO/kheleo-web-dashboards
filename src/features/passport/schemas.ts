@@ -1,5 +1,6 @@
 import type { FieldDefinition } from "@/components/ui/form";
 import { SportTypeValues, TierClassificationValues } from "@/contracts/enums.generated";
+import { INDIA_STATES } from "@/lib/india-locations";
 export const profileFields: readonly FieldDefinition[] = [
   { name: "dateOfBirth", label: "Date of birth", type: "date", required: true },
   {
@@ -20,10 +21,16 @@ export const profileFields: readonly FieldDefinition[] = [
     name: "secondarySports",
     label: "Other sports",
     valueType: "list",
-    hint: "Comma-separated sport names, e.g. FOOTBALL, ATHLETICS.",
+    hint: "Select additional sports you practice.",
+  },
+  {
+    name: "state",
+    label: "State / Union Territory",
+    type: "select",
+    options: INDIA_STATES,
+    required: true,
   },
   { name: "district", label: "District", required: true },
-  { name: "state", label: "State", required: true },
   {
     name: "tierClassification",
     label: "Regional classification",
@@ -48,9 +55,9 @@ export const profileFields: readonly FieldDefinition[] = [
   },
   {
     name: "dominantSide",
-    label: "Dominant side",
+    label: "Dominant Hand / Stance",
     type: "select",
-    options: ["RIGHT", "LEFT", "BOTH"],
+    options: ["RIGHT", "LEFT", "AMBIDEXTROUS"],
   },
   {
     name: "locationLat",

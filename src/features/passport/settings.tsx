@@ -2,7 +2,9 @@
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
+import { ShieldCheck } from "lucide-react";
 import { useSession } from "@/features/auth/session-provider";
+import { IdentityForm } from "@/features/auth/identity-form";
 import { SchemaForm } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -26,6 +28,30 @@ export function AccountSettings() {
   });
   return (
     <div className="space-y-6">
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Identity Verification</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your government identity status linked to your KheLEO account.
+            </p>
+          </div>
+          {user.isVerified ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+              <ShieldCheck size={14} className="text-emerald-400" />
+              Aadhaar Verified — Permanent Sports Identity Bound
+            </span>
+          ) : null}
+        </div>
+        {!user.isVerified && (
+          <div className="mt-4 border-t pt-4">
+            <p className="mb-4 text-xs text-muted-foreground">
+              Verify your 12-digit Aadhaar number to bind your permanent sports identity.
+            </p>
+            <IdentityForm idType="AADHAAR" />
+          </div>
+        )}
+      </Card>
       <Card>
         <h2 className="mb-5 text-lg font-semibold">Contact details</h2>
         {query.error ? (

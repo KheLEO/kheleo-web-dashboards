@@ -58,8 +58,9 @@ it("starts one role navigation without a competing refresh and cancels fallback 
   fireEvent.change(view.getByLabelText("Email", { exact: true }), {
     target: { value: "athlete@example.com" },
   });
-  fireEvent.change(view.getByLabelText("Government document"), { target: { value: "AADHAAR" } });
-  fireEvent.change(view.getByLabelText("Government ID number"), { target: { value: "12345678" } });
+  fireEvent.change(view.getByLabelText(/Aadhaar number|Government ID number/), {
+    target: { value: "12345678" },
+  });
   const form = view.getByRole("button", { name: "Sign in securely" }).closest("form");
   if (!form) throw new Error("Login form missing.");
   await act(async () => {

@@ -20,7 +20,8 @@ export interface FieldDefinition {
     | "datetime-local"
     | "number"
     | "textarea"
-    | "select";
+    | "select"
+    | "hidden";
   options?: readonly string[];
   valueType?: "number" | "boolean" | "list" | "json" | "datetime";
   required?: boolean;
@@ -29,6 +30,8 @@ export interface FieldDefinition {
   step?: string;
   hint?: string;
   sensitive?: boolean;
+  placeholder?: string;
+  ariaLabel?: string;
 }
 export interface SchemaFormProps<T> {
   fields: readonly FieldDefinition[];
@@ -80,6 +83,13 @@ export function SchemaForm<T>({
     setFailure(null);
     try {
       const payload: Record<string, unknown> = {};
+      if (defaults) {
+        for (const [key, val] of Object.entries(defaults)) {
+          if (val !== undefined && val !== "") {
+            setPath(payload, key, val);
+          }
+        }
+      }
       for (const field of fields) {
         const value = field.name
           .split(".")
@@ -155,62 +165,74 @@ export function SchemaForm<T>({
       className="space-y-5"
     >
       <div className="grid gap-5 sm:grid-cols-2">
-        {fields.map((field) => (
-          <div
-            className={`field ${field.type === "textarea" ? "sm:col-span-2" : ""}`}
-            key={field.name}
-          >
-            <label htmlFor={field.name}>{field.label}</label>
-            {field.type === "select" ? (
-              <select
-                id={field.name}
-                aria-describedby={field.hint ? `${field.name}-hint` : undefined}
-                className="control"
-                {...register(field.name)}
-                disabled={disabled || !isHydrated || isSubmitting}
-                required={field.required}
-              >
-                <option value="">Select…</option>
-                {field.options?.map((option) => (
-                  <option key={option} value={option}>
-                    {option.replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
-            ) : field.type === "textarea" ? (
-              <textarea
-                id={field.name}
-                aria-describedby={field.hint ? `${field.name}-hint` : undefined}
-                rows={3}
-                className="control"
-                {...register(field.name)}
-                disabled={disabled || !isHydrated || isSubmitting}
-              />
-            ) : (
-              <input
-                id={field.name}
-                aria-describedby={field.hint ? `${field.name}-hint` : undefined}
-                className="control"
-                {...register(field.name)}
-                type={field.type ?? "text"}
-                required={field.required}
-                min={field.min}
-                max={field.max}
-                step={field.step ?? (field.type === "number" ? "any" : undefined)}
-                disabled={disabled || !isHydrated || isSubmitting}
-                autoComplete={field.sensitive ? "off" : undefined}
-              />
-            )}
-            {field.hint && (
-              <span
-                id={`${field.name}-hint`}
-                className="text-xs font-normal leading-5 text-muted-foreground"
-              >
-                {field.hint}
-              </span>
-            )}
-          </div>
-        ))}
+        {fields.map((field) => {
+          if (field.type === "hidden") {
+            return (
+              <input key={field.name} type="hidden" id={field.name} {...register(field.name)} />
+            );
+          }
+          return (
+            <div
+              className={`field ${field.type === "textarea" ? "sm:col-span-2" : ""}`}
+              key={field.name}
+            >
+              <label htmlFor={field.name}>{field.label}</label>
+              {field.type === "select" ? (
+                <select
+                  id={field.name}
+                  aria-label={field.ariaLabel}
+                  aria-describedby={field.hint ? `${field.name}-hint` : undefined}
+                  className="control"
+                  {...register(field.name)}
+                  disabled={disabled || !isHydrated || isSubmitting}
+                  required={field.required}
+                >
+                  <option value="">Select…</option>
+                  {field.options?.map((option) => (
+                    <option key={option} value={option}>
+                      {option.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
+              ) : field.type === "textarea" ? (
+                <textarea
+                  id={field.name}
+                  aria-label={field.ariaLabel}
+                  placeholder={field.placeholder}
+                  aria-describedby={field.hint ? `${field.name}-hint` : undefined}
+                  rows={3}
+                  className="control"
+                  {...register(field.name)}
+                  disabled={disabled || !isHydrated || isSubmitting}
+                />
+              ) : (
+                <input
+                  id={field.name}
+                  aria-label={field.ariaLabel}
+                  placeholder={field.placeholder}
+                  aria-describedby={field.hint ? `${field.name}-hint` : undefined}
+                  className="control"
+                  {...register(field.name)}
+                  type={field.type ?? "text"}
+                  required={field.required}
+                  min={field.min}
+                  max={field.max}
+                  step={field.step ?? (field.type === "number" ? "any" : undefined)}
+                  disabled={disabled || !isHydrated || isSubmitting}
+                  autoComplete={field.sensitive ? "off" : undefined}
+                />
+              )}
+              {field.hint && (
+                <span
+                  id={`${field.name}-hint`}
+                  className="text-xs font-normal leading-5 text-muted-foreground"
+                >
+                  {field.hint}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
       {failure && <Alert danger>{failure}</Alert>}
       {message && <Alert>{message}</Alert>}

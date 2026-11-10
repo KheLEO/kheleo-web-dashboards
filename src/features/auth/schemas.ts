@@ -1,20 +1,15 @@
 import type { FieldDefinition } from "@/components/ui/form";
-import { GovIdTypeValues } from "@/contracts/enums.generated";
+
 export const identityFields: readonly FieldDefinition[] = [
   {
-    name: "idType",
-    label: "Government document",
-    type: "select",
-    options: GovIdTypeValues,
-    required: true,
-  },
-  {
     name: "idNumber",
-    label: "Government ID number",
+    label: "Aadhaar number",
+    ariaLabel: "Government ID number",
+    placeholder: "Enter 12-digit Aadhaar number",
     type: "password",
     required: true,
     sensitive: true,
-    hint: "Used only for identity proof. Never stored in this browser.",
+    hint: "Used only for one-time cryptographic hash verification. Never stored in plaintext.",
   },
 ];
 export const authFields: readonly FieldDefinition[] = [

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { z } from "zod";
 import { ShieldCheck, Share2, RefreshCw } from "lucide-react";
+import { IdentityForm } from "@/features/auth/identity-form";
 import { useSession } from "@/features/auth/session-provider";
 import { usePassport, useSports } from "@/features/passport/queries";
 import { ProfileForm } from "@/features/passport/profile-form";
@@ -104,6 +105,7 @@ export function SportsPassportCard() {
     },
   ];
   const gti = profile.currentGti;
+  const isVerified = Boolean(user.isVerified || profile.identityStatus === "VERIFIED");
   return (
     <div className="min-w-0 max-w-full space-y-6">
       <section
@@ -114,10 +116,17 @@ export function SportsPassportCard() {
           <h2 className="text-sm font-semibold uppercase tracking-widest text-primary">
             Digital sports passport
           </h2>
-          <Badge>
-            <ShieldCheck size={14} />
-            {profile.identityStatus.replaceAll("_", " ")}
-          </Badge>
+          {isVerified ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+              <ShieldCheck size={14} className="text-emerald-400" />
+              Aadhaar Verified — Permanent Sports Identity Bound
+            </span>
+          ) : (
+            <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-400">
+              <ShieldCheck size={14} />
+              {profile.identityStatus.replaceAll("_", " ")}
+            </Badge>
+          )}
         </div>
         <div className="grid min-w-0 gap-6 p-6 md:grid-cols-[minmax(0,1fr)_auto]">
           <div className="min-w-0 max-w-full">
@@ -395,6 +404,23 @@ export function SportsPassportCard() {
           }}
         />
       </Card>
+      {!isVerified && (
+        <Card className="border-amber-500/30 bg-card p-6 shadow-md">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-full bg-amber-500/10 p-2 text-amber-500">
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold">Verify Your Aadhaar</h3>
+              <p className="text-xs text-muted-foreground">
+                Bind your 12-digit Aadhaar to secure your sports passport and enable official
+                tournament participation.
+              </p>
+            </div>
+          </div>
+          <IdentityForm idType="AADHAAR" />
+        </Card>
+      )}
       <Alert>
         Names and public dossier sharing need additional backend contracts. This card displays your
         actual account contact and an access-controlled passport link.

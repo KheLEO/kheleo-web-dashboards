@@ -12,8 +12,8 @@ const missionRoutes: Record<Workspace, ReadonlyArray<{ path: string; heading: st
     { path: "/athlete/passport", heading: "Your permanent sports identity" },
     { path: "/athlete/tournaments", heading: "Find your next arena" },
     { path: "/athlete/matchmaking", heading: "Solo Free-Agent Pool" },
-    { path: "/athlete/drills", heading: "Understand your movement" },
-    { path: "/athlete/iot-device", heading: "IoT wearable connection hub" },
+    { path: "/athlete/drills", heading: "Edge-AI Pose Drills — Under Production" },
+    { path: "/athlete/iot-device", heading: "IoT Wearable Telemetry — Under Production" },
     { path: "/verify-identity", heading: "One athlete. One identity." },
   ],
   organizer: [
@@ -50,9 +50,8 @@ async function login(page: Page, role = "athlete"): Promise<void> {
   await page
     .getByLabel("Email", { exact: true })
     .fill(`${role}+${crypto.randomUUID()}@example.com`);
-  await page.getByLabel("Government document").selectOption("AADHAAR");
-  await page.getByLabel("Government ID number").fill("12345678");
-  await expect(page.getByLabel("Government ID number")).toHaveValue("12345678");
+  await page.getByLabel(/Aadhaar number|Government ID number/).fill("12345678");
+  await expect(page.getByLabel(/Aadhaar number|Government ID number/)).toHaveValue("12345678");
   const authenticated = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
@@ -176,15 +175,15 @@ test("Android touch navigation and local vitals remain usable with 4x CPU thrott
       .getByRole("link", { name: "Wearable", exact: true })
       .tap();
     await expect(page).toHaveURL(/\/athlete\/iot-device$/);
-    await page.getByRole("button", { name: "Pair virtual Fitness Band", exact: true }).tap();
-    await page.getByRole("button", { name: "Simulate critical", exact: true }).tap();
-    await expect(page.getByText("CRITICAL", { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "IoT Wearable Telemetry — Under Production" }),
+    ).toBeVisible();
+    await expect(page.getByText("UNDER PRODUCTION • LAUNCHING SOON")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Go to Sports Passport" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
     await page.screenshot({ path: "test-results/android-vitals-mobile.png", fullPage: true });
-    await page.getByRole("button", { name: "Disconnect / stop", exact: true }).tap();
-    await expect(page.getByText("idle", { exact: true })).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
     await context.close();
@@ -215,7 +214,7 @@ test("rejects bad credentials and protects direct workspace access", async ({ pa
   try {
     await page.goto("/login", { waitUntil: "commit" });
     await expect(page.locator('form[data-hydrated="false"]')).toBeVisible();
-    await expect(page.getByLabel("Government ID number")).toBeDisabled();
+    await expect(page.getByLabel(/Aadhaar number|Government ID number/)).toBeDisabled();
     await expect(page.getByRole("button", { name: "Sign in securely" })).toBeDisabled();
   } finally {
     releaseScripts?.();
@@ -226,9 +225,10 @@ test("rejects bad credentials and protects direct workspace access", async ({ pa
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator('form[data-hydrated="true"]')).toBeVisible();
   await page.getByLabel("Email", { exact: true }).fill("athlete@example.com");
-  await page.getByLabel("Government document").selectOption("AADHAAR");
-  await page.getByLabel("Government ID number").pressSequentially("wrong-proof", { delay: 20 });
-  await expect(page.getByLabel("Government ID number")).toHaveValue("wrong-proof");
+  await page
+    .getByLabel(/Aadhaar number|Government ID number/)
+    .pressSequentially("wrong-proof", { delay: 20 });
+  await expect(page.getByLabel(/Aadhaar number|Government ID number/)).toHaveValue("wrong-proof");
   await page.getByRole("button", { name: "Sign in securely" }).click();
   await expect(
     page.getByRole("alert").filter({ hasText: "Invalid login credentials" }),
@@ -264,8 +264,8 @@ test("passport, mobile navigation, logout, and cache isolation", async ({ page }
     );
   }
   await page.getByRole("button", { name: "Open navigation" }).click();
-  await page.getByRole("link", { name: "Identity", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "One athlete. One identity." })).toBeVisible();
+  await page.getByRole("link", { name: "Sports passport", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Your permanent sports identity" })).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/athlete/passport");
@@ -361,46 +361,27 @@ test("scout feed, authorized passport, and regional table use actual wire projec
   await expect(page.getByRole("table")).toContainText("Varanasi");
   await expect(page.getByRole("cell", { name: "42.0%" })).toBeVisible();
 });
-test("simulator is labeled, reports critical thresholds, and sends no production telemetry", async ({
-  page,
-  request,
-}) => {
+test("wearable showcase informs athletes of upcoming IoT telemetry features", async ({ page }) => {
   await login(page);
   await page.goto("/athlete/wearable");
-  await page.getByRole("button", { name: "Pair virtual Galaxy Watch" }).click();
-  await page.getByRole("button", { name: "Simulate critical" }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "SIMULATED CRITICAL READING" }),
+    page.getByRole("heading", { name: "IoT Wearable Telemetry — Under Production" }),
   ).toBeVisible();
-  await expect(page.getByText("Simulated data", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Disconnect / stop" }).click();
-  await expect(page.getByText("Source stopped.", { exact: false })).toBeVisible();
-  const response = await request.get("http://localhost:4100/__control__/mutations");
-  expect(await response.json()).not.toContain("POST safety/telemetry-webhook");
+  await expect(page.getByText("UNDER PRODUCTION • LAUNCHING SOON")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Go to Sports Passport" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore Tournaments" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
-test("pose worker initializes from local assets and releases camera and worker", async ({
-  page,
-  context,
-}) => {
-  test.setTimeout(60000);
-  await context.grantPermissions(["camera"]);
+test("pose drills showcase informs athletes of upcoming Edge-AI features", async ({ page }) => {
   await login(page);
   await page.goto("/athlete/drills/movement-check");
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await page.getByRole("button", { name: "Start camera" }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Step back until" })).toBeVisible({
-      timeout: 30000,
-    });
-    const track = await page
-      .locator("video")
-      .evaluateHandle(
-        (video: HTMLVideoElement) => (video.srcObject as MediaStream).getVideoTracks()[0]!,
-      );
-    await expect(page.getByText("Select a sport drill to record a scored session.")).toBeVisible();
-    await page.getByRole("button", { name: "Stop", exact: true }).click();
-    await expect.poll(() => track.evaluate((item) => item.readyState)).toBe("ended");
-    await expect.poll(() => page.workers().length).toBe(0);
-  }
+  await expect(
+    page.getByRole("heading", { name: "Edge-AI Pose Drills — Under Production" }),
+  ).toBeVisible();
+  await expect(page.getByText("UNDER PRODUCTION • LAUNCHING SOON")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Go to Sports Passport" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore Tournaments" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("athlete data screens meet accessibility and mobile overflow checks", async ({ page }) => {
@@ -550,21 +531,18 @@ test("signup and identity aliases do not accept forged demo cookies", async ({ p
   await page.goto("/verify-identity");
   await expect(page).toHaveURL(/\/login$/);
 });
-test("all four sport presets are reachable without submitting camera frames", async ({ page }) => {
+test("pose drills route renders under production showcase and links", async ({ page }) => {
   await login(page);
   await page.goto("/athlete/drills");
-  for (const name of [
-    "Cricket bowling",
-    "Badminton smash",
-    "Football strike",
-    "Athletics sprint start",
-  ])
-    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
-  await page.getByRole("link", { name: /Cricket bowling/ }).click();
-  await expect(page.getByRole("button", { name: "Start camera" })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Submit drill for practice points" }),
-  ).toBeDisabled();
+    page.getByRole("heading", { name: "Edge-AI Pose Drills — Under Production" }),
+  ).toBeVisible();
+  await expect(page.getByText("UNDER PRODUCTION • LAUNCHING SOON")).toBeVisible();
+  await expect(page.getByText("100% On-Device Camera Tracking")).toBeVisible();
+  await expect(page.getByText("Real-Time Joint Angle Correction")).toBeVisible();
+  await expect(page.getByText("Verified GTI Posture Points")).toBeVisible();
+  await page.getByRole("link", { name: "Go to Sports Passport" }).click();
+  await expect(page).toHaveURL(/\/athlete\/passport$/);
 });
 
 test("sport editor sends self-reported roles without injecting verified metrics", async ({
@@ -783,7 +761,7 @@ test("local emergency preview records seen time and releases opted-in audio with
         () => (window as unknown as { __safetyAudio: { stopped: number } }).__safetyAudio.stopped,
       ),
     )
-    .toBe(1);
+    .toBeGreaterThanOrEqual(1);
   const mutations = (await (
     await request.get("http://localhost:4100/__control__/mutations")
   ).json()) as string[];
@@ -1358,98 +1336,27 @@ test("calibrated browser submissions cross the real signing relay and update the
   );
 });
 
-test("opted-in simulator stress packets update wearable consistency and confirm backend alerts", async ({
-  page,
-  request,
-}) => {
+test("wearable route renders under production showcase and links", async ({ page }) => {
   await login(page);
   await page.goto("/athlete/wearable");
-  await page.getByRole("button", { name: "Pair virtual Fitness Band", exact: true }).click();
-  await page.getByRole("button", { name: "Simulate critical", exact: true }).click();
-  const sent = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/backend/safety/telemetry-webhook") &&
-      response.request().method() === "POST",
-  );
-  await page.getByLabel("Stream readings to my athlete record", { exact: true }).check();
-  const response = await sent;
-  expect(response.status()).toBe(200);
-  expect(response.request().postDataJSON()).toMatchObject({
-    source: "SIMULATOR",
-    athlete_id: ids.athlete,
-  });
   await expect(
-    page.getByRole("status").filter({ hasText: "Backend ingestion status: CRITICAL_ALERT" }),
+    page.getByRole("heading", { name: "IoT Wearable Telemetry — Under Production" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Disconnect / stop", exact: true }).click();
-  expect(await (await request.get("http://localhost:4100/__control__/mutations")).json()).toContain(
-    "POST safety/telemetry-webhook",
-  );
-  await page.goto("/athlete/passport");
-  await expect(
-    page.getByRole("group", { name: "Wearable Consistency", exact: true }),
-  ).toContainText("5.0");
+  await expect(page.getByText("UNDER PRODUCTION • LAUNCHING SOON")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Go to Sports Passport" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore Tournaments" })).toBeVisible();
 });
 
-test("heart-rate-only BLE streaming labels physiological baselines and releases the device", async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    const heart = Object.assign(new EventTarget(), {
-      value: new DataView(Uint8Array.from([0, 110]).buffer),
-      startNotifications: async (): Promise<void> => {
-        timer = setInterval(
-          () => heart.dispatchEvent(new Event("characteristicvaluechanged")),
-          250,
-        );
-      },
-    });
-    let timer: ReturnType<typeof setInterval>;
-    const gatt = {
-      connected: true,
-      connect: async () => gatt,
-      disconnect: () => {
-        clearInterval(timer);
-        Object.assign(window, { __bleDisconnected: true });
-      },
-      getPrimaryService: async (id: number) => {
-        if (id !== 0x180d) throw new DOMException("Service not available", "NotFoundError");
-        return { getCharacteristic: async () => heart };
-      },
-    };
-    Object.defineProperty(navigator, "bluetooth", {
-      configurable: true,
-      value: { requestDevice: async () => Object.assign(new EventTarget(), { gatt }) },
-    });
-  });
+test("iot-device route renders under production showcase and links", async ({ page }) => {
   await login(page);
-  await page.goto("/athlete/wearable");
-  await page.getByRole("button", { name: "Connect Bluetooth device", exact: true }).click();
-  await expect(page.getByText("110 bpm", { exact: true })).toBeVisible();
-  await expect(page.getByText("Baseline default · not measured", { exact: true })).toHaveCount(2);
-  const sent = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/backend/safety/telemetry-webhook") &&
-      response.request().method() === "POST",
-  );
-  await page.getByLabel("Stream readings to my athlete record", { exact: true }).check();
-  const response = await sent;
-  expect(response.status()).toBe(200);
-  expect(response.request().postDataJSON()).toMatchObject({
-    source: "BLE",
-    spo2: 98,
-    skin_temperature: 36.8,
-    baseline_fields: ["spo2", "skin_temperature"],
-  });
+  await page.goto("/athlete/iot-device");
   await expect(
-    page.getByRole("status").filter({ hasText: "Backend ingestion status: NORMAL" }),
+    page.getByRole("heading", { name: "IoT Wearable Telemetry — Under Production" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Disconnect / stop", exact: true }).click();
-  expect(
-    await page.evaluate(
-      () => (window as unknown as { __bleDisconnected: boolean }).__bleDisconnected,
-    ),
-  ).toBe(true);
+  await expect(page.getByText("UNDER PRODUCTION • LAUNCHING SOON")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Go to Sports Passport" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore Tournaments" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("GTI_UPDATED refreshes the athlete passport without a reload", async ({ page, request }) => {

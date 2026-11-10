@@ -43,14 +43,23 @@ export function RegistrationForm() {
           },
           ...authFields,
         ]}
-        defaults={{ role: "ATHLETE" }}
+        defaults={{ role: "ATHLETE", "governmentId.idType": "AADHAAR" }}
         schema={registerSchema}
         submitLabel="Create athlete account"
         submit={async (value, operation) => {
-          const identityAccessToken = await proof.verify(value, true);
+          const payload = {
+            ...value,
+            governmentId: value.governmentId
+              ? {
+                  idType: "AADHAAR" as const,
+                  idNumber: value.governmentId.idNumber,
+                }
+              : undefined,
+          };
+          const identityAccessToken = await proof.verify(payload, true);
           authenticatedOperation.current = identityAccessToken
-            ? sameOperation(authenticatedOperation.current, { ...value, identityAccessToken })
-            : operation;
+            ? sameOperation(authenticatedOperation.current, { ...payload, identityAccessToken })
+            : sameOperation(operation, payload);
           const session = await authenticate("register", authenticatedOperation.current);
           if (["ORGANIZER", "SCOUT"].includes(session.user.role) && !session.user.isVerified) {
             setPendingRole(session.user.role);

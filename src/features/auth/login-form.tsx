@@ -27,12 +27,20 @@ export function LoginForm() {
       <SchemaForm
         fields={authFields}
         schema={loginSchema}
+        defaults={{ "governmentId.idType": "AADHAAR" }}
         submitLabel="Sign in securely"
         submit={async (value, operation) => {
-          const identityAccessToken = await proof.verify(value, false);
+          const payload = {
+            ...value,
+            governmentId: {
+              idType: "AADHAAR" as const,
+              idNumber: value.governmentId?.idNumber ?? "",
+            },
+          };
+          const identityAccessToken = await proof.verify(payload, false);
           authenticatedOperation.current = identityAccessToken
-            ? sameOperation(authenticatedOperation.current, { ...value, identityAccessToken })
-            : operation;
+            ? sameOperation(authenticatedOperation.current, { ...payload, identityAccessToken })
+            : sameOperation(operation, payload);
           const session = await authenticate("login", authenticatedOperation.current);
           window.dispatchEvent(new Event("kheleo:session-ended"));
           client.clear();
