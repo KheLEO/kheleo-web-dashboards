@@ -387,15 +387,18 @@ export function SportsPassportCard() {
             },
             {
               name: "dominantSide",
-              label: "Dominant side (all sports)",
+              label: "Dominant Hand / Stance",
               type: "select",
-              options: ["RIGHT", "LEFT", "BOTH"],
+              options: ["RIGHT", "LEFT", "AMBIDEXTROUS"],
             },
           ]}
           schema={updatePassportSchema}
           defaults={{
             primarySport: profile.primarySport,
-            dominantSide: profile.physicalStats.dominantSide ?? "",
+            dominantSide:
+              profile.physicalStats.dominantSide === "BOTH"
+                ? "AMBIDEXTROUS"
+                : (profile.physicalStats.dominantSide ?? ""),
           }}
           submitLabel="Update primary sport and handedness"
           submit={(_value, action) => savePassport(user.id, action, false)}

@@ -14,17 +14,17 @@ export default function AthleteDashboardPage() {
     },
     {
       title: "Edge-AI Drill Studio",
-      desc: "Private on-device webcam pose tracking & biomechanical angles.",
+      desc: "Private on-device webcam pose tracking & biomechanical angles (Under Production).",
       href: "/athlete/drills",
       icon: ScanLine,
-      badge: "35% GTI Weight",
+      badge: "Launching Soon",
     },
     {
       title: "IoT Wearable Hub",
-      desc: "Web Bluetooth GATT pairing & real-time telemetry streaming.",
+      desc: "Web Bluetooth GATT pairing & real-time telemetry streaming (Under Production).",
       href: "/athlete/iot-device",
       icon: Watch,
-      badge: "25% GTI Weight",
+      badge: "Launching Soon",
     },
     {
       title: "Free-Agent Pool",
