@@ -38,8 +38,7 @@ export function TournamentDiscovery() {
   // Filter tournaments strictly by the sport selected in the Sport column
   const filteredRows = sport
     ? rows.filter(
-        (tournament) =>
-          tournament.sport.trim().toUpperCase() === sport.trim().toUpperCase(),
+        (tournament) => tournament.sport.trim().toUpperCase() === sport.trim().toUpperCase(),
       )
     : rows;
 
@@ -54,9 +53,7 @@ export function TournamentDiscovery() {
   });
 
   function search(): void {
-    const validSport = sport
-      ? SportTypeValues.find((entry) => entry === sport)
-      : undefined;
+    const validSport = sport ? SportTypeValues.find((entry) => entry === sport) : undefined;
     const result = nearbyQuerySchema.safeParse({
       lat: Number(lat),
       lng: Number(lng),
@@ -243,7 +240,10 @@ export function TournamentDiscovery() {
         />
       ) : (
         <>
-          <TournamentMap tournaments={sortedRows} center={[settledFilters.lat, settledFilters.lng]} />
+          <TournamentMap
+            tournaments={sortedRows}
+            center={[settledFilters.lat, settledFilters.lng]}
+          />
           {sortedRows.length === 0 ? (
             <EmptyState>No open tournaments found in this area. Try a wider radius.</EmptyState>
           ) : (

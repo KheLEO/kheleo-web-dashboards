@@ -763,10 +763,14 @@ const server = createServer(async (request, response) => {
         return;
       }
     }
-    const email = typeof body.email === "string" && body.email.trim() ? body.email.trim() : "athlete@example.com";
+    const email =
+      typeof body.email === "string" && body.email.trim()
+        ? body.email.trim()
+        : "athlete@example.com";
     const requestedRole = (typeof body.role === "string" ? body.role : null) as UserRole | null;
     const role: UserRole =
-      (requestedRole && ["ATHLETE", "ORGANIZER", "SCOUT", "SUPER_ADMIN", "FEDERATION_ADMIN"].includes(requestedRole)
+      (requestedRole &&
+      ["ATHLETE", "ORGANIZER", "SCOUT", "SUPER_ADMIN", "FEDERATION_ADMIN"].includes(requestedRole)
         ? requestedRole
         : null) ??
       (email.startsWith("organizer")
@@ -781,8 +785,10 @@ const server = createServer(async (request, response) => {
     const baseUser = makeUser(role);
     const user = {
       ...baseUser,
-      email: typeof body.email === "string" && body.email.trim() ? body.email.trim() : baseUser.email,
-      phone: typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : baseUser.phone,
+      email:
+        typeof body.email === "string" && body.email.trim() ? body.email.trim() : baseUser.email,
+      phone:
+        typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : baseUser.phone,
     };
     ok({
       accessToken: `fixture:${role}`,
@@ -820,8 +826,10 @@ const server = createServer(async (request, response) => {
           (user) =>
             user.role === "ATHLETE" && user.isActive && user.identityRecord?.status === "VERIFIED",
         ).length,
-        activeTournaments: [...tournaments.values()].filter((event) =>
-          ["REGISTRATION_OPEN", "REGISTRATION_CLOSED", "IN_PROGRESS"].includes(event.status),
+        activeTournaments: [...tournaments.values()].filter(
+          (event) =>
+            event.organizerId === ids.organizer &&
+            ["REGISTRATION_OPEN", "REGISTRATION_CLOSED", "IN_PROGRESS"].includes(event.status),
         ).length,
         totalOrganizersAndScouts: [...adminUsers.values()].filter((user) =>
           ["ORGANIZER", "SCOUT"].includes(user.role),
@@ -926,7 +934,8 @@ const server = createServer(async (request, response) => {
           [...tournaments.values()]
             .filter(
               (event) =>
-                (!url.searchParams.get("status") || event.status === url.searchParams.get("status")) &&
+                (!url.searchParams.get("status") ||
+                  event.status === url.searchParams.get("status")) &&
                 event.organizerId === ids.organizer,
             )
             .map((event) => ({ ...event, isFeatured: event.isFeatured ?? false })),
@@ -1250,6 +1259,13 @@ const server = createServer(async (request, response) => {
       filtered = filtered.filter((t) => t.sport === reqSport.trim().toUpperCase());
     }
 
+    const primary = all.find((t) => t.id === ids.tournament);
+    if (primary && (!reqSport || primary.sport === reqSport.trim().toUpperCase())) {
+      if (!filtered.some((f) => f.id === primary.id)) {
+        filtered.push({ ...primary, distanceKm: 0 });
+      }
+    }
+
     if (filtered.length < 3) {
       const sportPool = reqSport
         ? all.filter((t) => t.sport === reqSport.trim().toUpperCase())
@@ -1286,10 +1302,7 @@ const server = createServer(async (request, response) => {
     ok({
       activeTournamentsCount: mine.length,
       totalRegisteredAthletes: matched ? 13 : 2,
-      totalPrizePoolInr: mine.reduce(
-        (sum, event) => sum + Number(event.prizePool),
-        0,
-      ),
+      totalPrizePoolInr: mine.reduce((sum, event) => sum + Number(event.prizePool), 0),
       freeAgentTeamsFormed: matched ? 1 : 0,
       activeSafetyAlertsCount: [...healthAlerts.values()].filter((alert) => !alert.acknowledgedAt)
         .length,

@@ -9,6 +9,10 @@ const schema = z.object({
   SESSION_STORE: z.enum(["redis", "memory"]).default("redis"),
   DRILL_HMAC_SECRET: z.string().optional(),
   TELEMETRY_SERVICE_HMAC_SECRET: z.string().optional(),
+  SAFE_EVENTS_VERIFIED: z.string().optional(),
+  DRILL_PRACTICE_INGESTION: z.string().optional(),
+  SIMULATOR_INGESTION: z.string().optional(),
+  STAGING_DATA_ISOLATED: z.string().optional(),
 });
 export type ServerEnvironment = z.infer<typeof schema>;
 export function getEnvironment(): ServerEnvironment {

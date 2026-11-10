@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "./button";
 import { Alert } from "./alert";
-import { CustomSelect } from "./custom-select";
 import { sameOperation, type MutationOperation } from "@/lib/api/operation";
 import { asApiError } from "@/lib/api/errors";
 
@@ -163,17 +162,21 @@ export function SchemaForm<T>({
           >
             <label htmlFor={field.name}>{field.label}</label>
             {field.type === "select" ? (
-              <CustomSelect
+              <select
                 id={field.name}
-                name={field.name}
-                label={field.label}
-                ariaDescribedBy={field.hint ? `${field.name}-hint` : undefined}
-                options={field.options ?? []}
+                aria-describedby={field.hint ? `${field.name}-hint` : undefined}
+                className="control"
+                {...register(field.name)}
                 disabled={disabled || !isHydrated || isSubmitting}
                 required={field.required}
-                registerProps={register(field.name)}
-                placeholder="Select…"
-              />
+              >
+                <option value="">Select…</option>
+                {field.options?.map((option) => (
+                  <option key={option} value={option}>
+                    {option.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
             ) : field.type === "textarea" ? (
               <textarea
                 id={field.name}

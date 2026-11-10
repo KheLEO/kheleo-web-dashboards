@@ -40,6 +40,12 @@ const missionRoutes: Record<Workspace, ReadonlyArray<{ path: string; heading: st
 
 async function login(page: Page, role = "athlete"): Promise<void> {
   await page.goto("/login");
+  await page.evaluate(() => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch {}
+  });
   await expect(page.locator('form[data-hydrated="true"]')).toBeVisible();
   await page
     .getByLabel("Email", { exact: true })

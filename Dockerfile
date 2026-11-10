@@ -42,3 +42,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["pnpm", "start"]
+

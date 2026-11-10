@@ -32,11 +32,13 @@ services:
         sync: false
       - key: TELEMETRY_SERVICE_HMAC_SECRET
         sync: false
-      - key: NEXT_PUBLIC_TILE_URL
-        value: https://tile.openstreetmap.org/{z}/{x}/{y}.png
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        sync: false
       - key: SAFE_EVENTS_VERIFIED
         value: "true"
+      - key: DRILL_PRACTICE_INGESTION
+        value: "true"
+      - key: SIMULATOR_INGESTION
+        value: "true"
+      - key: STAGING_DATA_ISOLATED
+        value: "false"
+      - key: NEXT_PUBLIC_TILE_URL
+        value: https://tile.openstreetmap.org/{z}/{x}/{y}.png
