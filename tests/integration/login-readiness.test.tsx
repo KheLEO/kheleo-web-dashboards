@@ -55,11 +55,11 @@ it("starts one role navigation without a competing refresh and cancels fallback 
       <LoginForm />
     </QueryClientProvider>,
   );
-  fireEvent.change(view.getByLabelText("Email", { exact: true }), {
+  fireEvent.change(view.getByLabelText(/Email or phone number/i), {
     target: { value: "athlete@example.com" },
   });
-  fireEvent.change(view.getByLabelText(/Aadhaar number|Government ID number/), {
-    target: { value: "12345678" },
+  fireEvent.change(view.getByLabelText("Password", { exact: true }), {
+    target: { value: "password123" },
   });
   const form = view.getByRole("button", { name: "Sign in securely" }).closest("form");
   if (!form) throw new Error("Login form missing.");

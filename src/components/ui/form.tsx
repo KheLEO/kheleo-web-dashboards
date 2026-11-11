@@ -23,6 +23,7 @@ export interface FieldDefinition {
     | "select"
     | "hidden";
   options?: readonly string[];
+  optionLabels?: Record<string, string>;
   valueType?: "number" | "boolean" | "list" | "json" | "datetime";
   required?: boolean;
   min?: number;
@@ -190,7 +191,7 @@ export function SchemaForm<T>({
                   <option value="">Select…</option>
                   {field.options?.map((option) => (
                     <option key={option} value={option}>
-                      {option.replaceAll("_", " ")}
+                      {field.optionLabels?.[option] ?? option.replaceAll("_", " ")}
                     </option>
                   ))}
                 </select>

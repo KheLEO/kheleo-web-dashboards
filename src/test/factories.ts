@@ -1,4 +1,5 @@
 import type { AuthUserSummary } from "@/contracts/auth";
+import type { AthletePassport } from "@/contracts/passport";
 import type { UserRole } from "@/contracts/enums.generated";
 export const ids = {
   athlete: "10000000-0000-4000-8000-000000000001",
@@ -25,31 +26,33 @@ export function makeUser(role: UserRole = "ATHLETE"): AuthUserSummary {
           : "athlete";
   return {
     id: ids[key],
+    name: `${key.charAt(0).toUpperCase() + key.slice(1)} User`,
     email: `${key}@example.com`,
     phone: null,
     role,
     isVerified: true,
+    isLegit: true,
     athleteProfileId: role === "ATHLETE" ? ids.profile : null,
   };
 }
-export function makePassport() {
+export function makePassport(): AthletePassport {
   return {
     userId: ids.athlete,
     athleteProfileId: ids.profile,
     dateOfBirth: "2005-04-12T00:00:00.000Z",
     gender: "FEMALE",
-    primarySport: "CRICKET" as const,
+    primarySport: "CRICKET",
     secondarySports: [],
     district: "Varanasi",
     state: "Uttar Pradesh",
-    tierClassification: "RURAL" as const,
+    tierClassification: "RURAL",
     physicalStats: { heightCm: 170, weightKg: 60, dominantSide: "RIGHT" },
     currentGti: 72.5,
     wearableScore: 50,
     matchPerfScore: 50,
     posturePoints: 10,
     biomechanicalScore: 65,
-    identityStatus: "VERIFIED" as const,
+    identityStatus: "VERIFIED",
     sportRecords: [],
     allBadges: [],
   };

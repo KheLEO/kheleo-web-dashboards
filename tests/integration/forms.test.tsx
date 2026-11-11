@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SchemaForm } from "@/components/ui/form";
 import { loginSchema } from "@/contracts/auth";
-import { authFields } from "@/features/auth/schemas";
+import { loginFields } from "@/features/auth/schemas";
 
 vi.mock("@/features/auth/session-provider", () => ({
   useSession: () => ({
@@ -19,29 +19,20 @@ vi.mock("@/features/passport/api", () => ({
 import { ProfileForm } from "@/features/passport/profile-form";
 
 afterEach(cleanup);
-it("submits nested Gov-ID fields and clears the proof after success", async () => {
+it("submits email/phone and password through the login form", async () => {
   const submit = vi.fn().mockResolvedValue(undefined);
   const user = userEvent.setup();
   render(
-    <SchemaForm
-      schema={loginSchema}
-      fields={authFields}
-      defaults={{ "governmentId.idType": "AADHAAR" }}
-      submit={submit}
-      submitLabel="Sign in"
-    />,
+    <SchemaForm schema={loginSchema} fields={loginFields} submit={submit} submitLabel="Sign in" />,
   );
-  await user.type(screen.getByLabelText("Email", { exact: true }), "athlete@example.com");
-  await user.type(screen.getByLabelText(/Aadhaar number|Government ID number/), "12345678");
+  await user.type(screen.getByLabelText(/Email or phone number/i), "athlete@example.com");
+  await user.type(screen.getByLabelText("Password", { exact: true }), "password123");
   await user.click(screen.getByRole("button", { name: "Sign in" }));
   await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
-  expect(submit.mock.calls[0]?.[0]).toEqual({
-    email: "athlete@example.com",
-    governmentId: { idType: "AADHAAR", idNumber: "12345678" },
+  expect(submit.mock.calls[0]?.[0]).toMatchObject({
+    identifier: "athlete@example.com",
+    password: "password123",
   });
-  await waitFor(() =>
-    expect(screen.getByLabelText(/Aadhaar number|Government ID number/)).toHaveValue(""),
-  );
 });
 
 it("renders cascading State and District dropdowns with multi-sport chips", async () => {

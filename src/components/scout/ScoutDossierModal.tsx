@@ -28,8 +28,8 @@ export function ScoutDossierModal({
         <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl overflow-y-auto border-l bg-background p-5 shadow-xl sm:p-8">
           <Dialog.Title className="pr-10 text-xl font-semibold">Athlete scout dossier</Dialog.Title>
           <Dialog.Description className="mb-6 mt-3 pr-6 text-sm leading-6 text-muted-foreground">
-            Verified scores, signed drill evidence, season progression, and your private outreach
-            history.
+            Verified Legit scores, signed drill evidence, season progression, and your private
+            outreach history. Only verified Legit athletes appear in scouting dossiers.
           </Dialog.Description>
           {open && <AthletePassportPreview userId={userId} />}
           <Dialog.Close

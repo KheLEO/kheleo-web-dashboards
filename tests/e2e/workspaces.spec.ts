@@ -48,10 +48,10 @@ async function login(page: Page, role = "athlete"): Promise<void> {
   });
   await expect(page.locator('form[data-hydrated="true"]')).toBeVisible();
   await page
-    .getByLabel("Email", { exact: true })
+    .getByLabel(/Email or phone number/i)
     .fill(`${role}+${crypto.randomUUID()}@example.com`);
-  await page.getByLabel(/Aadhaar number|Government ID number/).fill("12345678");
-  await expect(page.getByLabel(/Aadhaar number|Government ID number/)).toHaveValue("12345678");
+  await page.getByLabel("Password", { exact: true }).fill("securepassword123");
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("securepassword123");
   const authenticated = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
@@ -214,7 +214,7 @@ test("rejects bad credentials and protects direct workspace access", async ({ pa
   try {
     await page.goto("/login", { waitUntil: "commit" });
     await expect(page.locator('form[data-hydrated="false"]')).toBeVisible();
-    await expect(page.getByLabel(/Aadhaar number|Government ID number/)).toBeDisabled();
+    await expect(page.getByLabel("Password", { exact: true })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Sign in securely" })).toBeDisabled();
   } finally {
     releaseScripts?.();
@@ -224,11 +224,11 @@ test("rejects bad credentials and protects direct workspace access", async ({ pa
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator('form[data-hydrated="true"]')).toBeVisible();
-  await page.getByLabel("Email", { exact: true }).fill("athlete@example.com");
+  await page.getByLabel(/Email or phone number/i).fill("athlete@example.com");
   await page
-    .getByLabel(/Aadhaar number|Government ID number/)
+    .getByLabel("Password", { exact: true })
     .pressSequentially("wrong-proof", { delay: 20 });
-  await expect(page.getByLabel(/Aadhaar number|Government ID number/)).toHaveValue("wrong-proof");
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("wrong-proof");
   await page.getByRole("button", { name: "Sign in securely" }).click();
   await expect(
     page.getByRole("alert").filter({ hasText: "Invalid login credentials" }),
@@ -524,13 +524,83 @@ test("signup and identity aliases do not accept forged demo cookies", async ({ p
     { name: "kheleo_demo_role", value: "SUPER_ADMIN", domain: "localhost", path: "/" },
   ]);
   await page.goto("/signup");
-  await expect(page.getByRole("heading", { name: "Create your athlete account" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Quick Demo Sign-In" })).toHaveCount(0);
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/verify-identity");
   await expect(page).toHaveURL(/\/login$/);
 });
+
+test("not legit badge, hover tooltip, and digilocker verification modal flow", async ({ page }) => {
+  await page.goto("/login");
+  await page
+    .getByLabel(/Email or phone number/i)
+    .fill(`athlete+not-legit-${crypto.randomUUID()}@example.com`);
+  await page.getByLabel("Password", { exact: true }).fill("securepassword123");
+  await page.getByRole("button", { name: "Sign in securely" }).click();
+  await expect(page).toHaveURL(/\/athlete$/);
+
+  const notLegitBadge = page.getByRole("button", { name: /Not Legit/i });
+  await expect(notLegitBadge).toBeVisible();
+
+  await notLegitBadge.hover();
+  await expect(
+    page.getByText(
+      "You are not verified. Your government ID / Aadhaar card is not verified, so you are marked as Not Legit and scouts will not be able to see your account.",
+    ),
+  ).toBeVisible();
+
+  // Verify mobile 360px width overflow safety with the tooltip open
+  await page.setViewportSize({ width: 360, height: 800 });
+  await notLegitBadge.hover();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+  await notLegitBadge.click();
+  await expect(page).toHaveURL(/\/athlete\/passport#verify-account$/);
+
+  await expect(page.locator("#verify-account")).toBeVisible();
+  await expect(page.getByText("Status: Not Legit (Unverified)")).toBeVisible();
+
+  await page.getByRole("button", { name: "Verify My Account" }).click();
+  await expect(
+    page.getByRole("heading", { name: "DigiLocker Integration Coming Up" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Official Government of India DigiLocker OAuth verification is coming up/i),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Got it" }).click();
+  await expect(page.getByRole("heading", { name: "DigiLocker Integration Coming Up" })).toHaveCount(
+    0,
+  );
+});
+
+test("full password-based signup flow with phone normalization and direct role redirection", async ({
+  page,
+}) => {
+  await page.goto("/signup");
+  await expect(page.locator('form[data-hydrated="true"]')).toBeVisible();
+
+  const uniqueSuffix = crypto.randomUUID().slice(0, 8);
+  await page.getByLabel("Full name").fill("Rohan Sharma");
+  await page.getByLabel("Email address").fill(`athlete+${uniqueSuffix}@example.com`);
+  await page.getByLabel("Phone number").fill("9876543210");
+  await page.getByLabel("Password", { exact: true }).fill("mypassword123");
+  await page.getByLabel("Account role").selectOption("ATHLETE");
+
+  const registered = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/session/register",
+  );
+  await page.getByRole("button", { name: "Create account" }).click();
+  expect((await registered).status()).toBe(200);
+
+  await expect(page).toHaveURL(/\/athlete$/);
+  await expect(page.getByRole("status", { name: "Verified Legit Account" })).toBeVisible();
+});
+
 test("pose drills route renders under production showcase and links", async ({ page }) => {
   await login(page);
   await page.goto("/athlete/drills");

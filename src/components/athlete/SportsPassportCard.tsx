@@ -60,13 +60,19 @@ export function SportsPassportCard() {
       void client.invalidateQueries({ queryKey: ["passport", user.id] });
     },
   });
+  const isVerified = Boolean(
+    user.isVerified && (query.data ? query.data.identityStatus === "VERIFIED" : true),
+  );
   if (query.isPending) return <Skeleton />;
   if (query.error)
     return query.error instanceof ApiError && query.error.problem.status === 404 ? (
-      <Card>
-        <h2 className="mb-5 text-lg font-semibold">Create your sports passport</h2>
-        <ProfileForm />
-      </Card>
+      <div className="min-w-0 max-w-full space-y-6">
+        <Card>
+          <h2 className="mb-5 text-lg font-semibold">Create your sports passport</h2>
+          <ProfileForm />
+        </Card>
+        <IdentityForm isVerified={isVerified} />
+      </div>
     ) : (
       <ErrorState
         error={query.error}
@@ -78,10 +84,13 @@ export function SportsPassportCard() {
   const profile = query.data;
   if (!profile.primarySport || !profile.dateOfBirth || !profile.gender)
     return (
-      <Card>
-        <h2 className="mb-5 text-lg font-semibold">Complete your sports passport</h2>
-        <ProfileForm profile={profile} />
-      </Card>
+      <div className="min-w-0 max-w-full space-y-6">
+        <Card>
+          <h2 className="mb-5 text-lg font-semibold">Complete your sports passport</h2>
+          <ProfileForm profile={profile} />
+        </Card>
+        <IdentityForm isVerified={isVerified} />
+      </div>
     );
   const sport = selected ?? profile.primarySport;
   const record = records.data?.pages
@@ -105,7 +114,6 @@ export function SportsPassportCard() {
     },
   ];
   const gti = profile.currentGti;
-  const isVerified = Boolean(user.isVerified || profile.identityStatus === "VERIFIED");
   return (
     <div className="min-w-0 max-w-full space-y-6">
       <section
@@ -407,23 +415,7 @@ export function SportsPassportCard() {
           }}
         />
       </Card>
-      {!isVerified && (
-        <Card className="border-amber-500/30 bg-card p-6 shadow-md">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="rounded-full bg-amber-500/10 p-2 text-amber-500">
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold">Verify Your Aadhaar</h3>
-              <p className="text-xs text-muted-foreground">
-                Bind your 12-digit Aadhaar to secure your sports passport and enable official
-                tournament participation.
-              </p>
-            </div>
-          </div>
-          <IdentityForm idType="AADHAAR" />
-        </Card>
-      )}
+      <IdentityForm isVerified={isVerified} />
       <Alert>
         Names and public dossier sharing need additional backend contracts. This card displays your
         actual account contact and an access-controlled passport link.

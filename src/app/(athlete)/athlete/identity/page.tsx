@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PageHeading } from "@/components/shared/page-heading";
 import { IdentityForm } from "@/features/auth/identity-form";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function Page() {
@@ -23,9 +22,7 @@ export default function Page() {
         title="One athlete. One identity."
         description="Bind your Aadhaar identity to preserve your achievements and GTI."
       />
-      <Card className="p-6">
-        <IdentityForm idType="AADHAAR" />
-      </Card>
+      <IdentityForm />
     </div>
   );
 }

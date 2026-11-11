@@ -3,6 +3,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import { SchemaForm } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,6 +66,10 @@ export function ProspectDiscovery() {
           />
           Underrepresented athletes in loaded pages
         </label>
+        <span className="text-xs font-semibold text-emerald-400/90 flex items-center gap-1.5">
+          <ShieldCheck size={14} />
+          Only verified Legit athletes are visible to Scouts.
+        </span>
         <Button
           variant="secondary"
           disabled={query.isFetching}

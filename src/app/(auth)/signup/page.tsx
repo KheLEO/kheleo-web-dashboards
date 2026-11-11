@@ -4,10 +4,9 @@ import { RegistrationForm } from "@/features/auth/registration-form";
 export default function SignupPage() {
   return (
     <>
-      <h2 className="text-2xl font-semibold">Create your athlete account</h2>
+      <h2 className="text-2xl font-semibold">Create your account</h2>
       <p className="mb-7 mt-2 text-sm text-muted-foreground">
-        Register with your contact details and government identity. Organizer and scout accounts
-        require authorized provisioning.
+        Sign up to manage your sports profile, organize tournaments, or scout grassroots talent.
       </p>
       <RegistrationForm />
       <p className="mt-6 text-sm text-muted-foreground">

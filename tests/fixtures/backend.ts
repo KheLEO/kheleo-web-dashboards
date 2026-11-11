@@ -641,6 +641,8 @@ const server = createServer(async (request, response) => {
     nearbyPages = false;
     passport = makePassport();
     seedOrganizer();
+    io.of("/ws/events").disconnectSockets(true);
+    io.of("/ws/matchmaking").disconnectSockets(true);
     send(response, {}, 200, true);
     return;
   }
@@ -757,16 +759,41 @@ const server = createServer(async (request, response) => {
   if (["auth/login", "auth/register", "auth/refresh"].includes(path)) {
     const gov = body.governmentId as Record<string, unknown> | undefined;
     const idNumber = typeof gov?.idNumber === "string" ? gov.idNumber.trim() : "";
-    if (path !== "auth/refresh") {
-      if (idNumber === "wrong-proof" || (path === "auth/login" && !idNumber)) {
+    const password = typeof body.password === "string" ? body.password : "";
+    const identifier = typeof body.identifier === "string" ? body.identifier.trim() : "";
+    const rawEmail = typeof body.email === "string" ? body.email.trim() : "";
+    const rawPhone = typeof body.phone === "string" ? body.phone.trim() : "";
+    const hasIdentifier = Boolean(identifier || rawEmail || rawPhone);
+
+    if (path === "auth/login") {
+      if (
+        password === "wrong-password" ||
+        password === "wrong-proof" ||
+        idNumber === "wrong-proof" ||
+        (!password && !idNumber) ||
+        !hasIdentifier
+      ) {
         send(response, problem(401, "Invalid login credentials."), 401);
         return;
       }
+    } else if (path === "auth/register") {
+      if (
+        password === "wrong-password" ||
+        password === "wrong-proof" ||
+        idNumber === "wrong-proof"
+      ) {
+        send(response, problem(401, "Invalid registration payload."), 401);
+        return;
+      }
     }
-    const email =
-      typeof body.email === "string" && body.email.trim()
-        ? body.email.trim()
+
+    const email = rawEmail
+      ? rawEmail
+      : identifier.includes("@")
+        ? identifier
         : "athlete@example.com";
+    const phone = rawPhone ? rawPhone : !identifier.includes("@") && identifier ? identifier : null;
+
     const requestedRole = (typeof body.role === "string" ? body.role : null) as UserRole | null;
     const role: UserRole =
       (requestedRole &&
@@ -782,14 +809,33 @@ const server = createServer(async (request, response) => {
             : email.startsWith("admin")
               ? "SUPER_ADMIN"
               : "ATHLETE");
+
     const baseUser = makeUser(role);
+    const isExplicitlyUnverified =
+      email.includes("not-legit") ||
+      email.includes("unverified") ||
+      identifier.includes("not-legit") ||
+      identifier.includes("unverified") ||
+      body.isVerified === false;
+    const isVerified =
+      role !== "ATHLETE"
+        ? true
+        : body.isVerified !== undefined
+          ? Boolean(body.isVerified)
+          : !isExplicitlyUnverified;
+
     const user = {
       ...baseUser,
-      email:
-        typeof body.email === "string" && body.email.trim() ? body.email.trim() : baseUser.email,
-      phone:
-        typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : baseUser.phone,
+      name:
+        typeof body.name === "string" && body.name.trim()
+          ? body.name.trim()
+          : (baseUser.name ?? "Athlete User"),
+      email,
+      phone: phone ?? baseUser.phone,
+      isVerified,
+      isLegit: isVerified,
     };
+    passport.identityStatus = isVerified ? "VERIFIED" : "UNVERIFIED";
     ok({
       accessToken: `fixture:${role}`,
       refreshToken: `refresh:${role}`,

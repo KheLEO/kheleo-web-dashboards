@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,6 +50,8 @@ export function Header({ workspace }: { workspace: Workspace }) {
           {user.email ?? user.phone ?? user.role}
         </span>
 
+        <LegitStatusBadge isVerified={Boolean(user.isVerified || user.isLegit)} role={user.role} />
+
         <Button
           variant="ghost"
           aria-label="Sign out"
@@ -83,5 +85,86 @@ export function Header({ workspace }: { workspace: Workspace }) {
         )}
       </div>
     </header>
+  );
+}
+
+function LegitStatusBadge({ isVerified, role }: { isVerified: boolean; role: string }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const verifyTarget =
+    role === "ATHLETE" ? "/athlete/passport#verify-account" : "/athlete/settings";
+
+  if (isVerified) {
+    return (
+      <div
+        className="relative inline-flex items-center"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onFocus={() => setShowTooltip(true)}
+        onBlur={() => setShowTooltip(false)}
+        tabIndex={0}
+        role="status"
+        aria-label="Verified Legit Account"
+        title="Verified Legit Account — Your identity is verified and your profile is visible to scouts and academies."
+      >
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-400 shadow-sm transition-all hover:bg-emerald-500/25">
+          <ShieldCheck size={14} className="text-emerald-400" />
+          <span>Legit</span>
+        </span>
+        {showTooltip && (
+          <div
+            role="tooltip"
+            className="absolute right-0 top-full mt-2 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-emerald-500/30 bg-card/95 p-3 text-xs leading-relaxed text-foreground shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 pointer-events-none"
+          >
+            <div className="flex items-center gap-1.5 font-bold text-emerald-400 mb-1">
+              <ShieldCheck size={14} />
+              <span>Verified Legit Account</span>
+            </div>
+            <p className="text-muted-foreground">
+              Verified Legit Account — Your identity is verified and your profile is visible to
+              scouts and academies.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative inline-flex items-center"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      onFocus={() => setShowTooltip(true)}
+      onBlur={() => setShowTooltip(false)}
+    >
+      <Link
+        href={verifyTarget}
+        role="button"
+        aria-label="Not Legit — Click to verify account"
+        title="You are not verified. Your government ID / Aadhaar card is not verified, so you are marked as Not Legit and scouts will not be able to see your account."
+        className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/50 bg-rose-500/15 px-2.5 py-1 text-xs font-bold text-rose-400 shadow-sm transition-all hover:bg-rose-500/25 hover:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+      >
+        <ShieldAlert size={14} className="text-rose-400" />
+        <span>Not Legit</span>
+      </Link>
+      {showTooltip && (
+        <div
+          role="tooltip"
+          className="absolute right-0 top-full mt-2 z-50 w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-rose-500/40 bg-card/95 p-3.5 text-xs leading-relaxed text-foreground shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 pointer-events-none"
+        >
+          <div className="flex items-center gap-1.5 font-bold text-rose-400 mb-1.5">
+            <ShieldAlert size={15} />
+            <span>Account Not Verified</span>
+          </div>
+          <p className="text-foreground font-medium mb-1.5">
+            You are not verified. Your government ID / Aadhaar card is not verified, so you are
+            marked as Not Legit and scouts will not be able to see your account.
+          </p>
+          <p className="text-[11px] text-muted-foreground border-t border-border/50 pt-1.5 mt-1.5">
+            You can still participate in organized tournaments. Click to verify in your profile.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

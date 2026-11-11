@@ -13,15 +13,19 @@ describe("identity and contracts", () => {
       false,
     );
   });
-  it("requires Gov-ID proof and a contact for login", () => {
+  it("requires password and a contact for login", () => {
     expect(loginSchema.safeParse({ email: "a@example.com" }).success).toBe(false);
+    expect(loginSchema.safeParse({ password: "password123" }).success).toBe(false);
     expect(
-      loginSchema.safeParse({ governmentId: { idType: "AADHAAR", idNumber: "123456" } }).success,
-    ).toBe(false);
+      loginSchema.safeParse({
+        identifier: "a@example.com",
+        password: "password123",
+      }).success,
+    ).toBe(true);
     expect(
       loginSchema.safeParse({
         email: "a@example.com",
-        governmentId: { idType: "AADHAAR", idNumber: "123456" },
+        password: "password123",
       }).success,
     ).toBe(true);
   });

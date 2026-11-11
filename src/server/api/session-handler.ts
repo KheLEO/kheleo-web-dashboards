@@ -2,7 +2,12 @@ import { sessionCapabilities } from "@/server/capabilities";
 import "server-only";
 import { z } from "zod";
 import { createHash, randomUUID } from "node:crypto";
-import { authResponseSchema, loginSchema, registerSchema } from "@/contracts/auth";
+import {
+  authResponseSchema,
+  loginSchema,
+  registerSchema,
+  normalizeLoginPayload,
+} from "@/contracts/auth";
 import { ApiError } from "@/lib/api/errors";
 import { envelope } from "@/lib/api/response-decoders";
 import {
@@ -25,13 +30,20 @@ export async function sessionHandler(request: Request, action: SessionAction): P
     if (action === "login" || action === "register") {
       const text = await request.text();
       if (text.length > 16384) fail(413, "Request payload is too large.");
-      const input =
-        action === "login"
-          ? loginSchema.parse(JSON.parse(text) as unknown)
-          : registerSchema.parse(JSON.parse(text) as unknown);
-      const identity = createHash("sha256")
-        .update(`${input.phone ?? ""}:${input.email ?? ""}`)
-        .digest("hex");
+      const rawJson = JSON.parse(text) as unknown;
+      let input: Record<string, unknown>;
+      let identityKey: string;
+      if (action === "login") {
+        const parsed = loginSchema.parse(rawJson);
+        const normalized = normalizeLoginPayload(parsed);
+        input = normalized;
+        identityKey = `${normalized.email ?? ""}:${normalized.phone ?? ""}:${normalized.identifier}`;
+      } else {
+        const parsed = registerSchema.parse(rawJson);
+        input = parsed;
+        identityKey = `${parsed.email}:${parsed.phone}`;
+      }
+      const identity = createHash("sha256").update(identityKey).digest("hex");
       await rateLimit(`auth:${identity}`, 10);
       const auth = envelope(authResponseSchema).parse(
         await callNest({

@@ -20,6 +20,8 @@ import type {
 
 export interface UserScalar {
   id: string;
+  name: string | null;
+  passwordHash: string | null;
   phone: string | null;
   email: string | null;
   role: UserRole;

@@ -34,14 +34,30 @@ export const governmentIdSchema = z
       ),
   })
   .strict();
-const contact = {
-  phone: z
-    .string()
-    .regex(/^\+?[1-9]\d{7,14}$/)
-    .optional(),
-  email: z.email().optional(),
-  identityAccessToken: z.string().min(1).max(8192).optional(),
-};
+export function normalizePhoneNumber(val: string): string {
+  const clean = val.replace(/[\s-]/g, "");
+  if (/^\d{10}$/.test(clean)) {
+    return `+91${clean}`;
+  }
+  return clean;
+}
+
+export function normalizeLoginPayload(input: {
+  identifier?: string | undefined;
+  email?: string | undefined;
+  phone?: string | undefined;
+  password: string;
+  [key: string]: unknown;
+}): { email?: string; phone?: string; identifier: string; password: string } {
+  const rawId = (input.identifier ?? input.email ?? input.phone ?? "").trim();
+  const password = input.password;
+  if (rawId.includes("@")) {
+    return { email: rawId, identifier: rawId, password };
+  }
+  const cleanPhone = normalizePhoneNumber(rawId);
+  return { phone: cleanPhone, identifier: rawId, password };
+}
+
 export const initialProfileSchema = z
   .object({
     dateOfBirth: z.iso.date(),
@@ -57,37 +73,46 @@ export const initialProfileSchema = z
   })
   .strict();
 export const loginSchema = z
-  .object({ ...contact, governmentId: governmentIdSchema })
+  .object({
+    identifier: z.string().trim().min(3, "Enter your email or phone number").optional(),
+    email: z.string().trim().email().optional(),
+    phone: z.string().trim().optional(),
+    password: z.string().min(6, "Password must be at least 6 characters").max(128),
+    governmentId: governmentIdSchema.optional(),
+    identityAccessToken: z.string().min(1).max(8192).optional(),
+  })
   .strict()
-  .refine((value) => Boolean(value.phone || value.email), {
-    message: "Provide phone or email",
-    path: ["email"],
+  .refine((value) => Boolean(value.identifier || value.email || value.phone), {
+    message: "Provide email or phone number",
+    path: ["identifier"],
   });
 export const registerSchema = z
   .object({
-    ...contact,
-    role: z.enum(["ATHLETE", "ORGANIZER", "SCOUT"]).optional(),
+    name: z.string().trim().min(2, "Enter your full name").max(150),
+    email: z.string().trim().email("Enter a valid email address"),
+    phone: z
+      .string()
+      .trim()
+      .transform(normalizePhoneNumber)
+      .refine(
+        (val) => /^\+?[1-9]\d{7,14}$/.test(val),
+        "Enter a valid phone number (e.g. +919876543210 or 10-digit mobile)",
+      ),
+    password: z.string().min(6, "Password must be at least 6 characters").max(128),
+    role: z.enum(["ATHLETE", "ORGANIZER", "SCOUT"]).default("ATHLETE"),
     governmentId: governmentIdSchema.optional(),
+    identityAccessToken: z.string().min(1).max(8192).optional(),
     profile: initialProfileSchema.optional(),
   })
-  .strict()
-  .refine((value) => Boolean(value.phone || value.email), {
-    message: "Provide phone or email",
-    path: ["email"],
-  })
-  .refine(
-    (value) => !["ORGANIZER", "SCOUT"].includes(value.role ?? "ATHLETE") || !!value.governmentId,
-    {
-      message: "Organizer and scout signup requires an identity for administrator review",
-      path: ["governmentId"],
-    },
-  );
+  .strict();
 export const authUserSchema = z.object({
   id: uuidSchema,
+  name: z.string().nullable().optional(),
   phone: z.string().nullable(),
   email: z.string().nullable(),
   role: z.enum(UserRoleValues),
   isVerified: z.boolean(),
+  isLegit: z.boolean().optional(),
   athleteProfileId: uuidSchema.nullable(),
 });
 export const authResponseSchema = z.object({

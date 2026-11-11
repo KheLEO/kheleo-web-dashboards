@@ -1,14 +1,20 @@
 import { ScoutDossierModal } from "@/components/scout/ScoutDossierModal";
 import Link from "next/link";
-import { ArrowUpRight, MapPin } from "lucide-react";
+import { ArrowUpRight, MapPin, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { ProspectSummary } from "@/contracts/scouting";
 export function ProspectCard({ prospect }: { prospect: ProspectSummary }) {
   return (
     <Card>
-      <div className="flex justify-between gap-3">
-        <Badge>{prospect.primary_sport}</Badge>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge>{prospect.primary_sport}</Badge>
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
+            <ShieldCheck size={12} className="text-emerald-400" />
+            Legit • Verified
+          </span>
+        </div>
         {prospect.is_rural_or_underrepresented && (
           <Badge className="border-info/30 bg-info/10 text-info">Underrepresented</Badge>
         )}
