@@ -32,7 +32,8 @@ const editorSchema = z.object({
 export function SportsPassportCard() {
   const { user } = useSession();
   const query = usePassport();
-  const records = useSports();
+  const needsPaginatedSports = Boolean(query.data && query.data.sportRecords.length >= 20);
+  const records = useSports({ enabled: needsPaginatedSports });
   const client = useQueryClient();
   const [selected, setSelected] = useState<SportType | null>(null);
   const [url, setUrl] = useState("");
@@ -93,9 +94,10 @@ export function SportsPassportCard() {
       </div>
     );
   const sport = selected ?? profile.primarySport;
-  const record = records.data?.pages
-    .flatMap((page) => page.data)
-    .find((entry) => entry.sport === sport);
+  const loadedRecords = needsPaginatedSports
+    ? (records.data?.pages.flatMap((page) => page.data) ?? profile.sportRecords)
+    : profile.sportRecords;
+  const record = loadedRecords.find((entry) => entry.sport === sport);
   const components = [
     {
       label: "Biomechanical Form",
@@ -327,9 +329,9 @@ export function SportsPassportCard() {
             ))}
           </select>
         </label>
-        {records.isPending ? (
+        {needsPaginatedSports && records.isPending ? (
           <Skeleton />
-        ) : records.error ? (
+        ) : needsPaginatedSports && records.error ? (
           <ErrorState error={records.error} />
         ) : (
           <>
@@ -370,8 +372,8 @@ export function SportsPassportCard() {
               }}
             />
             <LoadMore
-              hasNext={records.hasNextPage}
-              loading={records.isFetchingNextPage}
+              hasNext={needsPaginatedSports && records.hasNextPage}
+              loading={needsPaginatedSports && records.isFetchingNextPage}
               load={() => {
                 void records.fetchNextPage();
               }}

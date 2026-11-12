@@ -22,11 +22,12 @@ export function usePassport(userId?: string) {
       count < 2 && (!(error instanceof ApiError) || error.problem.status >= 500),
   });
 }
-export function useSports() {
+export function useSports(options?: { readonly enabled?: boolean }) {
   const { user } = useSession();
   return useInfiniteQuery({
     queryKey: keys.sports(user.id),
     initialPageParam: null as string | null,
+    enabled: options?.enabled ?? true,
     queryFn: ({ pageParam, signal }) => getSports(user.id, pageParam, signal),
     getNextPageParam: (page, _pages, _previous, cursors) =>
       page.has_more && page.next_cursor && !cursors.includes(page.next_cursor)
