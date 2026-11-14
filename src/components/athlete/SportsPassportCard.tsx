@@ -51,7 +51,7 @@ export function SportsPassportCard() {
         previous
           ? {
               ...previous,
-              currentGti: result.gti > 0 ? result.gti : (previous.currentGti || 30),
+              currentGti: result.gti > 0 ? result.gti : previous.currentGti || 30,
               biomechanicalScore: result.biomechanicalScore,
               wearableScore:
                 result.wearableScore > 0 ? result.wearableScore : previous.wearableScore,

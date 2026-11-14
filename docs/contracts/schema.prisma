@@ -175,7 +175,6 @@ model IdentityVerification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@index([idHash])
   @@index([status])
   @@map("identity_verifications")
 }
@@ -287,6 +286,7 @@ model Tournament {
   healthAlerts           HealthAlert[]
   vitals                 TournamentVital[]
 
+  @@index([organizerId, id])
   @@index([sport, status])
   @@index([minGti, maxGti])
   @@index([registrationDeadline])
@@ -382,6 +382,7 @@ model TeamMember {
   athlete AthleteProfile? @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   user    User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([teamId, id])
   @@index([athleteId])
   @@index([userId])
   @@map("team_members")

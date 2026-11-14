@@ -713,6 +713,17 @@ test("venue pin and GTI range controls share the wizard draft and validate chron
   await expect(page.getByRole("heading", { name: "Review", exact: true })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await Promise.allSettled(
+      document
+        .getAnimations()
+        .filter((animation) =>
+          Number.isFinite(animation.effect?.getComputedTiming().iterations ?? Infinity),
+        )
+        .map((animation) => animation.finished),
+    );
+  });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
@@ -990,6 +1001,17 @@ test("policy heatmap layers, sortable table and exports use the same bounded agg
   await expect(map.locator('path[stroke="rgb(var(--chart-critical))"]')).toHaveCount(2);
   await page.setViewportSize({ width: 360, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await Promise.allSettled(
+      document
+        .getAnimations()
+        .filter((animation) =>
+          Number.isFinite(animation.effect?.getComputedTiming().iterations ?? Infinity),
+        )
+        .map((animation) => animation.finished),
+    );
+  });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({ path: "test-results/scout-policy-mobile.png", fullPage: true });
 });
@@ -1162,6 +1184,17 @@ test("audit console filters immutable records and opens structured metadata", as
   await expect(page.getByRole("button", { name: /Delete audit|Edit audit/ })).toHaveCount(0);
   await page.setViewportSize({ width: 360, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await Promise.allSettled(
+      document
+        .getAnimations()
+        .filter((animation) =>
+          Number.isFinite(animation.effect?.getComputedTiming().iterations ?? Infinity),
+        )
+        .map((animation) => animation.finished),
+    );
+  });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
@@ -1735,6 +1768,17 @@ test("scoped leaderboards traverse ties and open a dossier from a ranking row", 
   await expect(table).toContainText("Karnataka");
   await page.setViewportSize({ width: 360, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await Promise.allSettled(
+      document
+        .getAnimations()
+        .filter((animation) =>
+          Number.isFinite(animation.effect?.getComputedTiming().iterations ?? Infinity),
+        )
+        .map((animation) => animation.finished),
+    );
+  });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
