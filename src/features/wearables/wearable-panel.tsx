@@ -25,14 +25,17 @@ export function WearablePanel() {
   const [context, setContext] = useState({ tournament_id: "", bracket_id: "", match_id: "" });
   const readingSource = wearable.latest?.source;
   const session = useSession();
+  const hardwareIngestion =
+    session.capabilities.hardwareTelemetryIngestion ?? session.capabilities.simulatorIngestion;
+  const telemetryAllowed =
+    readingSource === "bluetooth" ? hardwareIngestion : session.capabilities.simulatorIngestion;
   const [virtualDevice, setVirtualDevice] = useState<string | null>(null);
   const [ingestion, setIngestion] = useState<TelemetryResponse | null>(null);
   const [ingest, setIngest] = useState(false);
   const [failure, setFailure] = useState<Error | null>(null);
   const dispatcher = useRef<TelemetryDispatcher | null>(null);
   useEffect(() => {
-    if (!ingest || !session.capabilities.simulatorIngestion || wearable.status !== "connected")
-      return;
+    if (!ingest || !telemetryAllowed || wearable.status !== "connected") return;
     let active = true;
     const next = new TelemetryDispatcher(
       async (operation) => {
@@ -53,14 +56,7 @@ export function WearablePanel() {
       next.stop();
       dispatcher.current = null;
     };
-  }, [
-    ingest,
-    session.capabilities.simulatorIngestion,
-    readingSource,
-    wearable.status,
-    queryClient,
-    session.user.id,
-  ]);
+  }, [ingest, telemetryAllowed, readingSource, wearable.status, queryClient, session.user.id]);
   const reading = wearable.latest;
   useEffect(() => {
     if (
@@ -184,7 +180,7 @@ export function WearablePanel() {
           }
         />
       </div>
-      {session.capabilities.simulatorIngestion && (
+      {(hardwareIngestion || session.capabilities.simulatorIngestion) && (
         <Card>
           <h2 className="font-semibold">Telemetry context</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">

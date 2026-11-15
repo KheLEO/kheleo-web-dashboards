@@ -101,6 +101,9 @@ it("shows a genuine zero GTI and zero components immediately after recalculation
 it("uses the backend's finite onboarding baseline and preserves the previous score for a nonfinite result", async () => {
   state.recalculate.mockResolvedValueOnce({
     gti: 30,
+    calculationMode: "ONBOARDING_BASELINE",
+    watchQualified: false,
+    biomechanicalCap: 35,
     biomechanicalScore: 0,
     wearableScore: 50,
     matchPerformanceScore: 50,
@@ -115,6 +118,8 @@ it("uses the backend's finite onboarding baseline and preserves the previous sco
     ),
   );
   await waitFor(() => expect(button).toBeEnabled());
+  expect(screen.getByText(/Starting GTI: 30/)).toBeInTheDocument();
+  expect(screen.getByText(/Biomechanical Form is capped at 35/)).toBeInTheDocument();
   state.recalculate.mockResolvedValueOnce({
     gti: Number.NaN,
     biomechanicalScore: 0,

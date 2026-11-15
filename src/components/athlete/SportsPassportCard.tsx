@@ -53,6 +53,9 @@ export function SportsPassportCard() {
               ...previous,
               currentGti: Number.isFinite(result.gti) ? result.gti : previous.currentGti,
               biomechanicalScore: result.biomechanicalScore,
+              watchQualified: result.watchQualified ?? previous.watchQualified,
+              biomechanicalCap: result.biomechanicalCap ?? previous.biomechanicalCap,
+              calculationMode: result.calculationMode ?? previous.calculationMode,
               wearableScore: Number.isFinite(result.wearableScore)
                 ? result.wearableScore
                 : previous.wearableScore,
@@ -215,7 +218,9 @@ export function SportsPassportCard() {
         </div>
         <div className="border-t p-6">
           <p className="mb-4 text-xs text-muted-foreground">
-            GTI = 0.35 × Biomechanical + 0.25 × Wearable + 0.40 × Match
+            {profile.calculationMode === "ONBOARDING_BASELINE"
+              ? "Starting GTI: 30 / 100. Your performance score updates when activity is recorded."
+              : "GTI = 0.35 × Biomechanical + 0.25 × Wearable + 0.40 × Match"}
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             {components.map((entry) => (
@@ -240,6 +245,8 @@ export function SportsPassportCard() {
             ))}
           </div>
           <p className="my-4 text-xs leading-5 text-muted-foreground">
+            {profile.biomechanicalCap === 35 &&
+              "Biomechanical Form is capped at 35 / 100 without qualifying watch telemetry in the last 24 hours. "}
             Live scores from your passport are shown. Recalculation retrieves the latest
             authoritative components and updates GTI.
           </p>

@@ -9,6 +9,7 @@ export const browserSessionSchema = z.object({
   capabilities: z.object({
     safeEvents: z.boolean(),
     simulatorIngestion: z.boolean(),
+    hardwareTelemetryIngestion: z.boolean().optional(),
     drillPracticeIngestion: z.boolean().default(false),
   }),
 });

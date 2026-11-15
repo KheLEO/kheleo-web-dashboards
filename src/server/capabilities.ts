@@ -9,6 +9,7 @@ export function sessionCapabilities(): ApplicationCapabilities {
       env.SIMULATOR_INGESTION !== undefined
         ? env.SIMULATOR_INGESTION === "true"
         : Boolean(env.TELEMETRY_SERVICE_HMAC_SECRET),
+    hardwareTelemetryIngestion: Boolean(env.TELEMETRY_SERVICE_HMAC_SECRET),
     drillPracticeIngestion:
       env.DRILL_PRACTICE_INGESTION !== undefined
         ? env.DRILL_PRACTICE_INGESTION === "true"
