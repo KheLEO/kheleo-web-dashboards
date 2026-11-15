@@ -1,4 +1,12 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -7,7 +15,11 @@ import { createGlobalQueryClient } from "@/providers/QueryProvider";
 import { ApiError } from "@/lib/api/errors";
 import type { MutationOperation } from "@/lib/api/operation";
 import ErrorPage from "@/app/error";
-afterEach(() => vi.useRealTimers());
+afterEach(async () => {
+  cleanup();
+  await act(async () => {});
+  vi.useRealTimers();
+});
 it("settles only the latest search state after 300 ms and clears timers on exit", () => {
   vi.useFakeTimers();
   const hook = renderHook(({ value }: { value: string }) => useDebouncedValue(value, 300), {
@@ -55,6 +67,7 @@ it("locks rapid form submissions and retains an immutable operation for explicit
   await screen.findByText("Transient failure");
   fireEvent.submit(form);
   await waitFor(() => expect(submit).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Submit test" })).toBeEnabled());
   expect(attempts[1]).toEqual(attempts[0]);
 });
 it("uses bounded query caches, disables mutation retries and does not retry throttling", async () => {
