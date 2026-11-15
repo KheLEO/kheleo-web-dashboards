@@ -12,6 +12,7 @@ export const gtiSchema = z.object({
   previousGti: z.number(),
   biomechanicalScore: z.number(),
   watchQualified: z.boolean().optional(),
+  watchExpiresAt: z.number().nullable().optional(),
   biomechanicalCap: z.number().optional(),
   wearableScore: z.number(),
   matchPerformanceScore: z.number(),

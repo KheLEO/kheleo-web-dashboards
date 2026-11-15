@@ -61,6 +61,7 @@ export const passportSchema = z.object({
   posturePoints: z.number(),
   biomechanicalScore: z.number(),
   watchQualified: z.boolean().optional(),
+  watchExpiresAt: z.number().nullable().optional(),
   biomechanicalCap: z.number().optional(),
   calculationMode: z.enum(["ONBOARDING_BASELINE", "WEIGHTED"]).optional(),
   identityStatus: z.enum(VerificationStatusValues),

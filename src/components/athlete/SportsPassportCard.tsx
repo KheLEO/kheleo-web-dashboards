@@ -54,6 +54,10 @@ export function SportsPassportCard() {
               currentGti: Number.isFinite(result.gti) ? result.gti : previous.currentGti,
               biomechanicalScore: result.biomechanicalScore,
               watchQualified: result.watchQualified ?? previous.watchQualified,
+              watchExpiresAt:
+                result.watchExpiresAt === undefined
+                  ? previous.watchExpiresAt
+                  : result.watchExpiresAt,
               biomechanicalCap: result.biomechanicalCap ?? previous.biomechanicalCap,
               calculationMode: result.calculationMode ?? previous.calculationMode,
               wearableScore: Number.isFinite(result.wearableScore)

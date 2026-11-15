@@ -18,6 +18,14 @@ export function usePassport(userId?: string) {
   return useQuery({
     queryKey: [...keys.passport(id), user.id, user.role],
     queryFn: ({ signal }) => getPassport(id, signal),
+    // Enforce expiry even when a real-time connection is unavailable.
+    refetchInterval: (query) => {
+      const expiresAt = query.state.data?.watchExpiresAt;
+      if (!query.state.data?.watchQualified || !expiresAt) return false;
+      const remaining = expiresAt - Date.now();
+      return remaining > 0 ? remaining : 1000;
+    },
+    refetchIntervalInBackground: true,
     retry: (count, error) =>
       count < 2 && (!(error instanceof ApiError) || error.problem.status >= 500),
   });
