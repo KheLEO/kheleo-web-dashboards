@@ -102,48 +102,24 @@ export function SportsPassportCard() {
     ? (records.data?.pages.flatMap((page) => page.data) ?? profile.sportRecords)
     : profile.sportRecords;
   const record = loadedRecords.find((entry) => entry.sport === sport);
-  const gti = profile.currentGti;
-  const breakdown = analysis.data?.gti === gti ? analysis.data : undefined;
-  const baseline =
-    breakdown?.calculationMode === "ONBOARDING_BASELINE" ||
-    (!breakdown?.weights &&
-      gti === 30 &&
-      profile.biomechanicalScore === 0 &&
-      profile.wearableScore === 50 &&
-      profile.matchPerfScore === 50);
-  const scores = breakdown ?? {
-    biomechanicalScore: profile.biomechanicalScore,
-    wearableScore: profile.wearableScore,
-    matchPerformanceScore: profile.matchPerfScore,
-  };
-  // Older APIs omit weights. Use the standard formula only when it reconciles with the live GTI.
-  const standardMatches =
-    Math.abs(
-      scores.biomechanicalScore * 0.35 +
-        scores.wearableScore * 0.25 +
-        scores.matchPerformanceScore * 0.4 -
-        gti,
-    ) < 0.01;
-  const weights = baseline
-    ? { w1: 0, w2: 0, w3: 0 }
-    : (breakdown?.weights ?? (standardMatches ? { w1: 0.35, w2: 0.25, w3: 0.4 } : undefined));
   const components = [
     {
       label: "Biomechanical Form",
-      weight: (weights?.w1 ?? 0.35) * 100,
-      value: scores.biomechanicalScore,
+      weight: 35,
+      value: profile.biomechanicalScore,
     },
     {
       label: "Wearable Consistency",
-      weight: (weights?.w2 ?? 0.25) * 100,
-      value: scores.wearableScore,
+      weight: 25,
+      value: profile.wearableScore,
     },
     {
       label: "Verified Match Performance",
-      weight: (weights?.w3 ?? 0.4) * 100,
-      value: scores.matchPerformanceScore,
+      weight: 40,
+      value: profile.matchPerfScore,
     },
   ];
+  const gti = profile.currentGti;
   return (
     <div className="min-w-0 max-w-full space-y-6">
       <section
@@ -239,11 +215,7 @@ export function SportsPassportCard() {
         </div>
         <div className="border-t p-6">
           <p className="mb-4 text-xs text-muted-foreground">
-            {baseline
-              ? "Onboarding baseline: 30.0 GTI. Components are unmeasured defaults and do not contribute yet."
-              : weights
-                ? `GTI = ${weights.w1.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} × Biomechanical + ${weights.w2.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} × Wearable + ${weights.w3.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} × Match`
-                : "Standard component weights shown. Recalculate GTI to retrieve current effective weights and contributions."}
+            GTI = 0.35 × Biomechanical + 0.25 × Wearable + 0.40 × Match
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             {components.map((entry) => (
@@ -255,19 +227,14 @@ export function SportsPassportCard() {
               >
                 <div className="flex flex-wrap justify-between gap-2 text-xs">
                   <span>{entry.label}</span>
-                  <strong className="text-primary">{Number(entry.weight.toFixed(2))}%</strong>
+                  <strong className="text-primary">{entry.weight}%</strong>
                 </div>
                 <p className="mt-3 text-xl tabular-nums">{entry.value.toFixed(1)}</p>
                 <div className="mt-3 h-1.5 overflow-hidden rounded bg-secondary">
                   <div className="h-full bg-primary" style={{ width: `${entry.value}%` }} />
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Contribution{" "}
-                  {baseline
-                    ? "— unmeasured"
-                    : weights
-                      ? ((entry.value * entry.weight) / 100).toFixed(2)
-                      : "— recalculate"}
+                  Contribution {((entry.value * entry.weight) / 100).toFixed(2)}
                 </p>
               </div>
             ))}

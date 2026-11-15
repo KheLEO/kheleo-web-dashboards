@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AthletePassport } from "@/contracts/passport";
@@ -96,51 +96,6 @@ it("shows a genuine zero GTI and zero components immediately after recalculation
   expect(profile?.currentGti).toBe(0);
   expect(profile?.wearableScore).toBe(0);
   expect(profile?.matchPerfScore).toBe(0);
-});
-
-it("labels the unmeasured onboarding baseline without implying a 32.50 component sum", () => {
-  showPassport(30, { matchPerfScore: 50 });
-  expect(screen.getByText(/Onboarding baseline: 30.0 GTI/)).toBeVisible();
-  expect(screen.getAllByText("Contribution — unmeasured")).toHaveLength(3);
-  expect(screen.queryByText("Contribution 12.50")).not.toBeInTheDocument();
-  expect(screen.queryByText("Contribution 20.00")).not.toBeInTheDocument();
-  expect(
-    within(screen.getByRole("group", { name: "Wearable Consistency" })).getByText("50.0"),
-  ).toBeVisible();
-});
-
-it("uses effective partial-evidence weights and components returned by recalculation", async () => {
-  state.recalculate.mockResolvedValueOnce({
-    gti: 70,
-    biomechanicalScore: 80,
-    wearableScore: 56,
-    matchPerformanceScore: 0,
-    weights: { w1: 0.5833333333333334, w2: 0.4166666666666667, w3: 0 },
-    calculationMode: "WEIGHTED",
-  });
-  showPassport(30, { matchPerfScore: 50 });
-  fireEvent.click(screen.getByRole("button", { name: "Recalculate GTI & show breakdown" }));
-  await waitFor(() =>
-    expect(screen.getByRole("meter", { name: "Composite GTI" })).toHaveAttribute(
-      "aria-valuenow",
-      "70",
-    ),
-  );
-  const biomechanical = within(screen.getByRole("group", { name: "Biomechanical Form" }));
-  const wearable = within(screen.getByRole("group", { name: "Wearable Consistency" }));
-  const match = within(screen.getByRole("group", { name: "Verified Match Performance" }));
-  expect(biomechanical.getByText("58.33%")).toBeVisible();
-  expect(biomechanical.getByText("Contribution 46.67")).toBeVisible();
-  expect(wearable.getByText("Contribution 23.33")).toBeVisible();
-  expect(match.getByText("0%")).toBeVisible();
-  expect(match.getByText("Contribution 0.00")).toBeVisible();
-  expect(screen.queryByText(/Onboarding baseline/)).not.toBeInTheDocument();
-});
-
-it("does not invent contributions when the live score has no matching breakdown", () => {
-  showPassport(87);
-  expect(screen.getAllByText("Contribution — recalculate")).toHaveLength(3);
-  expect(screen.getByText(/retrieve current effective weights/)).toBeVisible();
 });
 
 it("uses the backend's finite onboarding baseline and preserves the previous score for a nonfinite result", async () => {
