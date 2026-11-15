@@ -115,6 +115,8 @@ Copy [`.env.example`](.env.example) to `.env.local`; never commit credentials. P
 
 Unset canonical variables to use aliases; copying defaults otherwise gives them precedence. Production/staging reject memory sessions. Only server processes receive HMAC secrets, which must match the backend.
 
+Client IP forwarding uses `TRUSTED_PROXY_HOPS` (0 for direct ingress; defaults to 1 on Railway public HTTP ingress). Set it only to the verified trusted proxy suffix length. The BFF discards caller-prepended addresses and signs the selected IP with `BFF_PROXY_SECRET`, shared with the backend, or a domain-separated key derived from the existing `TELEMETRY_SERVICE_HMAC_SECRET`. The backend ignores unsigned forwarding headers for rate limiting. Railway private networking and TCP ingress must remain inaccessible to untrusted callers because those paths bypass public HTTP header sanitization. See [Railway public networking specifications](https://docs.railway.com/networking/public-networking/specs-and-limits).
+
 ## Installation and development
 
 Use **pnpm 11.24.0** and Node.js **22.13+ or 24** (`>=22.13 <25`). CI and version files pin Node 22. Configure/start the backend and its PostgreSQL/PostGIS, Redis, and BullMQ prerequisites separately.

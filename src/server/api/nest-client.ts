@@ -4,6 +4,8 @@ import https from "node:https";
 import axios, { type AxiosInstance } from "axios";
 import { getEnvironment } from "@/server/env";
 import { asApiError } from "@/lib/api/errors";
+import { headers as incomingHeaders } from "next/headers";
+import { clientIpHeaders, forwardedClientIp } from "@/server/security/client-ip";
 
 export interface NestRequest {
   method: string;
@@ -45,6 +47,21 @@ export async function callNest(request: NestRequest): Promise<unknown> {
   if (request.token) headers["Authorization"] = `Bearer ${request.token}`;
   if (request.operationId) headers["Idempotency-Key"] = request.operationId;
   if (request.signature) headers[request.signature.name] = request.signature.value;
+  // Railway supplies one trusted ingress hop. Other deployments must configure their proxy suffix explicitly.
+  const trustedHops = Number(
+    process.env.TRUSTED_PROXY_HOPS ?? (process.env.RAILWAY_ENVIRONMENT_ID ? "1" : "0"),
+  );
+  if (trustedHops > 0) {
+    const ip = forwardedClientIp(await incomingHeaders(), trustedHops);
+    if (ip)
+      Object.assign(
+        headers,
+        clientIpHeaders(
+          ip,
+          process.env.BFF_PROXY_SECRET || getEnvironment().TELEMETRY_SERVICE_HMAC_SECRET,
+        ),
+      );
+  }
 
   try {
     const response = await client.request<unknown>({

@@ -15,6 +15,14 @@ export const gtiSchema = z.object({
   matchPerformanceScore: z.number(),
   eliteBreached: z.boolean(),
   scoutAlertTriggered: z.boolean(),
+  weights: z
+    .object({
+      w1: z.number().min(0).max(1),
+      w2: z.number().min(0).max(1),
+      w3: z.number().min(0).max(1),
+    })
+    .optional(),
+  calculationMode: z.enum(["ONBOARDING_BASELINE", "WEIGHTED"]).optional(),
 });
 export type RankResponse = z.infer<typeof rankSchema>;
 export type GtiComputationResult = z.infer<typeof gtiSchema>;
