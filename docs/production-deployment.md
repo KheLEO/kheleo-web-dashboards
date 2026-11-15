@@ -149,6 +149,8 @@ pnpm start
 
 `pnpm build` runs `assets:sync` before Next.js compilation. Deploy the complete `public/mediapipe`, `public/models`, `.next`, package files and production dependencies together. Keep the pinned model/WASM artifacts with the matching release. Use the default start script on 3001, a service supervisor and shared Redis sessions; memory sessions are rejected in production.
 
+Use `/api/health` for frontend deployment health checks. It returns HTTP 200 without a login or upstream calls, and reports the running `RAILWAY_GIT_COMMIT_SHA` as `revision` when available. Compare that revision with the intended Git commit before declaring a Railway rollout complete. `/api/session/me` is an authenticated session endpoint and correctly returns 401 when signed out; it must not gate deployment activation. Backend/database/Redis health is checked separately at `/api/v1/health`.
+
 ## 6. TLS and Socket.IO ingress
 
 Create DNS records for both hosts, obtain valid certificates through the hosting platform or ACME client, and redirect HTTP to HTTPS. The following belongs in Nginx's `http` context (substitute certificate locations):
